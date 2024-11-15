@@ -210,4 +210,47 @@ All the key features mentioned above are must-haves, prioritize them as you see 
    - Docker image builds
    - ArgoCD configurations
 
-// ... rest of the phases ...
+### Phase 2: Core Services Development
+1. **Backend Services (Golang)**
+   - User Service
+   - Expense Service
+   - Virtual Account Service
+   - Category/Tag Service
+
+2. **Frontend Foundation**
+   - React.js setup with TypeScript
+   - Material-UI theme setup
+   - PWA configuration with Workbox
+   - Core components library
+
+### Phase 3: Basic Expense Management
+1. **Features**
+   - Expense logging
+   - Category management
+   - Basic reporting
+   - Virtual accounts
+
+2. **Data Persistence**
+   - PostgreSQL integration
+   - Redis caching
+   - Offline storage with IndexedDB
+
+### Phase 4: Advanced Features
+1. **Group Management**
+   - Group creation
+   - Expense splitting
+   - Group budgets
+
+2. **ML Services (Python)**
+   - Receipt scanner
+   - Expense suggestions
+
+### Phase 5: Enhancement Features
+1. **Analytics & Insights**
+   - Custom dashboards
+   - Financial reports
+   - Budget tracking
+
+2. **Gamification**
+   - Awards system
+   - Achievement tracking
