@@ -85,6 +85,85 @@ Suggest the best possible solution/s.
 ## Authentication Needs
 Few features of this application would require registration and authentication, but for building the POC, let's leave out the registration and authentication part. We can get back to this after all the functionalities are implemented.
 
+## Technical Stack
+
+### Frontend:
+- **Core Framework**: 
+  - React.js with TypeScript
+  - Vite for build tooling
+- **PWA Technologies**:
+  - Workbox for service worker management
+  - Web App Manifest
+  - IndexedDB for offline storage
+- **UI Framework**:
+  - Material-UI (MUI) with custom theming
+  - Recharts for data visualization
+- **State Management**:
+  - Redux Toolkit
+  - RTK Query for API caching
+- **Progressive Features**:
+  - Background Sync API
+  - Push API
+  - File System Access API
+
+### Backend:
+- **Core Services (Golang)**:
+  - Expense Management Service
+  - Group Management Service
+  - Virtual Account Service
+  - Budget Service
+  - Notification Service
+  
+- **ML Services (Python)**:
+  - Receipt Scanner Service
+  - Expense Suggestion Service
+
+### Database & Caching:
+- **Primary Database**: PostgreSQL
+  - Full-text search capabilities
+  - JSONB for flexible schema
+  - TimescaleDB extension for analytics
+- **Caching**: Redis
+  - Session management
+  - Real-time notifications
+  - API response caching
+
+### Message Queue:
+- **Event Bus**: Apache Kafka
+  - Event streaming
+  - Stream processing
+  - Event sourcing
+  - Analytics pipeline
+
+### Infrastructure:
+- **Container Orchestration**: Kubernetes
+  - Local: KIND cluster
+  - Production: AWS EKS/GKE
+- **API Gateway**: Kong
+  - API management
+  - Rate limiting
+  - Authentication
+  - Developer portal
+
+### Observability:
+- **Monitoring**: Prometheus + Grafana
+- **Logging**: Loki
+- **Tracing**: OpenTelemetry + Tempo
+- **Metrics Visualization**: Grafana
+
+### DevOps:
+- **CI**: GitHub Actions
+- **CD**: ArgoCD
+- **Container Registry**: Docker Hub
+- **Infrastructure as Code**: Terraform
+- **Secret Management**: HashiCorp Vault
+- **GitOps**: ArgoCD + GitHub
+
+### Security:
+- **Authentication**: JWT
+- **Authorization**: RBAC
+- **API Security**: OAuth 2.0
+
 ## Technical Preferences
 Not much to say here regarding preference of technology for UI and Database, use the best possible tech out there that best fits the application's usage and future possibilities of scale, etc. 
 For backend the preferred language is Golang, but if another language is suited better for a certain functionality then go for it. For example, maybe Python is more suited for the Receipt Scanning functionality.
@@ -99,3 +178,36 @@ MUST remember the following rules and objectives while generating code and proje
 
 ## Must-have Features
 All the key features mentioned above are must-haves, prioritize them as you see fit.
+
+## Development Phases
+
+### Phase 0: Design & Architecture (✅ COMPLETED)
+1. **Tech Stack Selection**
+   - Frontend: React.js, TypeScript, MUI, Workbox
+   - Backend: Golang microservices, Python ML services
+   - Database: PostgreSQL with TimescaleDB
+   - Cache: Redis
+   - Message Queue: Apache Kafka
+   - Infrastructure: Kubernetes, Kong, ArgoCD
+   - Observability: Prometheus, Grafana, Loki, Tempo
+
+2. **Database Design**
+   - PostgreSQL schema design
+   - Table relationships and constraints
+   - Indexes optimization
+   - JSONB for flexible data storage
+   - TimescaleDB for time-series analytics
+
+### Phase 1: Core Infrastructure Setup
+1. **Local Development Environment**
+   - KIND cluster setup
+   - ArgoCD installation
+   - Kong API Gateway
+   - Observability stack
+
+2. **CI/CD Pipeline**
+   - GitHub Actions workflows
+   - Docker image builds
+   - ArgoCD configurations
+
+// ... rest of the phases ...

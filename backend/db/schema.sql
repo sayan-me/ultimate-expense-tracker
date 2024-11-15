@@ -103,8 +103,16 @@ CREATE TABLE expenses (
     recurring_frequency VARCHAR(20), -- 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    recurring_end_date DATE,
+    last_occurrence_date TIMESTAMP WITH TIME ZONE,
     CONSTRAINT positive_amount CHECK (amount > 0),
-    CONSTRAINT valid_expense_date CHECK (date <= CURRENT_TIMESTAMP)
+    CONSTRAINT valid_expense_date CHECK (date <= CURRENT_TIMESTAMP),
+    CONSTRAINT valid_recurring_frequency CHECK (
+        CASE 
+            WHEN is_recurring THEN recurring_frequency IN ('DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY')
+            ELSE recurring_frequency IS NULL
+        END
+    )
 );
 
 -- Expense tags mapping
@@ -234,7 +242,23 @@ CREATE TABLE notifications (
             'LOAN_INSTALLMENT_UPCOMING',   -- When installment due date is approaching
             'LOAN_INSTALLMENT_DUE_TODAY',  -- When installment is due today
             'LOAN_INSTALLMENT_OVERDUE',    -- When installment is past due date
-            'LOAN_INSTALLMENT_PAID'        -- When installment is marked as paid
+            'LOAN_INSTALLMENT_PAID',       -- When installment is marked as paid
+
+            -- System related
+            'SYSTEM_MAINTENANCE',          -- For planned maintenance or updates
+            'APP_UPDATE_AVAILABLE',        -- New app version available
+            'FEATURE_ANNOUNCEMENT',        -- New feature releases
+            'SECURITY_ALERT',             -- Security-related notifications
+            
+            -- Data processing related
+            'ACCOUNT_ACTIVITY',           -- General account activity alerts
+            'DATA_SYNC_COMPLETE',         -- When bank statement import/sync completes
+            'EXPORT_READY',               -- When data export is ready for download
+            'RECEIPT_SCAN_COMPLETE',      -- When receipt scanning is complete
+            'ML_SUGGESTION_AVAILABLE',    -- When new ML-based suggestions are available
+
+            -- Generic/Other notifications
+            'OTHER'                       -- For future notification types
         )
     ),
     CONSTRAINT valid_reference_type CHECK (
@@ -244,7 +268,11 @@ CREATE TABLE notifications (
             'BUDGET',
             'EXPENSE',
             'VIRTUAL_ACCOUNT',
-            'LOAN_INSTALLMENT'
+            'LOAN_INSTALLMENT',
+            'SYSTEM',                     -- Added for system-related notifications
+            'DATA_EXPORT',                -- Added for export notifications
+            'RECEIPT_SCAN',               -- Added for receipt scan notifications
+            'ML_SUGGESTION'               -- Added for ML-based suggestions
         )
     )
 );
@@ -278,7 +306,9 @@ CREATE TABLE bank_statement_transactions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT valid_transaction_type CHECK (
         transaction_type IN ('CREDIT', 'DEBIT')
-    )
+    ),
+    balance_after_transaction DECIMAL(12,2),
+    transaction_reference VARCHAR(100)
 );
 
 -- Add indexes for better performance
@@ -419,3 +449,60 @@ CREATE TABLE savings_goals (
 
 CREATE INDEX idx_active_goals ON savings_goals(user_id, status) 
 WHERE status = 'IN_PROGRESS';
+
+-- Add dashboard configurations
+CREATE TABLE dashboard_configurations (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    name VARCHAR(100) NOT NULL,
+    config_data JSONB NOT NULL,
+    is_default BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add data export/import tracking
+CREATE TABLE data_transfers (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    type VARCHAR(20) NOT NULL, -- 'EXPORT' or 'IMPORT'
+    format VARCHAR(10) NOT NULL, -- 'CSV' or 'XLSX'
+    status VARCHAR(20) NOT NULL,
+    file_url TEXT,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT valid_transfer_type CHECK (type IN ('EXPORT', 'IMPORT')),
+    CONSTRAINT valid_transfer_format CHECK (format IN ('CSV', 'XLSX')),
+    CONSTRAINT valid_transfer_status CHECK (status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'))
+);
+
+-- Add user activity logging
+CREATE TABLE user_activity_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    activity_type VARCHAR(50) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id INTEGER NOT NULL,
+    changes JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT valid_entity_type CHECK (
+        entity_type IN (
+            'EXPENSE',
+            'BUDGET',
+            'GROUP',
+            'VIRTUAL_ACCOUNT',
+            'SAVINGS_GOAL',
+            'SPLIT_EXPENSE',
+            'USER_PREFERENCE',
+            'CATEGORY',
+            'TAG'
+        )
+    )
+);
+
+-- Add indexes for new tables
+CREATE INDEX idx_dashboard_configs_user ON dashboard_configurations(user_id);
+CREATE INDEX idx_data_transfers_user ON data_transfers(user_id, status);
+CREATE INDEX idx_user_activity_logs ON user_activity_logs(user_id, created_at);
+CREATE INDEX idx_user_activity_entity ON user_activity_logs(entity_type, entity_id);
