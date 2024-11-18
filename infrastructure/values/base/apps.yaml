@@ -1,0 +1,8 @@
+global:
+  environment: base
+
+postgresql:
+  enabled: true
+  auth:
+    database: uet
+    username: uet_user

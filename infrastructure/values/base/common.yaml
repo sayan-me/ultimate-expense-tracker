@@ -1,0 +1,63 @@
+global:
+  environment: base
+
+namespaces:
+  - kong
+  - argocd
+  - monitoring
+  - metallb-system
+  - vault
+  - uet-system
+
+kong:
+  namespace: kong
+  ingressController:
+    installCRDs: false
+  proxy:
+    type: LoadBalancer
+  admin:
+    enabled: true
+    type: LoadBalancer
+
+metallb:
+  namespace: metallb-system
+  configInline:
+    address-pools:
+      - name: default
+        protocol: layer2
+        addresses:
+          - 172.18.255.200-172.18.255.250
+
+kube-prometheus-stack:
+  namespace: monitoring
+  grafana:
+    ingress:
+      enabled: true
+      ingressClassName: kong
+      path: /grafana
+      annotations:
+        konghq.com/strip-path: "true"
+    service:
+      type: ClusterIP
+
+argo-cd:
+  namespace: argocd
+  server:
+    ingress:
+      enabled: true
+      ingressClassName: kong
+      path: /argocd
+      annotations:
+        konghq.com/strip-path: "true"
+    service:
+      type: ClusterIP
+
+vault:
+  namespace: vault
+  server:
+    dev:
+      enabled: true
+    ha:
+      enabled: false
+    service:
+      type: ClusterIP 
