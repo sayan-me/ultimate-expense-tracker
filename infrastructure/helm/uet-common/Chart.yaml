@@ -3,18 +3,19 @@ name: uet-common
 description: Infrastructure components for Ultimate Expense Tracker
 version: 0.1.0
 dependencies:
-  - name: kong
+  - condition: kong.enabled
+    name: kong
     version: "2.19.0"
     repository: "https://charts.konghq.com"
-  - name: argo-cd
-    version: "5.46.7"
-    repository: "https://argoproj.github.io/argo-helm"
-  - name: kube-prometheus-stack
-    version: "48.1.1"
-    repository: "https://prometheus-community.github.io/helm-charts"
-  - name: metallb
-    version: "0.13.7"
-    repository: "https://metallb.github.io/metallb"
-  - name: vault
-    version: "0.25.0"
-    repository: "https://helm.releases.hashicorp.com"
+  # - name: argo-cd
+  #   version: "5.46.7"
+  #   repository: "https://argoproj.github.io/argo-helm"
+  # - name: kube-prometheus-stack
+  #   version: "48.1.1"
+  #   repository: "https://prometheus-community.github.io/helm-charts"
+  # - name: metallb
+  #   version: "0.13.7"
+  #   repository: "https://metallb.github.io/metallb"
+  # - name: vault
+  #   version: "0.25.0"
+  #   repository: "https://helm.releases.hashicorp.com"

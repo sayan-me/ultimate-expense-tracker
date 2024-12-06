@@ -19,11 +19,11 @@ nodes:
     nodeRegistration:
       kubeletExtraArgs:
         node-labels: "worker-role=true"
-  extraPortMappings:
-  - containerPort: 80     # Kong Proxy
-    hostPort: 80
-  - containerPort: 443    # Kong Proxy HTTPS
-    hostPort: 443
+  # extraPortMappings:
+  # - containerPort: 80     # Kong Proxy
+  #   hostPort: 80
+  # - containerPort: 443    # Kong Proxy HTTPS
+  #   hostPort: 443
 - role: worker
   kubeadmConfigPatches:
   - |
@@ -31,8 +31,8 @@ nodes:
     nodeRegistration:
       kubeletExtraArgs:
         node-labels: "worker-role=true"
-  extraPortMappings:
-  - containerPort: 80     # Kong Proxy
-    hostPort: 80
-  - containerPort: 443    # Kong Proxy HTTPS
-    hostPort: 443
+  # extraPortMappings:
+  # - containerPort: 80     # Kong Proxy
+  #   hostPort: 80
+  # - containerPort: 443    # Kong Proxy HTTPS
+  #   hostPort: 443

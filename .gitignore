@@ -21,6 +21,8 @@ vendor/
 .vscode/
 *.swp
 *.swo
+*.tgz
+Chart.lock
 
 # Operating System
 .DS_Store
