@@ -64,13 +64,13 @@ This section displays an overview of the user’s finances depending on the acti
   - "View All Activity" button at bottom
 
 #### 3. Bottom Section (Bottom Navigation Bar):
-- **Mode Toggle Panel**: Horizontal scrollable section for switching between Personal and Group modes
+- **Mode Toggle Panel**: Horizontal section for switching between Personal and Group modes
   - **Active Mode Display**:
-    - Centered, enlarged button with vibrant accent color
+    - Enlarged button with vibrant accent color
     - Prominent text and icon
     - Elevated shadow effect
   - **Inactive Mode Display**:
-    - Smaller button positioned to the side
+    - Smaller button
     - Muted colors and reduced opacity
     - Flat design without elevation
   - **Smooth Transition**: Animated switch between modes with position and size changes
