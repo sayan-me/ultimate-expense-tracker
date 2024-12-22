@@ -124,10 +124,10 @@ Located at the bottom of the Main Content Area (above the Bottom Navigation Bar)
 - Manage Group Categories
 
 #### 5. Overall Layout Features:
-Responsive Design:
-Adjusts seamlessly to different screen sizes for mobile, tablet, and desktop (PWA compatibility).
-Modern Aesthetic:
-Clean, minimalistic UI with clear typography and vibrant colors for active components.
-Interactive Elements:
-Smooth transitions between minimized/expanded views (e.g., Activities Bar).
-Drag-and-drop functionality for Quick Actions customization.
+- Responsive Design:
+  - Adjusts seamlessly to different screen sizes for mobile, tablet, and desktop (PWA compatibility).
+- Modern Aesthetic:
+  - Clean, minimalistic UI with clear typography and vibrant colors for active components.
+- Interactive Elements:
+  - Smooth transitions between minimized/expanded views (e.g., Activities Bar).
+- Drag-and-drop functionality for Quick Actions customization.
