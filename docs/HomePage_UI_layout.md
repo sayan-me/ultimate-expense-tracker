@@ -24,7 +24,7 @@ Displays circular buttons (shortcuts) for the most-used actions like:
 - Import Bank Statement
 - View Awards
 - Export Reports
-Provides an "Edit Quick Actions" button to manage these shortcuts.
+Provides an additional button to manage these shortcuts, by adding and removing them from an existing list of actions in the activities window(mentioned below).
 
 ### 2.2 Overview Section (Below Quick Actions):
 This section displays an overview of the user’s finances depending on the active mode (Personal or Group).
@@ -130,4 +130,3 @@ Located at the bottom of the Main Content Area (above the Bottom Navigation Bar)
   - Clean, minimalistic UI with clear typography and vibrant colors for active components.
 - Interactive Elements:
   - Smooth transitions between minimized/expanded views (e.g., Activities Bar).
-- Drag-and-drop functionality for Quick Actions customization.
