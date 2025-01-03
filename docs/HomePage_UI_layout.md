@@ -24,7 +24,38 @@ Displays circular buttons (shortcuts) for the most-used actions like:
 - Import Bank Statement
 - View Awards
 - Export Reports
-Provides an additional button to manage these shortcuts, by adding and removing them from an existing list of actions in the activities window(mentioned below).
+Provides a "Customize" button to manage quick action shortcuts:
+- When clicked, opens the Activities bar with customization mode enabled:
+  - Activities bar slides up to cover 50% of screen height (half of Overview section)
+  - Semi-transparent dark overlay appears behind it
+  - "Customize Quick Actions" header at top with close (X) button
+  - Smooth slide-up animation on open
+- Shows all available actions in a scrollable grid layout:
+  - 3 columns on mobile, 4 on tablet, 6 on desktop
+  - Each action card contains:
+    - Icon in primary brand color
+    - Label below icon
+    - Add (+) button in top right for actions not in Quick Actions
+    - Remove (-) button in top right for actions currently in Quick Actions
+    - Currently selected actions have filled background
+    - Unselected actions have outlined style
+  - Cards animate smoothly when added/removed
+  - Haptic feedback on add/remove
+- Quick Actions section updates dynamically:
+  - Shows filled slots for active shortcuts
+  - Shows empty placeholder slots (outlined dashed borders) for available spaces
+  - Maximum 9 slots total
+  - Empty slots are added at the end when shortcuts are removed
+  - Empty slots are filled sequentially when shortcuts are added
+  - Smooth transition animations for slots being filled/emptied
+- Changes persistence based on user tier:
+  - Basic (No Registration): Changes saved to local storage only
+  - Registered/Premium Users: Changes sync across devices via cloud storage
+- Exit customization mode via:
+  - Tapping close button
+  - Clicking/tapping overlay
+  - Swiping down on handle at top of Activities bar
+  - Smooth slide-down animation on exit
 
 ### 2.2 Overview Section (Below Quick Actions):
 This section displays an overview of the user’s finances depending on the active mode (Personal or Group).
@@ -83,8 +114,9 @@ Located at the bottom of the Main Content Area (above the Bottom Navigation Bar)
   - Labelled "Activities"
 
 - **Expanded State:**
-- When swiped up or tapped, it expands to cover half of the Overview Section
-- Displays a scrollable grid of circular buttons for all actions the user can perform in the selected mode (Personal or Group)
+  - When swiped up or tapped, it expands to cover half of the Overview Section
+  - Displays a scrollable grid of circular buttons for all actions the user can perform in the selected mode (Personal or Group)
+  - 3 columns on mobile, 4 on tablet, 6 on desktop
 
 ##### Activities Window Content:
 **When in Personal Mode:**

@@ -1,10 +1,11 @@
 import { Overview } from "@/components/home/overview/overview"
-import { RootLayout } from "@/components/layout/root-layout"
+import { QuickActions } from "@/components/home/quick-actions"
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <RootLayout>
+    <main className="container py-6 space-y-6">
+      <QuickActions />
       <Overview />
-    </RootLayout>
+    </main>
   )
 }

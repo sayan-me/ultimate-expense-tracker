@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DBProvider } from "@/contexts/db-context";
+import { RootLayout } from "@/components/layout/root-layout";
+import { ActivitiesProvider } from "@/contexts/activities-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,7 +24,7 @@ export const viewport = {
 
 export const metadata: Metadata = {
   title: "Ultimate Expense Tracker",
-  description: "Track all your expenses easily with our PWA",
+  description: "Track your expenses with ease",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -38,20 +40,20 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default function Layout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <DBProvider>
-          {children}
-        </DBProvider>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <ActivitiesProvider>
+          <DBProvider>
+            <RootLayout>{children}</RootLayout>
+          </DBProvider>
+        </ActivitiesProvider>
       </body>
     </html>
-  );
+  )
 }

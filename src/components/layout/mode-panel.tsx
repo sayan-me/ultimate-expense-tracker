@@ -2,24 +2,18 @@
 
 import { cn } from "@/lib/utils"
 import { Users, User } from "lucide-react"
-import { useState } from "react"
-
-type Mode = 'personal' | 'group'
+import { useActivities } from "@/contexts/activities-context"
 
 export function ModePanel() {
-  const [activeMode, setActiveMode] = useState<Mode>('personal')
-
-  const handleModeChange = (mode: Mode) => {
-    setActiveMode(mode)
-  }
+  const { isGroupMode, toggleMode } = useActivities()
 
   return (
     <div className="flex w-full max-w-[280px] items-center justify-between rounded-full border bg-background p-1">
       <button
-        onClick={() => handleModeChange('personal')}
+        onClick={() => toggleMode()}
         className={cn(
           "flex items-center gap-2 rounded-full px-4 py-2 transition-all duration-200",
-          activeMode === 'personal' 
+          !isGroupMode 
             ? "bg-primary text-primary-foreground shadow-sm" 
             : "text-muted-foreground hover:text-foreground"
         )}
@@ -30,10 +24,10 @@ export function ModePanel() {
       </button>
       
       <button
-        onClick={() => handleModeChange('group')}
+        onClick={() => toggleMode()}
         className={cn(
           "flex items-center gap-2 rounded-full px-4 py-2 transition-all duration-200",
-          activeMode === 'group' 
+          isGroupMode 
             ? "bg-primary text-primary-foreground shadow-sm" 
             : "text-muted-foreground hover:text-foreground"
         )}
