@@ -80,9 +80,9 @@ export function ActivitiesBar() {
       <Overlay isVisible={isActivitiesBarOpen} onClose={handleClose} />
       <div
         className={cn(
-          "fixed bottom-0 left-0 right-0 bg-background transition-transform duration-300 ease-in-out",
+          "fixed bottom-14 left-0 right-0 bg-background transition-transform duration-300 ease-in-out",
           "border-t rounded-t-2xl shadow-lg",
-          isActivitiesBarOpen ? "h-[50vh] transform translate-y-0" : "h-12 transform translate-y-full"
+          isActivitiesBarOpen ? "h-[50vh] transform translate-y-0" : "h-12 transform translate-y-0"
         )}
       >
         {isCustomizing ? (
