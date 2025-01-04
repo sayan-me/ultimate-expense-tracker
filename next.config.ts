@@ -3,6 +3,13 @@ import type { NextConfig } from "next"
 
 const config = {
   reactStrictMode: true,
+  webpack: (config: any, { webpack }: { webpack: any }) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      "punycode": false,
+    };
+    return config;
+  },
 } as const
 
 const nextConfig = withPWA({
