@@ -4,11 +4,12 @@ import { formatCurrency } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface CurrentBalanceProps {
-  isLoading?: boolean
+  isLoading?: boolean;
+  initialBalance?: number;
 }
 
-export function CurrentBalance({ isLoading = false }: CurrentBalanceProps) {
-  const totalBalance = 5000
+export function CurrentBalance({ isLoading = false, initialBalance = 0 }: CurrentBalanceProps) {
+  const totalBalance = initialBalance;
 
   if (isLoading) {
     return (

@@ -6,9 +6,26 @@ import { RecentExpenses } from "@/components/home/overview/recent-expenses"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useActivities } from "@/contexts/activities-context"
 
-export function Overview() {
+interface Expense {
+  id: string
+  date: Date
+  amount: number
+  category: string
+  description: string
+}
+
+interface OverviewProps {
+  isLoading?: boolean;
+  initialData?: {
+    balance: number;
+    monthlySpend: number;
+    monthlyBudget: number;
+    recentExpenses: Expense[];
+  };
+}
+
+export function Overview({ isLoading = false, initialData }: OverviewProps) {
   const { isGroupMode } = useActivities()
-  const isLoading = false // This will be connected to global state later
 
   if (isLoading) {
     return (
@@ -23,7 +40,7 @@ export function Overview() {
   if (!isGroupMode) {
     return (
       <section className="space-y-6" aria-label="Financial overview">
-        <CurrentBalance isLoading={isLoading} />
+        <CurrentBalance isLoading={isLoading} initialBalance={initialData?.balance} />
         <MonthlySpend isLoading={isLoading} />
         <RecentExpenses isLoading={isLoading} />
       </section>

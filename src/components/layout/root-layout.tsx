@@ -10,7 +10,7 @@ interface RootLayoutProps {
   className?: string
 }
 
-export function RootLayout({ children, className }: RootLayoutProps) {
+export function AppLayout({ children, className }: RootLayoutProps) {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />

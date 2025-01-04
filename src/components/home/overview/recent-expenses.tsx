@@ -13,25 +13,25 @@ type Expense = {
   description: string
 }
 
-// Temporary mock data - will be replaced with real data later
+// Move MOCK_EXPENSES outside the component
 const MOCK_EXPENSES: Expense[] = [
   {
     id: "1",
-    date: new Date(),
+    date: new Date("2024-01-04T00:00:00Z"),
     amount: 42.50,
     category: "Food & Dining",
     description: "Lunch at Subway"
   },
   {
     id: "2",
-    date: new Date(Date.now() - 86400000),
+    date: new Date("2024-01-03T00:00:00Z"),
     amount: 120.00,
     category: "Transportation",
     description: "Fuel"
   },
   {
     id: "3",
-    date: new Date(Date.now() - 172800000),
+    date: new Date("2024-01-02T00:00:00Z"),
     amount: 85.99,
     category: "Shopping",
     description: "Amazon purchase"

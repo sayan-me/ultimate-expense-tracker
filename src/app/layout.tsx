@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { DBProvider } from "@/contexts/db-context";
-import { RootLayout } from "@/components/layout/root-layout";
-import { ActivitiesProvider } from "@/contexts/activities-context";
+// import { DBProvider } from "@/contexts/db-context";
+// import { AppLayout } from "@/components/layout/root-layout";
+// import { ActivitiesProvider } from "@/contexts/activities-context";
+import { Providers } from "@/components/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,7 +41,7 @@ export const metadata: Metadata = {
   },
 }
 
-export default function Layout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
@@ -48,11 +49,7 @@ export default function Layout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ActivitiesProvider>
-          <DBProvider>
-            <RootLayout>{children}</RootLayout>
-          </DBProvider>
-        </ActivitiesProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   )
