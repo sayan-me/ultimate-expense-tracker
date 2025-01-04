@@ -91,30 +91,32 @@ export function ActivitiesBar() {
               title={`Customize ${isGroupMode ? 'Group' : 'Personal'} Quick Actions`}
               onClose={handleClose} 
             />
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 p-4 overflow-y-auto">
-              {actions.map((action) => (
-                <button
-                  key={action.label}
-                  onClick={() => toggleQuickAction(action)}
-                  className={cn(
-                    "relative flex flex-col items-center p-3 rounded-full transition-all",
-                    selectedQuickActions.some(a => a.label === action.label)
-                      ? "bg-primary/10 hover:bg-primary/20"
-                      : "border-2 border-dashed border-muted hover:border-primary/50"
-                  )}
-                  aria-label={`${selectedQuickActions.some(a => a.label === action.label) ? 'Remove' : 'Add'} ${action.label}`}
-                >
-                  {selectedQuickActions.some(a => a.label === action.label) ? (
-                    <Minus className="absolute top-1 right-1 h-4 w-4" />
-                  ) : (
-                    <Plus className="absolute top-1 right-1 h-4 w-4" />
-                  )}
-                  <div className="rounded-full p-3">
-                    <action.icon className="h-5 w-5" />
-                  </div>
-                  <span className="text-xs text-center mt-1">{action.label}</span>
-                </button>
-              ))}
+            <div className="h-[calc(50vh-4rem)] overflow-y-auto">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 p-4">
+                {actions.map((action) => (
+                  <button
+                    key={action.label}
+                    onClick={() => toggleQuickAction(action)}
+                    className={cn(
+                      "relative flex flex-col items-center p-3 rounded-full transition-all",
+                      selectedQuickActions.some(a => a.label === action.label)
+                        ? "bg-primary/10 hover:bg-primary/20"
+                        : "border-2 border-dashed border-muted hover:border-primary/50"
+                    )}
+                    aria-label={`${selectedQuickActions.some(a => a.label === action.label) ? 'Remove' : 'Add'} ${action.label}`}
+                  >
+                    {selectedQuickActions.some(a => a.label === action.label) ? (
+                      <Minus className="absolute top-1 right-1 h-4 w-4" />
+                    ) : (
+                      <Plus className="absolute top-1 right-1 h-3 w-3" />
+                    )}
+                    <div className="rounded-full p-3">
+                      <action.icon className="h-4 w-4" />
+                    </div>
+                    <span className="text-xs text-center mt-1">{action.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </>
         ) : (
