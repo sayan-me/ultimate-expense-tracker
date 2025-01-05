@@ -9,7 +9,8 @@ type SerializedAction = {
 }
 
 type PersistedState = {
-  selectedActions: SerializedAction[]
+  personalActions: SerializedAction[]
+  groupActions: SerializedAction[]
   isGroupMode: boolean
   isCustomizing: boolean
 }
@@ -32,9 +33,12 @@ const ActivitiesContext = createContext<ActivitiesContextType | undefined>(undef
 export function ActivitiesProvider({ children }: { children: React.ReactNode }) {
   const [isActivitiesBarOpen, setIsActivitiesBarOpen] = useState(false)
   const [isCustomizing, setIsCustomizing] = useState(false)
-  const [selectedQuickActions, setSelectedQuickActions] = useState<typeof PERSONAL_ACTIVITIES>([])
+  const [personalQuickActions, setPersonalQuickActions] = useState<typeof PERSONAL_ACTIVITIES>([])
+  const [groupQuickActions, setGroupQuickActions] = useState<typeof GROUP_ACTIVITIES>([])
   const [isGroupMode, setIsGroupMode] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
+  const selectedQuickActions = isGroupMode ? groupQuickActions : personalQuickActions
+  const setSelectedQuickActions = isGroupMode ? setGroupQuickActions : setPersonalQuickActions
 
   // Initialize state from localStorage
   useEffect(() => {
@@ -42,22 +46,26 @@ export function ActivitiesProvider({ children }: { children: React.ReactNode }) 
       try {
         const savedState = localStorage.getItem('appState')
         if (savedState) {
-          const { selectedActions, isGroupMode: savedGroupMode, isCustomizing: savedCustomizing } = 
-            JSON.parse(savedState) as PersistedState
+          const { personalActions, groupActions } = JSON.parse(savedState) as PersistedState
           
-          const hydratedActions = selectedActions
+          // Reconstruct full action objects from saved labels
+          const hydratedPersonalActions = personalActions
             .map(({ label }) => PERSONAL_ACTIVITIES.find(a => a.label === label))
             .filter(Boolean) as typeof PERSONAL_ACTIVITIES
+          
+          const hydratedGroupActions = groupActions
+            .map(({ label }) => GROUP_ACTIVITIES.find(a => a.label === label))
+            .filter(Boolean) as typeof GROUP_ACTIVITIES
 
-          setSelectedQuickActions(hydratedActions.length ? hydratedActions : PERSONAL_ACTIVITIES.slice(0, 6))
-          setIsGroupMode(savedGroupMode)
-          setIsCustomizing(savedCustomizing)
-        } else {
-          setSelectedQuickActions(PERSONAL_ACTIVITIES.slice(0, 6))
+          setPersonalQuickActions(hydratedPersonalActions.length ? hydratedPersonalActions : PERSONAL_ACTIVITIES.slice(0, 6))
+          setGroupQuickActions(hydratedGroupActions.length ? hydratedGroupActions : GROUP_ACTIVITIES.slice(0, 6))
+          setIsGroupMode(false)
         }
       } catch (error) {
-        console.error('Failed to load app state:', error)
-        setSelectedQuickActions(PERSONAL_ACTIVITIES.slice(0, 6))
+        // Fallback to defaults if loading fails
+        setPersonalQuickActions(PERSONAL_ACTIVITIES.slice(0, 6))
+        setGroupQuickActions(GROUP_ACTIVITIES.slice(0, 6))
+        setIsGroupMode(false)
       } finally {
         setIsInitialized(true)
       }
@@ -68,13 +76,15 @@ export function ActivitiesProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (isInitialized && typeof window !== 'undefined') {
       const stateToSave: PersistedState = {
-        selectedActions: selectedQuickActions.map(({ label }) => ({ label })),
+        personalActions: personalQuickActions.map(({ label }) => ({ label })),
+        groupActions: groupQuickActions.map(({ label }) => ({ label })),
         isGroupMode,
         isCustomizing
       }
       localStorage.setItem('appState', JSON.stringify(stateToSave))
     }
-  }, [selectedQuickActions, isGroupMode, isCustomizing, isInitialized])
+  }, [personalQuickActions, groupQuickActions, isGroupMode, isCustomizing, isInitialized])
+
 
   const toggleQuickAction = useCallback((action: typeof PERSONAL_ACTIVITIES[0]) => {
     setSelectedQuickActions(prev => {
@@ -92,7 +102,7 @@ export function ActivitiesProvider({ children }: { children: React.ReactNode }) 
       }
       return finalActions
     })
-  }, [])
+  }, [setSelectedQuickActions])
 
   const toggleActivitiesBar = useCallback((open?: boolean) => {
     setIsActivitiesBarOpen((prev: boolean) => open ?? !prev)
