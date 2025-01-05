@@ -26,9 +26,10 @@
            - Group Stats
            - Outstanding Balances
            - Recent Group Activity Feed
-     - Bottom navigation [PENDING]
-       - Mode Toggle Panel
-       - Personal/Group mode switching
+     - Bottom navigation ✓
+       - Mode Toggle Panel ✓
+         - Basic structure ✓
+         - Personal/Group mode switching ✓
      - Activities bar ✓
        - Basic structure ✓
        - Personal mode activities ✓
