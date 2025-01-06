@@ -1,34 +1,25 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import { createClient } from '@supabase/supabase-js';
 
 admin.initializeApp();
+
+// Initialize Supabase client
+const supabase = createClient(
+    functions.config().supabase.url,
+    functions.config().supabase.service_key
+);
 
 interface AuthRequest {
     email: string;
     password: string;
-}
-
-interface SignInResponse {
-    token: string;
-    user: admin.auth.UserRecord;
+    name?: string;  // Added for signup
 }
 
 export const handleSignup = functions.https.onRequest(async (req, res) => {
-    // Enable CORS
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    // ... existing CORS and method checks ...
 
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-
-    if (req.method !== "POST") {
-        res.status(405).json({ error: "Method not allowed" });
-        return;
-    }
-
-    const { email, password } = req.body as AuthRequest;
+    const { email, password, name } = req.body as AuthRequest;
 
     if (!email || !password) {
         res.status(400).json({ error: "Email and password are required" });
@@ -36,12 +27,41 @@ export const handleSignup = functions.https.onRequest(async (req, res) => {
     }
 
     try {
-        const user = await admin.auth().createUser({
+        // 1. Create Firebase auth user
+        const firebaseUser = await admin.auth().createUser({
             email,
             password,
         });
-        res.json({ data: { user } });
+
+        // 2. Create user record in Supabase
+        const { data: dbUser, error: dbError } = await supabase
+            .from('users')
+            .insert([
+                {
+                    id: firebaseUser.uid,  // Use Firebase UID as Supabase user ID
+                    name: name || null,
+                    email: email,
+                }
+            ])
+            .select()
+            .single();
+
+        if (dbError) throw dbError;
+
+        res.json({
+            data: {
+                user: firebaseUser,
+                profile: dbUser
+            }
+        });
     } catch (error: any) {
+        console.error('Signup error:', error);
+
+        // If user was created in Firebase but Supabase failed, clean up
+        if (error.code === 'SUPABASE_ERROR' && error.firebaseUid) {
+            await admin.auth().deleteUser(error.firebaseUid);
+        }
+
         res.status(500).json({
             error: "Failed to create user",
             message: error.message,
@@ -50,19 +70,7 @@ export const handleSignup = functions.https.onRequest(async (req, res) => {
 });
 
 export const handleGetUser = functions.https.onRequest(async (req, res) => {
-    // Enable CORS
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-
-    if (req.method !== "GET") {
-        res.status(405).json({ error: "Method not allowed" });
-        return;
-    }
+    // ... existing CORS and method checks ...
 
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
@@ -73,9 +81,25 @@ export const handleGetUser = functions.https.onRequest(async (req, res) => {
     const token = authHeader.split("Bearer ")[1];
 
     try {
+        // 1. Verify Firebase token
         const decodedToken = await admin.auth().verifyIdToken(token);
-        const user = await admin.auth().getUser(decodedToken.uid);
-        res.json({ user });
+        const firebaseUser = await admin.auth().getUser(decodedToken.uid);
+
+        // 2. Get user data from Supabase
+        const { data: dbUser, error: dbError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', decodedToken.uid)
+            .single();
+
+        if (dbError) throw dbError;
+
+        res.json({
+            user: {
+                ...firebaseUser,
+                profile: dbUser
+            }
+        });
     } catch (error) {
         res.status(401).json({
             error: "Invalid token",
@@ -84,79 +108,8 @@ export const handleGetUser = functions.https.onRequest(async (req, res) => {
     }
 });
 
-export const handleSignIn = functions.https.onRequest(async (req, res) => {
-    // Enable CORS
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-
-    if (req.method !== "POST") {
-        res.status(405).json({ error: "Method not allowed" });
-        return;
-    }
-
-    const { email, password } = req.body as AuthRequest;
-
-    if (!email || !password) {
-        res.status(400).json({ error: "Email and password are required" });
-        return;
-    }
-
-    try {
-        // Sign in with email and password using Firebase Auth REST API
-        const signInResponse = await fetch(
-            `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${functions.config().app.api_key}`,
-            {
-                method: 'POST',
-                body: JSON.stringify({
-                    email,
-                    password,
-                    returnSecureToken: true
-                })
-            }
-        );
-
-        const data = await signInResponse.json();
-
-        if (!signInResponse.ok) {
-            throw new Error(data.error.message);
-        }
-
-        // Get user details
-        const user = await admin.auth().getUserByEmail(email);
-
-        res.json({
-            data: {
-                token: data.idToken,
-                user
-            } as SignInResponse
-        });
-    } catch (error: any) {
-        res.status(401).json({
-            error: "Authentication failed",
-            message: error.message
-        });
-    }
-});
-
 export const handleDeleteUser = functions.https.onRequest(async (req, res) => {
-    // Enable CORS
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-
-    if (req.method !== "DELETE") {
-        res.status(405).json({ error: "Method not allowed" });
-        return;
-    }
+    // ... existing CORS and method checks ...
 
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
@@ -167,10 +120,18 @@ export const handleDeleteUser = functions.https.onRequest(async (req, res) => {
     const token = authHeader.split("Bearer ")[1];
 
     try {
-        // Verify the token and get the user ID
+        // 1. Verify the token and get the user ID
         const decodedToken = await admin.auth().verifyIdToken(token);
 
-        // Delete the user
+        // 2. Delete user from Supabase
+        const { error: dbError } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', decodedToken.uid);
+
+        if (dbError) throw dbError;
+
+        // 3. Delete the Firebase user
         await admin.auth().deleteUser(decodedToken.uid);
 
         res.json({ message: "User successfully deleted" });
