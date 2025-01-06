@@ -3,7 +3,7 @@ PROJECT_DIR = .
 NPM = npm
 
 # Declare all phony targets at once
-.PHONY: help install build serve deploy clean test
+.PHONY: help install build serve deploy clean test lint
 
 # Default target
 help:
@@ -14,6 +14,7 @@ help:
 	@echo "  make deploy     - Deploy to Firebase"
 	@echo "  make test       - Run tests"
 	@echo "  make clean      - Clean build artifacts"
+	@echo "  make lint      - Run ESLint and fix issues"
 
 # Install dependencies
 install:
@@ -40,3 +41,7 @@ clean:
 	@cd $(PROJECT_DIR) || exit 1; \
 	if [ -d "lib" ]; then rm -rf lib; fi; \
 	if [ -d "node_modules" ]; then rm -rf node_modules; fi 
+
+# Add new lint target
+lint:
+	@cd $(PROJECT_DIR) || exit 1; npx eslint --fix src/index.ts 
