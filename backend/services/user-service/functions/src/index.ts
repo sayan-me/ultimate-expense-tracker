@@ -201,7 +201,7 @@ async function handleUser(req: functions.https.Request, res: Response) {
 
                 try {
                     await admin.auth().deleteUser(decodedToken.uid);
-                    res.json({ message: "User successfully deleted from Firebase and database" });
+                    res.json({ message: "User successfully deleted from firebase and database" });
                 } catch (firebaseError) {
                     await createUserInDB(decodedToken.uid, decodedToken.email || '');
                     throw firebaseError;

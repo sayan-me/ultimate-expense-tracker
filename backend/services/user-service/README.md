@@ -2,7 +2,8 @@
 
 The User Service is a Firebase Cloud Function that handles authentication
 operations including user registration, login, user information retrieval, and
-account deletion.
+account deletion. The service integrates with both Firebase Authentication and
+Supabase for user management.
 
 #### Base URL
 
@@ -12,12 +13,12 @@ Production: `https://{region}-{your-project-id}.cloudfunctions.net/`
 
 #### Endpoints
 
-| Method | Endpoint            | Description           | Request Body                          | Response                                        |
-| ------ | ------------------- | --------------------- | ------------------------------------- | ----------------------------------------------- |
-| POST   | `/handleSignup`     | Register a new user   | `{ email: string, password: string }` | `{ data: { user: UserRecord } }`                |
-| POST   | `/handleSignIn`     | Login existing user   | `{ email: string, password: string }` | `{ data: { token: string, user: UserRecord } }` |
-| GET    | `/handleGetUser`    | Get current user info | None (requires Authorization header)  | `{ user: UserRecord }`                          |
-| DELETE | `/handleDeleteUser` | Delete user account   | None (requires Authorization header)  | `{ message: "User successfully deleted" }`      |
+| Method | Endpoint    | Description           | Request Body                                         | Response                                                                                              |
+| ------ | ----------- | --------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| POST   | `/register` | Register a new user   | `{ email: string, password: string, name?: string }` | `{ data: { user: FirebaseUser, dbUser: { id: number, name: string, email: string } } }`               |
+| POST   | `/login`    | Login existing user   | `{ email: string, password: string }`                | `{ data: { firebaseToken: string, user: { uid: string, email: string, id: number, name: string } } }` |
+| GET    | `/user`     | Get current user info | None (requires Authorization header)                 | `{ data: { user: FirebaseUser, dbUser: { id: number, name: string, email: string } } }`               |
+| DELETE | `/user`     | Delete user account   | None (requires Authorization header)                 | `{ message: "User successfully deleted from Firebase and database" }`                                 |
 
 #### Authentication
 
@@ -34,6 +35,7 @@ The service returns appropriate HTTP status codes and error messages:
 
 - `400` - Bad Request (missing required fields)
 - `401` - Unauthorized (invalid credentials or token)
+- `404` - Not Found (invalid endpoint)
 - `405` - Method Not Allowed
 - `500` - Internal Server Error
 
@@ -41,15 +43,16 @@ Example error response:
 
 ```json
 {
-    "error": "Error description",
-    "message": "Detailed error message"
+  "error": "Error description",
+  "message": "Detailed error message"
 }
 ```
 
 #### Environment Variables Required
 
-- `FIREBASE_API_KEY` - Firebase project API key (set via Firebase Functions
-  config)
+- `app.api_key` - Firebase project API key
+- `supabase.url` - Supabase project URL
+- `supabase.service_role_key` - Supabase service role key
 
 #### CORS
 
@@ -64,15 +67,15 @@ following headers are allowed:
 Creating a new user:
 
 ```bash
-curl -X POST https://{base-url}/handleSignup \
+curl -X POST https://{base-url}/register \
   -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "password123"}'
+  -d '{"email": "user@example.com", "password": "password123", "name": "John Doe"}'
 ```
 
 Signing in:
 
 ```bash
-curl -X POST https://{base-url}/handleSignIn \
+curl -X POST https://{base-url}/login \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com", "password": "password123"}'
 ```
@@ -80,13 +83,13 @@ curl -X POST https://{base-url}/handleSignIn \
 Getting user info:
 
 ```bash
-curl -X GET https://{base-url}/handleGetUser \
+curl -X GET https://{base-url}/user \
   -H "Authorization: Bearer {your-firebase-id-token}"
 ```
 
 Deleting user account:
 
 ```bash
-curl -X DELETE https://{base-url}/handleDeleteUser \
+curl -X DELETE https://{base-url}/user \
   -H "Authorization: Bearer {your-firebase-id-token}"
 ```
