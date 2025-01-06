@@ -3,6 +3,7 @@
 -- Users table (for future authentication)
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
+    firebase_id VARCHAR(128) UNIQUE NOT NULL,
     name VARCHAR(100),
     email VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
