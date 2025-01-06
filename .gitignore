@@ -27,3 +27,5 @@ Chart.lock
 # Operating System
 .DS_Store
 Thumbs.db
+
+.next/
