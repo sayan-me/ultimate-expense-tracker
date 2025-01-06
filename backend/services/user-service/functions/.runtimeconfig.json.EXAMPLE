@@ -1,0 +1,9 @@
+{
+  "supabase": {
+    "url": "your_supabase_url",
+    "service_role_key": "your_supabase_service_role_key"
+  },
+  "app": {
+    "api_key": "your_firebase_api_key"
+  }
+} 
