@@ -13,12 +13,12 @@ Production: `https://{region}-{your-project-id}.cloudfunctions.net/`
 
 #### Endpoints
 
-| Method | Endpoint         | Description           | Request Body                                         | Response                                                                                              |
-| ------ | ---------------- | --------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| POST   | `/auth/register` | Register a new user   | `{ email: string, password: string, name?: string }` | `{ data: { user: FirebaseUser, dbUser: { id: number, name: string, email: string } } }`               |
-| POST   | `/auth/login`    | Login existing user   | `{ email: string, password: string }`                | `{ data: { firebaseToken: string, user: { uid: string, email: string, id: number, name: string } } }` |
-| GET    | `/auth/user`     | Get current user info | None (requires Authorization header)                 | `{ data: { user: FirebaseUser, dbUser: { id: number, name: string, email: string } } }`               |
-| DELETE | `/auth/user`     | Delete user account   | None (requires Authorization header)                 | `{ message: "User successfully deleted from Firebase and database" }`                                 |
+| Method | Endpoint    | Description           | Request Body                                         | Response                                                                                              |
+| ------ | ----------- | --------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| POST   | `/login`    | Login existing user   | `{ email: string, password: string }`                | `{ data: { firebaseToken: string, user: { uid: string, email: string, id: number, name: string } } }` |
+| POST   | `/register` | Register a new user   | `{ email: string, password: string, name?: string }` | `{ data: { user: FirebaseUser, dbUser: { id: number, name: string, email: string } } }`               |
+| GET    | `/user`     | Get current user info | None (requires Authorization header)                 | `{ data: { user: FirebaseUser, dbUser: { id: number, name: string, email: string } } }`               |
+| DELETE | `/user`     | Delete user account   | None (requires Authorization header)                 | `{ message: "User successfully deleted" }`                                                            |
 
 #### Authentication
 
@@ -67,7 +67,7 @@ following headers are allowed:
 Creating a new user:
 
 ```bash
-curl -X POST https://{base-url}/auth/register \
+curl -X POST https://{base-url}/register \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com", "password": "password123", "name": "John Doe"}'
 ```
@@ -75,7 +75,7 @@ curl -X POST https://{base-url}/auth/register \
 Signing in:
 
 ```bash
-curl -X POST https://{base-url}/auth/login \
+curl -X POST https://{base-url}/login \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com", "password": "password123"}'
 ```
@@ -83,14 +83,14 @@ curl -X POST https://{base-url}/auth/login \
 Getting user info:
 
 ```bash
-curl -X GET https://{base-url}/auth/user \
+curl -X GET https://{base-url}/user \
   -H "Authorization: Bearer {your-firebase-id-token}"
 ```
 
 Deleting user account:
 
 ```bash
-curl -X DELETE https://{base-url}/auth/user \
+curl -X DELETE https://{base-url}/user \
   -H "Authorization: Bearer {your-firebase-id-token}"
 ```
 
@@ -195,3 +195,11 @@ make build
   - Ensure billing is enabled for your Firebase project
   - Check that all required configuration values are set using
     `firebase functions:config:get`
+
+#### Function Configuration
+
+The Firebase function is configured with:
+
+- Region: `asia-east2`
+- Timeout: 60 seconds
+- Memory: 256MB
