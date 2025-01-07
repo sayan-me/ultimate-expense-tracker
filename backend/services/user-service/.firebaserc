@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "ultimate-expense-tracker-2024"
-  }
+    "uet-stg": "ultimate-expense-tracker-2024"
+  },
+  "targets": {},
+  "etags": {}
 }

@@ -1,18 +1,18 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import {createClient} from "@supabase/supabase-js";
-import {Response} from "express";
+import { createClient } from "@supabase/supabase-js";
+import { Response } from "express";
 
 admin.initializeApp();
 
 interface Config {
-    supabase: {
-        url: string,
-        service_role_key: string,
-    },
-    app: {
-        api_key: string,
-    },
+  supabase: {
+    url: string,
+    service_role_key: string,
+  },
+  app: {
+    api_key: string,
+  },
 }
 
 // Initialize Supabase client
@@ -22,9 +22,9 @@ const supabase = createClient(
 );
 
 interface AuthRequest {
-    email: string;
-    password: string;
-    name?: string;
+  email: string;
+  password: string;
+  name?: string;
 }
 
 /**
@@ -39,7 +39,7 @@ async function createUserInDB(
   email: string,
   name?: string
 ) {
-  const {data, error} = await supabase
+  const { data, error } = await supabase
     .from("users")
     .insert([
       {
@@ -60,7 +60,7 @@ async function createUserInDB(
  * @param {string} firebaseId - The Firebase user ID
  */
 async function deleteUserFromDB(firebaseId: string) {
-  const {error} = await supabase
+  const { error } = await supabase
     .from("users")
     .delete()
     .eq("firebase_id", firebaseId);
@@ -75,21 +75,20 @@ async function deleteUserFromDB(firebaseId: string) {
  */
 async function handleLogin(req: functions.https.Request, res: Response) {
   if (req.method !== "POST") {
-    res.status(405).json({error: "Method not allowed"});
+    res.status(405).json({ error: "Method not allowed" });
     return;
   }
 
-  const {email, password} = req.body as AuthRequest;
+  const { email, password } = req.body as AuthRequest;
 
   if (!email || !password) {
-    res.status(400).json({error: "Email and password are required"});
+    res.status(400).json({ error: "Email and password are required" });
     return;
   }
 
   try {
     const response = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${
-        (functions.config() as Config).app.api_key
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${(functions.config() as Config).app.api_key
       }`,
       {
         method: "POST",
@@ -110,7 +109,7 @@ async function handleLogin(req: functions.https.Request, res: Response) {
       throw new Error(data.error.message);
     }
 
-    const {data: dbUser, error: dbError} = await supabase
+    const { data: dbUser, error: dbError } = await supabase
       .from("users")
       .select("id, name, email")
       .eq("firebase_id", data.localId)
@@ -144,14 +143,14 @@ async function handleLogin(req: functions.https.Request, res: Response) {
  */
 async function handleRegister(req: functions.https.Request, res: Response) {
   if (req.method !== "POST") {
-    res.status(405).json({error: "Method not allowed"});
+    res.status(405).json({ error: "Method not allowed" });
     return;
   }
 
-  const {email, password, name} = req.body as AuthRequest;
+  const { email, password, name } = req.body as AuthRequest;
 
   if (!email || !password) {
-    res.status(400).json({error: "Email and password are required"});
+    res.status(400).json({ error: "Email and password are required" });
     return;
   }
 
@@ -195,7 +194,7 @@ async function handleRegister(req: functions.https.Request, res: Response) {
 async function handleUser(req: functions.https.Request, res: Response) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
-    res.status(401).json({error: "No valid authorization header"});
+    res.status(401).json({ error: "No valid authorization header" });
     return;
   }
 
@@ -205,7 +204,7 @@ async function handleUser(req: functions.https.Request, res: Response) {
     const decodedToken = await admin.auth().verifyIdToken(token);
 
     if (req.method === "GET") {
-      const {data: dbUser, error} = await supabase
+      const { data: dbUser, error } = await supabase
         .from("users")
         .select("id, name, email")
         .eq("firebase_id", decodedToken.uid)
@@ -224,9 +223,9 @@ async function handleUser(req: functions.https.Request, res: Response) {
     } else if (req.method === "DELETE") {
       await deleteUserFromDB(decodedToken.uid);
       await admin.auth().deleteUser(decodedToken.uid);
-      res.json({message: "User successfully deleted"});
+      res.json({ message: "User successfully deleted" });
     } else {
-      res.status(405).json({error: "Method not allowed"});
+      res.status(405).json({ error: "Method not allowed" });
     }
   } catch (error: unknown) {
     res.status(401).json({
@@ -239,36 +238,44 @@ async function handleUser(req: functions.https.Request, res: Response) {
 }
 
 // Main auth function that routes to the appropriate handler
-export const auth = functions.https.onRequest((req, res) => {
-  // Enable CORS for all routes
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
-  );
-  res.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+export const auth = functions
+  .region('asia-east2')
+  .runWith({
+    timeoutSeconds: 60,
+    memory: '256MB'
+  })
+  .https.onRequest((req: functions.https.Request, res: Response) => {
+    // Enable CORS for all routes
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization"
+    );
+    res.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
 
-  // Handle OPTIONS requests
-  if (req.method === "OPTIONS") {
-    res.status(204).send("");
-    return;
-  }
+    // Handle OPTIONS requests
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
 
-  // Route to appropriate handler based on path
-  const path = req.path.split("/").filter(Boolean);
+    // Route to appropriate handler based on path
+    const path = req.path.split("/").filter(Boolean);
 
-  switch (path[0]) {
-  case "login":
-    handleLogin(req, res);
-    return;
-  case "register":
-    handleRegister(req, res);
-    return;
-  case "user":
-    handleUser(req, res);
-    return;
-  default:
-    res.status(404).json({error: "Not found"});
-    return;
-  }
-});
+    switch (path[0]) {
+      case "login":
+        handleLogin(req, res);
+        return;
+      case "register":
+        handleRegister(req, res);
+        return;
+      case "user":
+        handleUser(req, res);
+        return;
+      default:
+        res.status(404).json({ error: "Not found" });
+        return;
+    }
+  });
+
+exports.auth = auth;

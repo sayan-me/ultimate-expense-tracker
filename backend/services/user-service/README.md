@@ -22,8 +22,8 @@ Production: `https://{region}-{your-project-id}.cloudfunctions.net/`
 
 #### Authentication
 
-For protected endpoints (`handleGetUser`, `handleDeleteUser`), include an
-Authorization header:
+For protected endpoints (`GET user`, `DELETE user`), include the Authorization
+header:
 
 ```
 Authorization: Bearer {your-firebase-id-token}
