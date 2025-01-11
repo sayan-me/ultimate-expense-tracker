@@ -33,8 +33,44 @@ const ActivitiesContext = createContext<ActivitiesContextType | undefined>(undef
 export function ActivitiesProvider({ children }: { children: React.ReactNode }) {
   const [isActivitiesBarOpen, setIsActivitiesBarOpen] = useState(false)
   const [isCustomizing, setIsCustomizing] = useState(false)
-  const [personalQuickActions, setPersonalQuickActions] = useState<typeof PERSONAL_ACTIVITIES>([])
-  const [groupQuickActions, setGroupQuickActions] = useState<typeof GROUP_ACTIVITIES>([])
+  
+  // Initialize with default values
+  const [personalQuickActions, setPersonalQuickActions] = useState<typeof PERSONAL_ACTIVITIES>(() => {
+    if (typeof window === 'undefined') return PERSONAL_ACTIVITIES.slice(0, 6)
+    
+    try {
+      const savedState = localStorage.getItem('appState')
+      if (savedState) {
+        const { personalActions } = JSON.parse(savedState) as PersistedState
+        const hydratedActions = personalActions
+          .map(({ label }) => PERSONAL_ACTIVITIES.find(a => a.label === label))
+          .filter(Boolean) as typeof PERSONAL_ACTIVITIES
+        return hydratedActions.length ? hydratedActions : PERSONAL_ACTIVITIES.slice(0, 6)
+      }
+    } catch (error) {
+      console.error('Failed to load saved activities:', error)
+    }
+    return PERSONAL_ACTIVITIES.slice(0, 6)
+  })
+
+  const [groupQuickActions, setGroupQuickActions] = useState<typeof GROUP_ACTIVITIES>(() => {
+    if (typeof window === 'undefined') return GROUP_ACTIVITIES.slice(0, 6)
+    
+    try {
+      const savedState = localStorage.getItem('appState')
+      if (savedState) {
+        const { groupActions } = JSON.parse(savedState) as PersistedState
+        const hydratedActions = groupActions
+          .map(({ label }) => GROUP_ACTIVITIES.find(a => a.label === label))
+          .filter(Boolean) as typeof GROUP_ACTIVITIES
+        return hydratedActions.length ? hydratedActions : GROUP_ACTIVITIES.slice(0, 6)
+      }
+    } catch (error) {
+      console.error('Failed to load saved activities:', error)
+    }
+    return GROUP_ACTIVITIES.slice(0, 6)
+  })
+
   const [isGroupMode, setIsGroupMode] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
   const selectedQuickActions = isGroupMode ? groupQuickActions : personalQuickActions
@@ -62,6 +98,7 @@ export function ActivitiesProvider({ children }: { children: React.ReactNode }) 
           setIsGroupMode(false)
         }
       } catch (error) {
+        console.error('Failed to load saved activities:', error)
         // Fallback to defaults if loading fails
         setPersonalQuickActions(PERSONAL_ACTIVITIES.slice(0, 6))
         setGroupQuickActions(GROUP_ACTIVITIES.slice(0, 6))

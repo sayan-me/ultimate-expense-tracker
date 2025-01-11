@@ -1,18 +1,43 @@
 "use client"
 
 import { Progress } from "@/components/ui/progress"
-import { formatCurrency } from "@/lib/utils"
-import { cn } from "@/lib/utils"
+import { formatCurrency, cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
+import { getMonthlySpendData } from "@/lib/data"
+import { useEffect, useState } from "react"
+import { Alert } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
-interface MonthlySpendProps {
-  isLoading?: boolean
-}
+export function MonthlySpend() {
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+  const [data, setData] = useState<{
+    monthlySpend: number
+    monthlyBudget: number
+  } | null>(null)
 
-export function MonthlySpend({ isLoading = false }: MonthlySpendProps) {
-  const spent = 1200
-  const budget = 2000
-  const percentage = (spent / budget) * 100
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const result = await getMonthlySpendData()
+        setData(result)
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('Failed to load data'))
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <span>Failed to load monthly spend data: {error.message}</span>
+      </Alert>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -38,6 +63,10 @@ export function MonthlySpend({ isLoading = false }: MonthlySpendProps) {
     )
   }
 
+  const spent = data?.monthlySpend ?? 0
+  const budget = data?.monthlyBudget ?? 0
+  const percentage = (spent / budget) * 100
+
   const getProgressColor = (percent: number) => {
     if (percent >= 90) return "bg-destructive"
     if (percent >= 75) return "bg-warning"
@@ -48,13 +77,13 @@ export function MonthlySpend({ isLoading = false }: MonthlySpendProps) {
     <div className="rounded-lg border bg-card p-6 shadow-sm" role="region" aria-label="Monthly spending overview">
       <h3 className="text-sm font-medium text-muted-foreground">Monthly Spend vs Budget</h3>
       <div className="mt-4 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-8">
           <div>
-            <p className="text-2xl font-bold">{formatCurrency(spent)}</p>
+            <p className="text-xl font-bold">{formatCurrency(spent)}</p>
             <p className="text-sm text-muted-foreground">spent this month</p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium">{formatCurrency(budget)}</p>
+            <p className="text-xl font-bold">{formatCurrency(budget)}</p>
             <p className="text-sm text-muted-foreground">monthly budget</p>
           </div>
         </div>

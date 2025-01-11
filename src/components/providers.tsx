@@ -7,10 +7,10 @@ import { type ReactNode } from "react"
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <ActivitiesProvider>
-      <DBProvider>
+    <DBProvider>
+      <ActivitiesProvider>
         <AppLayout>{children}</AppLayout>
-      </DBProvider>
-    </ActivitiesProvider>
+      </ActivitiesProvider>
+    </DBProvider>
   )
 } 

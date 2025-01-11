@@ -1,52 +1,67 @@
 "use client"
 
-import { CurrentBalance } from "@/components/home/overview/current-balance"
-import { MonthlySpend } from "@/components/home/overview/monthly-spend"
-import { RecentExpenses } from "@/components/home/overview/recent-expenses"
-import { Skeleton } from "@/components/ui/skeleton"
+import dynamic from 'next/dynamic'
+import { GroupStats } from "./group-stats"
+import { OutstandingBalances } from "./outstanding-balances"
+import { GroupActivityFeed } from "./group-activity-feed"
 import { useActivities } from "@/contexts/activities-context"
+import { useState, useEffect } from "react"
 
-interface Expense {
-  id: string
-  date: Date
-  amount: number
-  category: string
-  description: string
-}
+// Lazy load components with skeletons
+const CurrentBalance = dynamic(
+  () => import('./current-balance').then(mod => mod.CurrentBalance),
+  {
+    loading: () => null,
+    ssr: false
+  }
+)
 
-interface OverviewProps {
-  isLoading?: boolean;
-  initialData?: {
-    balance: number;
-    monthlySpend: number;
-    monthlyBudget: number;
-    recentExpenses: Expense[];
-  };
-}
+const MonthlySpend = dynamic(
+  () => import('./monthly-spend').then(mod => mod.MonthlySpend),
+  {
+    loading: () => null,
+    ssr: false
+  }
+)
 
-export function Overview({ isLoading = false, initialData }: OverviewProps) {
+const RecentExpenses = dynamic(
+  () => import('./recent-expenses').then(mod => mod.RecentExpenses),
+  {
+    loading: () => null,
+    ssr: false
+  }
+)
+
+export function Overview() {
   const { isGroupMode } = useActivities()
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
-  if (isLoading) {
-    return (
-      <section className="space-y-6" aria-label="Financial overview">
-        <Skeleton className="h-[160px] w-full rounded-lg" />
-        <Skeleton className="h-[120px] w-full rounded-lg" />
-        <Skeleton className="h-[280px] w-full rounded-lg" />
-      </section>
-    )
-  }
+  useEffect(() => {
+    setIsTransitioning(true)
+    const timer = setTimeout(() => setIsTransitioning(false), 300)
+    return () => clearTimeout(timer)
+  }, [isGroupMode])
 
-  if (!isGroupMode) {
-    return (
-      <section className="space-y-6" aria-label="Financial overview">
-        <CurrentBalance isLoading={isLoading} initialBalance={initialData?.balance} />
-        <MonthlySpend isLoading={isLoading} />
-        <RecentExpenses isLoading={isLoading} />
-      </section>
-    )
-  }
-
-  // Group mode will be implemented later
-  return null
-} 
+  return (
+    <section 
+      className={`space-y-6 transition-opacity duration-300 pb-32 ${
+        isTransitioning ? 'opacity-0' : 'opacity-100'
+      }`} 
+      aria-label="Financial overview"
+    >
+      {isGroupMode ? (
+        <>
+          <GroupStats />
+          <OutstandingBalances />
+          <GroupActivityFeed />
+        </>
+      ) : (
+        <>
+          <CurrentBalance />
+          <MonthlySpend />
+          <RecentExpenses />
+        </>
+      )}
+    </section>
+  )
+}
