@@ -33,74 +33,48 @@ const ActivitiesContext = createContext<ActivitiesContextType | undefined>(undef
 export function ActivitiesProvider({ children }: { children: React.ReactNode }) {
   const [isActivitiesBarOpen, setIsActivitiesBarOpen] = useState(false)
   const [isCustomizing, setIsCustomizing] = useState(false)
-  
-  // Initialize with default values
   const [personalQuickActions, setPersonalQuickActions] = useState(PERSONAL_ACTIVITIES.slice(0, 6))
   const [groupQuickActions, setGroupQuickActions] = useState(GROUP_ACTIVITIES.slice(0, 6))
   const [isGroupMode, setIsGroupMode] = useState(false)
-  useEffect(() => {
-    const loadSavedState = () => {    
-      try {
-        const savedState = localStorage.getItem('appState')
-        if (savedState) {
-          const { personalActions, groupActions } = JSON.parse(savedState) as PersistedState
-          const hydratedPersonalActions = personalActions
-            .map(({ label }) => PERSONAL_ACTIVITIES.find(a => a.label === label))
-            .filter(Boolean) as typeof PERSONAL_ACTIVITIES
-          const hydratedGroupActions = groupActions
-            .map(({ label }) => GROUP_ACTIVITIES.find(a => a.label === label))
-            .filter(Boolean) as typeof GROUP_ACTIVITIES
-          setPersonalQuickActions(hydratedPersonalActions.length ? hydratedPersonalActions : PERSONAL_ACTIVITIES.slice(0, 6))
-          setGroupQuickActions(hydratedGroupActions.length ? hydratedGroupActions : GROUP_ACTIVITIES.slice(0, 6))
-        }
-      } catch (error) {
-        console.error('Failed to load saved activities:', error)
-      }
-      return PERSONAL_ACTIVITIES.slice(0, 6)
-    }
-    loadSavedState()
-  }, [])
-
-  const [isInitialized, setIsInitialized] = useState(false)
+  
   const selectedQuickActions = isGroupMode ? groupQuickActions : personalQuickActions
   const setSelectedQuickActions = isGroupMode ? setGroupQuickActions : setPersonalQuickActions
 
-  // Initialize state from localStorage
+  // Single initialization useEffect
   useEffect(() => {
-    if (!isInitialized && typeof window !== 'undefined') {
-      try {
-        const savedState = localStorage.getItem('appState')
-        if (savedState) {
-          const { personalActions, groupActions } = JSON.parse(savedState) as PersistedState
-          
-          // Reconstruct full action objects from saved labels
-          const hydratedPersonalActions = personalActions
-            .map(({ label }) => PERSONAL_ACTIVITIES.find(a => a.label === label))
-            .filter(Boolean) as typeof PERSONAL_ACTIVITIES
-          
-          const hydratedGroupActions = groupActions
-            .map(({ label }) => GROUP_ACTIVITIES.find(a => a.label === label))
-            .filter(Boolean) as typeof GROUP_ACTIVITIES
+    if (typeof window === 'undefined') return
 
-          setPersonalQuickActions(hydratedPersonalActions.length ? hydratedPersonalActions : PERSONAL_ACTIVITIES.slice(0, 6))
-          setGroupQuickActions(hydratedGroupActions.length ? hydratedGroupActions : GROUP_ACTIVITIES.slice(0, 6))
-          setIsGroupMode(false)
-        }
-      } catch (error) {
-        console.error('Failed to load saved activities:', error)
-        // Fallback to defaults if loading fails
-        setPersonalQuickActions(PERSONAL_ACTIVITIES.slice(0, 6))
-        setGroupQuickActions(GROUP_ACTIVITIES.slice(0, 6))
-        setIsGroupMode(false)
-      } finally {
-        setIsInitialized(true)
+    try {
+      const savedState = localStorage.getItem('appState')
+      if (savedState) {
+        const { personalActions, groupActions, isGroupMode: savedGroupMode } = JSON.parse(savedState) as PersistedState
+        
+        // Reconstruct full action objects from saved labels
+        const hydratedPersonalActions = personalActions
+          .map(({ label }) => PERSONAL_ACTIVITIES.find(a => a.label === label))
+          .filter(Boolean) as typeof PERSONAL_ACTIVITIES
+        
+        const hydratedGroupActions = groupActions
+          .map(({ label }) => GROUP_ACTIVITIES.find(a => a.label === label))
+          .filter(Boolean) as typeof GROUP_ACTIVITIES
+
+        // Set states with hydrated or default values
+        setPersonalQuickActions(hydratedPersonalActions.length ? hydratedPersonalActions : PERSONAL_ACTIVITIES.slice(0, 6))
+        setGroupQuickActions(hydratedGroupActions.length ? hydratedGroupActions : GROUP_ACTIVITIES.slice(0, 6))
+        setIsGroupMode(savedGroupMode)
       }
+    } catch (error) {
+      console.error('Failed to load saved activities:', error)
+      // Fallback to defaults if loading fails
+      setPersonalQuickActions(PERSONAL_ACTIVITIES.slice(0, 6))
+      setGroupQuickActions(GROUP_ACTIVITIES.slice(0, 6))
+      setIsGroupMode(false)
     }
-  }, [isInitialized])
+  }, []) // Empty dependency array - runs once on mount
 
   // Persist state changes
   useEffect(() => {
-    if (isInitialized && typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') {
       const stateToSave: PersistedState = {
         personalActions: personalQuickActions.map(({ label }) => ({ label })),
         groupActions: groupQuickActions.map(({ label }) => ({ label })),
@@ -109,8 +83,7 @@ export function ActivitiesProvider({ children }: { children: React.ReactNode }) 
       }
       localStorage.setItem('appState', JSON.stringify(stateToSave))
     }
-  }, [personalQuickActions, groupQuickActions, isGroupMode, isCustomizing, isInitialized])
-
+  }, [personalQuickActions, groupQuickActions, isGroupMode, isCustomizing])
 
   const toggleQuickAction = useCallback((action: typeof PERSONAL_ACTIVITIES[0]) => {
     setSelectedQuickActions(prev => {
