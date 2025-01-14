@@ -65,9 +65,25 @@ export async function getOutstandingBalances() {
     await new Promise(resolve => setTimeout(resolve, 100));
     return {
       balances: [
-        { memberId: '1', memberName: 'Alice', amount: 50 },
-      { memberId: '2', memberName: 'Bob', amount: -30 }
-    ]
+        { 
+          memberId: '1', 
+          memberName: 'Alice', 
+          amount: 50,
+          owesTo: 'Group Pool'  // Owes to group pool
+        },
+        { 
+          memberId: '2', 
+          memberName: 'Bob', 
+          amount: -30,
+          owesTo: 'Group Pool'  // Gets from group pool
+        },
+        {
+          memberId: '3',
+          memberName: 'Charlie',
+          amount: 25,
+          owesTo: 'Alice'      // Directly owes to Alice
+        }
+      ]
     }
   } catch (error: unknown) {
     console.error('Outstanding balances fetch error:', error);
@@ -80,17 +96,43 @@ export async function getGroupActivities() {
     await new Promise(resolve => setTimeout(resolve, 100));
     return {
       activities: [
-      {
-        id: '1',
-        timestamp: new Date('2024-01-15T10:30:00'),
-        memberName: 'Alice',
-        type: 'expense',
-        amount: 45.50,
-        description: 'Team lunch',
-        status: 'approved'
-      }
-      // ... other activities
-    ]
+        {
+          id: '1',
+          timestamp: new Date('2024-01-15T10:30:00'),
+          memberName: 'Alice',
+          type: 'expense' as const,
+          amount: 45.50,
+          description: 'Team lunch',
+          status: 'approved' as const
+        },
+        {
+          id: '2',
+          timestamp: new Date('2024-01-15T14:20:00'),
+          memberName: 'Bob',
+          type: 'settlement' as const,
+          amount: 30.00,
+          description: 'Paid to Group Pool',
+          status: 'pending' as const
+        },
+        {
+          id: '3',
+          timestamp: new Date('2024-01-14T16:45:00'),
+          memberName: 'Charlie',
+          type: 'expense' as const,
+          amount: 25.75,
+          description: 'Office supplies',
+          status: 'rejected' as const
+        },
+        {
+          id: '4',
+          timestamp: new Date('2024-01-14T09:15:00'),
+          memberName: 'Alice',
+          type: 'adjustment' as const,
+          amount: 15.00,
+          description: 'Split correction',
+          status: 'approved' as const
+        }
+      ]
     }
   } catch (error: unknown) {
     console.error('Group activities fetch error:', error);

@@ -5,9 +5,9 @@ import { OutstandingBalances } from './outstanding-balances'
 describe('OutstandingBalances', () => {
   const mockBalances = {
     balances: [
-      { memberId: '1', memberName: 'Alice', amount: 50 },
-      { memberId: '2', memberName: 'Bob', amount: -30 },
-      { memberId: '3', memberName: 'Charlie', amount: 25 }
+      { memberId: '1', memberName: 'Alice', amount: 50, owesTo: 'Group Pool' },
+      { memberId: '2', memberName: 'Bob', amount: -30, owesTo: 'Group Pool' },
+      { memberId: '3', memberName: 'Charlie', amount: 25, owesTo: 'Alice' }
     ]
   }
 
@@ -27,8 +27,9 @@ describe('OutstandingBalances', () => {
   it('shows member balances with correct formatting', () => {
     render(<OutstandingBalances initialData={mockBalances} />)
     expect(screen.getByText('Alice')).toBeInTheDocument()
-    expect(screen.getByText(/owes \$50\.00/)).toBeInTheDocument()
-    expect(screen.getByText(/receives \$30\.00/)).toBeInTheDocument()
+    expect(screen.getByText(/owes \$50\.00 to Group Pool/)).toBeInTheDocument()
+    expect(screen.getByText(/gets \$30\.00 from Group Pool/)).toBeInTheDocument()
+    expect(screen.getByText(/owes \$25\.00 to Alice/)).toBeInTheDocument()
   })
 
   it('displays "No outstanding balances" when balances array is empty', () => {
