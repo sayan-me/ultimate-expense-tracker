@@ -15,6 +15,7 @@ type Expense = {
   amount: number
   category: string
   description: string
+  type: "expense" | "income"
 }
 
 export function RecentExpenses() {
@@ -26,7 +27,7 @@ export function RecentExpenses() {
     async function fetchData() {
       try {
         const result = await getRecentExpenses()
-        setExpenses(result)
+        setExpenses(result.transactions)
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to load expenses'))
       } finally {

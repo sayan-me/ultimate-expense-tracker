@@ -6,6 +6,9 @@ import { OutstandingBalances } from "./outstanding-balances"
 import { GroupActivityFeed } from "./group-activity-feed"
 import { useActivities } from "@/contexts/activities-context"
 import { useState, useEffect } from "react"
+import { FeatureGate } from "@/components/auth/feature-gate"
+import { Card, CardHeader, CardTitle } from "@/components/ui/card"
+import { AuthFallbackContent } from "@/components/ui/auth-fallback-content"
 
 // Lazy load components with skeletons
 const CurrentBalance = dynamic(
@@ -50,11 +53,23 @@ export function Overview() {
       aria-label="Financial overview"
     >
       {isGroupMode ? (
-        <>
-          <GroupStats />
-          <OutstandingBalances />
-          <GroupActivityFeed />
-        </>
+        <FeatureGate
+          level="registered"
+          fallback={
+            <Card className="bg-muted">
+              <CardHeader>
+                <CardTitle>Group Expense Management</CardTitle>
+              </CardHeader>
+              <AuthFallbackContent type="registered" />
+            </Card>
+          }
+        >
+          <>
+            <GroupStats />
+            <OutstandingBalances />
+            <GroupActivityFeed />
+          </>
+        </FeatureGate>
       ) : (
         <>
           <CurrentBalance />
