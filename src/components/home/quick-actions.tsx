@@ -3,6 +3,9 @@
 import { Settings } from "lucide-react"
 import { useActivities } from "@/contexts/activities-context"
 import { LucideIcon } from "lucide-react"
+import { FeatureGate } from "@/components/auth/feature-gate"
+import { Card, CardHeader, CardTitle } from "@/components/ui/card"
+import { AuthFallbackContent } from "@/components/ui/auth-fallback-content"
 
 type QuickAction = {
   icon: LucideIcon
@@ -25,6 +28,28 @@ const QuickActionButton = ({ icon: Icon, label, onClick }: QuickAction) => (
 )
 
 export function QuickActions() {
+  const { isGroupMode } = useActivities()
+
+  return isGroupMode ? (
+    <FeatureGate
+      level="registered"
+      fallback={
+        <Card className="bg-muted">
+          <CardHeader>
+            <CardTitle>Group Quick Actions</CardTitle>
+          </CardHeader>
+          <AuthFallbackContent type="registered" />
+        </Card>
+      }
+    >
+      <QuickActionsContent />
+    </FeatureGate>
+  ) : (
+    <QuickActionsContent />
+  )
+}
+
+function QuickActionsContent() {
   const { 
     selectedQuickActions, 
     toggleCustomizationMode,

@@ -53,23 +53,47 @@ export function Overview() {
       aria-label="Financial overview"
     >
       {isGroupMode ? (
+        <>
         <FeatureGate
           level="registered"
           fallback={
             <Card className="bg-muted">
               <CardHeader>
-                <CardTitle>Group Expense Management</CardTitle>
+                <CardTitle>Group Stats</CardTitle>
               </CardHeader>
               <AuthFallbackContent type="registered" />
             </Card>
           }
         >
-          <>
             <GroupStats />
-            <OutstandingBalances />
-            <GroupActivityFeed />
-          </>
         </FeatureGate>
+        <FeatureGate
+          level="registered"
+          fallback={
+            <Card className="bg-muted">
+              <CardHeader>
+                <CardTitle>Outstanding Balances</CardTitle>
+              </CardHeader>
+              <AuthFallbackContent type="registered" />
+            </Card>
+          }
+        >
+            <OutstandingBalances />
+        </FeatureGate>
+        <FeatureGate
+          level="registered"
+          fallback={
+            <Card className="bg-muted">
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+              </CardHeader>
+              <AuthFallbackContent type="registered" />
+            </Card>
+          }
+        >
+            <GroupActivityFeed />
+        </FeatureGate>
+        </>
       ) : (
         <>
           <CurrentBalance />
