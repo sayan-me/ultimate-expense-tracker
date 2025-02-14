@@ -58,7 +58,7 @@ Provides a "Customize" button to manage quick action shortcuts:
   - Smooth slide-down animation on exit
 
 ### 2.2 Overview Section (Below Quick Actions):
-This section displays an overview of the user’s finances depending on the active mode (Personal or Group).
+This section displays an overview of the user's finances depending on the active mode (Personal or Group).
 
 #### When Personal Mode is Active:
 
@@ -162,3 +162,36 @@ Located at the bottom of the Main Content Area (above the Bottom Navigation Bar)
   - Clean, minimalistic UI with clear typography and vibrant colors for active components.
 - Interactive Elements:
   - Smooth transitions between minimized/expanded views (e.g., Activities Bar).
+
+## Navigation Patterns
+
+### Gesture-Based Navigation
+1. **Swipe Back Navigation**
+   - Implementation: Higher-Order Component (HOC)
+   - Trigger: Right-to-left swipe gesture
+   - Threshold: 30% of screen width
+   - Animation:
+     - Real-time translation following finger
+     - Smooth spring animation on release
+     - 300ms transition duration
+   - Visual Feedback:
+     - Previous page preview
+     - Shadow/depth effect
+     - Progress indicator
+   - Accessibility:
+     - Maintains button navigation
+     - Haptic feedback
+     - Screen reader support
+
+2. **Navigation History**
+   - Stack-based history management
+   - Maximum 50 entries
+   - Automatic cleanup
+   - State preservation
+
+### Usage Guidelines
+- Enable for all main content pages
+- Disable during modal displays
+- Disable during form submissions
+- Preserve scroll positions
+- Handle edge cases (first page, loading states)

@@ -1,7 +1,7 @@
 # Product Summary
 
 ## Overview and Target
-The Ultimate Expense Tracker mobile app is designed to help users efficiently manage both individual and group expenses. Whether you’re managing household finances, tracking personal spending, or coordinating budgets with roommates, this app offers a comprehensive suite of features to simplify financial management and achieve their financial goals. The app is designed to cater to users with varying needs, from basic personal expense tracking to advanced group financial management, all while ensuring ease of use and fostering responsible financial habits.
+The Ultimate Expense Tracker mobile app is designed to help users efficiently manage both individual and group expenses. Whether you're managing household finances, tracking personal spending, or coordinating budgets with roommates, this app offers a comprehensive suite of features to simplify financial management and achieve their financial goals. The app is designed to cater to users with varying needs, from basic personal expense tracking to advanced group financial management, all while ensuring ease of use and fostering responsible financial habits.
 
 ---
 
@@ -35,7 +35,7 @@ The Ultimate Expense Tracker mobile app is designed to help users efficiently ma
 ### 4. Group Management
 - **Create and Manage Groups**: Users can create groups and invite members (e.g., family, roommates) to track collective finances.
 - **Group Owners**: Designated group owners can set group budgets, allocate funds to members, and manage group finances.
-- **Shared Budgets**: Group members’ income and expenses contribute to a shared budget managed by group owners.
+- **Shared Budgets**: Group members' income and expenses contribute to a shared budget managed by group owners.
 
 ### 5. Virtual Accounts
 **Explanation**: Virtual accounts are an abstraction layer to help users better manage and organize their financial goals without the complexity of using multiple physical bank accounts. Virtual accounts are intended to give users a way to segregate funds for different purposes, like budgeting, managing loans, or saving for specific goals. This segregation can be done without requiring the user to open multiple actual bank accounts. Following are the app's features for managing the virtual accounts:
@@ -105,4 +105,25 @@ This tiered approach allows users to test the app's core functionality before co
 ## Data Storage Requirements
 This app needs to run on client side as a PWA, most of the calculations and storages will be on client's phone. We also don't want every user to store their data on remote database, as it will cost us money. We can provide remote storage of data for only paid customers. 
 Appropriate datasore should be selected considering the above.
+
+## Core UI Features
+
+### Navigation Features
+1. **Swipe Navigation**
+   - Right-to-left swipe for back navigation
+   - Smooth transition animations
+   - Visual feedback during swipe
+   - Gesture sensitivity configuration
+   - History-based navigation stack
+   - Key features:
+     - Natural gesture controls
+     - Progress-based animations
+     - Fallback to button navigation
+     - Haptic feedback support
+     - Navigation history management
+
+2. **Traditional Navigation**
+   - Back/forward buttons
+   - Bottom navigation bar
+   - Breadcrumb trails
 

@@ -38,6 +38,8 @@
 
 2. **Native Features**
   - Full access to device capabilities
+  - Enhanced touch gesture handling
+  - Native-like swipe navigation
   - Better push notifications
   - Enhanced background processing
 

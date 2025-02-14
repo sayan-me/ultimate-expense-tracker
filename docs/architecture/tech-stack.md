@@ -13,6 +13,9 @@
 - **TailwindCSS**: For utility-first styling
 - **Shadcn/ui**: For pre-built accessible components
 - **Framer Motion**: For smooth animations and transitions
+  - Gesture-based navigation animations
+  - Swipe transition effects
+  - Spring animations for natural feel
 - **React Icons**: For consistent iconography
 
 ## State Management
