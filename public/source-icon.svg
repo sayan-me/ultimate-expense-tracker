@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background Circle -->
+    <circle cx="256" cy="256" r="256" fill="#4F46E5"/>
+    
+    <!-- Dollar Sign -->
+    <path d="M288 232H256V208C279.196 208 298 189.196 298 166C298 142.804 279.196 124 256 124C232.804 124 214 142.804 214 166H182C182 125.072 215.072 92 256 92C296.928 92 330 125.072 330 166C330 197.604 309.748 224.37 282 234.044V232H288Z" fill="white"/>
+    
+    <!-- Graph Lines -->
+    <path d="M182 346H330" stroke="white" stroke-width="32" stroke-linecap="round"/>
+    <path d="M182 286H330" stroke="white" stroke-width="32" stroke-linecap="round"/>
+    <path d="M256 286V420" stroke="white" stroke-width="32" stroke-linecap="round"/>
+</svg> 
