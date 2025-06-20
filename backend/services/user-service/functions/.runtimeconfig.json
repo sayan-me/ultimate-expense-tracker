@@ -1,9 +1,0 @@
-{
-  "supabase": {
-    "url": "https://zvwmiwqeiuoeivotegzf.supabase.co",
-    "service_role_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2d21pd3FlaXVvZWl2b3RlZ3pmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMyNzIyNzgsImV4cCI6MjA0ODg0ODI3OH0.XmtOspOCZ_gSV1R8mzPx7Ur1NFpnGXv5gMAvPq87MEM"
-  },
-  "app": {
-    "api_key": "AIzaSyAm7asmBE1xWxzF1X2JETVYXEwsfC5JhcE"
-  }
-} 
