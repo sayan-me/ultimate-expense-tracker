@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -16,12 +17,15 @@
 # next.js
 /.next/
 /out/
+.next/
 
 # production
 /build
+/dist
+backend/**/lib/*.js
+backend/**/lib/*.js.map
 
 # misc
-.DS_Store
 *.pem
 
 # debug
@@ -36,9 +40,50 @@ yarn-error.log*
 # vercel
 .vercel
 
+# IDE files
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Logs
+logs
+*.log
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# static files
-/public/
+# PWA generated files (keep manifest.json and icons, ignore generated SW files)
+/public/sw.js
+/public/sw.js.map
+/public/workbox-*.js
+/public/workbox-*.js.map

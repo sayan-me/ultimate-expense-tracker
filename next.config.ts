@@ -1,16 +1,18 @@
 import withPWA from 'next-pwa'
 import type { NextConfig } from "next"
+import type { Configuration } from 'webpack'
 
-const config = {
+const config: NextConfig = {
   reactStrictMode: true,
-  webpack: (config: any, { webpack }: { webpack: any }) => {
+  webpack: (config: Configuration) => {
+    config.resolve = config.resolve || {}
     config.resolve.fallback = {
       ...config.resolve.fallback,
       "punycode": false,
     };
     return config;
   },
-} as const
+}
 
 const nextConfig = withPWA({
   dest: 'public',

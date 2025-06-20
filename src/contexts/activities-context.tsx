@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
-import { PERSONAL_ACTIVITIES, GROUP_ACTIVITIES } from "@/components/layout/activities-bar"
+import { PERSONAL_ACTIVITIES, GROUP_ACTIVITIES } from "@/constants/activities"
 
 // Separate type for serialized actions and state
 type SerializedAction = {

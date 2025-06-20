@@ -31,4 +31,14 @@ export class ExpenseTrackerDB extends Dexie {
   }
 }
 
-export const db = new ExpenseTrackerDB(); 
+// Lazy initialization for SSR compatibility
+let _db: ExpenseTrackerDB | null = null;
+
+export const db = new Proxy({} as ExpenseTrackerDB, {
+  get(target, prop: keyof ExpenseTrackerDB) {
+    if (!_db && typeof window !== 'undefined') {
+      _db = new ExpenseTrackerDB();
+    }
+    return _db ? _db[prop] : undefined;
+  }
+}); 

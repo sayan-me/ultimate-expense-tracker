@@ -31,11 +31,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function checkAuth() {
     console.log('Checking auth...')
     try {
-      const savedUser = localStorage.getItem('user')
-      console.log('Saved user:', savedUser)
-      if (savedUser) {
-        setUser(JSON.parse(savedUser))
+      // Check if localStorage is available (client-side only)
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const savedUser = localStorage.getItem('user')
+        console.log('Saved user:', savedUser)
+        if (savedUser) {
+          setUser(JSON.parse(savedUser))
+        } else {
+          setUser(null)
+        }
       } else {
+        // Server-side or localStorage not available
         setUser(null)
       }
     } catch (error) {
@@ -57,12 +63,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       featureLevel: "registered" as const
     }
     setUser(newUser)
-    localStorage.setItem('user', JSON.stringify(newUser))
+    // Only set localStorage on client side
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem('user', JSON.stringify(newUser))
+    }
   }
 
   const logout = async () => {
     setUser(null)
-    localStorage.removeItem('user')
+    // Only remove from localStorage on client side
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.removeItem('user')
+    }
   }
 
   return (

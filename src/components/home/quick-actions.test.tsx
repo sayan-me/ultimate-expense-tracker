@@ -19,8 +19,10 @@ describe('QuickActions', () => {
         { icon: vi.fn(), label: "View Stats", onClick: vi.fn() }
       ],
       toggleCustomizationMode: vi.fn(),
+      toggleActivitiesBar: vi.fn(),
       isCustomizing: false,
-      toggleQuickAction: vi.fn()
+      toggleQuickAction: vi.fn(),
+      isGroupMode: false
     })
   })
 
@@ -51,11 +53,14 @@ describe('QuickActions', () => {
 
   it('opens activities bar in customize mode when customize button is clicked', () => {
     const toggleCustomizationMode = vi.fn()
+    const toggleActivitiesBar = vi.fn()
     vi.mocked(useActivities).mockReturnValue({
       selectedQuickActions: [],
       toggleCustomizationMode,
+      toggleActivitiesBar,
       isCustomizing: false,
-      toggleQuickAction: vi.fn()
+      toggleQuickAction: vi.fn(),
+      isGroupMode: false
     })
 
     renderWithProviders(<QuickActions />)
@@ -63,6 +68,7 @@ describe('QuickActions', () => {
     fireEvent.click(customizeButton)
     
     expect(toggleCustomizationMode).toHaveBeenCalledWith(true)
+    expect(toggleActivitiesBar).toHaveBeenCalledWith(true)
   })
 
   it('triggers action when quick action button is clicked', () => {
@@ -72,8 +78,10 @@ describe('QuickActions', () => {
         { icon: vi.fn(), label: "Test Action", onClick: mockOnClick }
       ],
       toggleCustomizationMode: vi.fn(),
+      toggleActivitiesBar: vi.fn(),
       isCustomizing: false,
-      toggleQuickAction: vi.fn()
+      toggleQuickAction: vi.fn(),
+      isGroupMode: false
     })
 
     renderWithProviders(<QuickActions />)

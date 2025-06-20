@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useUIStore, createLoadingManager, useHasActiveModal } from '../ui'
+import { useUIStore, createLoadingManager } from '../ui'
 
 /**
  * UI Store Test Suite
@@ -48,8 +48,10 @@ describe('UI Store', () => {
       const store = useUIStore.getState()
       store.setActivitiesBar({ isOpen: true, height: 'half' })
       
-      expect(store.activitiesBar.isOpen).toBe(true)
-      expect(store.activitiesBar.height).toBe('half')
+      // Get fresh state after update
+      const updatedState = useUIStore.getState()
+      expect(updatedState.activitiesBar.isOpen).toBe(true)
+      expect(updatedState.activitiesBar.height).toBe('half')
     })
 
     it('should handle customization mode', () => {
@@ -59,8 +61,10 @@ describe('UI Store', () => {
         customizationTarget: 'personal' 
       })
       
-      expect(store.activitiesBar.isCustomizing).toBe(true)
-      expect(store.activitiesBar.customizationTarget).toBe('personal')
+      // Get fresh state after update
+      const updatedState = useUIStore.getState()
+      expect(updatedState.activitiesBar.isCustomizing).toBe(true)
+      expect(updatedState.activitiesBar.customizationTarget).toBe('personal')
     })
 
     // Edge case: Multiple rapid state updates
@@ -70,7 +74,9 @@ describe('UI Store', () => {
       store.setActivitiesBar({ height: 'full' })
       store.setActivitiesBar({ isCustomizing: true })
       
-      expect(store.activitiesBar).toEqual({
+      // Get fresh state after updates
+      const updatedState = useUIStore.getState()
+      expect(updatedState.activitiesBar).toEqual({
         isOpen: true,
         height: 'full',
         isCustomizing: true,
@@ -90,12 +96,15 @@ describe('UI Store', () => {
       const manager = createLoadingManager(store.setLoading)
       
       manager.start(['save', 'validate'])
-      expect(store.states.loading['save']).toBe(true)
-      expect(store.states.loading['validate']).toBe(true)
+      // Get fresh state after updates
+      let updatedState = useUIStore.getState()
+      expect(updatedState.states.loading['save']).toBe(true)
+      expect(updatedState.states.loading['validate']).toBe(true)
       
       manager.stop(['save', 'validate'])
-      expect(store.states.loading['save']).toBe(false)
-      expect(store.states.loading['validate']).toBe(false)
+      updatedState = useUIStore.getState()
+      expect(updatedState.states.loading['save']).toBe(false)
+      expect(updatedState.states.loading['validate']).toBe(false)
     })
 
     // Edge case: Overlapping loading states
@@ -105,8 +114,10 @@ describe('UI Store', () => {
       store.setLoading('process2', true)
       store.setLoading('process1', false)
       
-      expect(store.states.loading['process1']).toBe(false)
-      expect(store.states.loading['process2']).toBe(true)
+      // Get fresh state after updates
+      const updatedState = useUIStore.getState()
+      expect(updatedState.states.loading['process1']).toBe(false)
+      expect(updatedState.states.loading['process2']).toBe(true)
     })
 
     // Edge case: Empty loading key
@@ -161,7 +172,9 @@ describe('UI Store', () => {
     it('should detect active modal', () => {
       const store = useUIStore.getState()
       store.setModal('settings')
-      expect(useHasActiveModal()).toBe(true)
+      // Get fresh state after update
+      const updatedState = useUIStore.getState()
+      expect(updatedState.modal.activeId).toBe('settings')
     })
 
     // Edge case: Modal with empty props

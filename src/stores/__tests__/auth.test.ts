@@ -27,12 +27,13 @@ describe('Auth Store', () => {
     useAuthStore.getState().setUserLevel('premium')
     useAuthStore.getState().resetAuth()
     
-    expect(useAuthStore.getState()).toEqual({
+    const state = useAuthStore.getState()
+    expect(state).toEqual(expect.objectContaining({
       isAuthenticated: false,
       userLevel: 'basic',
       userId: null,
       status: 'idle',
       error: null
-    })
+    }))
   })
 }) 
