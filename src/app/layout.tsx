@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,8 +34,9 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
+    icon: "/favicon.ico",
     shortcut: "/favicon.ico",
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [{ url: "/icons/icon.svg", sizes: "180x180" }],
   },
 }
 
@@ -51,6 +53,7 @@ export default function RootLayout({
     >
       <body className="antialiased">
         <Providers>{children}</Providers>
+        <InstallPrompt />
       </body>
     </html>
   )
