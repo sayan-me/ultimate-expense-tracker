@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import {createClient} from "@supabase/supabase-js";
-import {Request, Response} from "firebase-functions/v1";
+import {Response} from "express";
 
 admin.initializeApp();
 
@@ -15,17 +15,22 @@ interface Config {
     },
 }
 
-// Initialize Supabase client lazily - moved inside onInit
+// Initialize Supabase client lazily
 let supabase: ReturnType<typeof createClient> | null = null;
 
-// Supabase will be initialized lazily when first needed
-
+/**
+ * Gets or creates a Supabase client instance
+ * @return {object} Supabase client instance
+ */
 function getSupabaseClient() {
   if (!supabase) {
     const config = functions.config() as Config;
+    
+    // Check if config is properly loaded
     if (!config.supabase?.url || !config.supabase?.service_role_key) {
-      throw new Error("Supabase configuration not found");
+      throw new Error("Supabase configuration not found. Please set up Firebase config.");
     }
+    
     supabase = createClient(
       config.supabase.url,
       config.supabase.service_role_key
@@ -86,7 +91,7 @@ async function deleteUserFromDB(firebaseId: string) {
  * @param {functions.https.Request} req - The request object
  * @param {Response} res - The response object
  */
-async function handleLogin(req: Request, res: Response) {
+async function handleLogin(req: functions.https.Request, res: Response) {
   if (req.method !== "POST") {
     res.status(405).json({error: "Method not allowed"});
     return;
@@ -100,9 +105,16 @@ async function handleLogin(req: Request, res: Response) {
   }
 
   try {
+    const config = functions.config() as Config;
+    
+    // Check if API key is available
+    if (!config.app?.api_key) {
+      throw new Error("Firebase API key not configured");
+    }
+    
     const response = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${
-        (functions.config() as Config).app.api_key
+        config.app.api_key
       }`,
       {
         method: "POST",
@@ -155,7 +167,7 @@ async function handleLogin(req: Request, res: Response) {
  * @param {functions.https.Request} req - The request object
  * @param {Response} res - The response object
  */
-async function handleRegister(req: Request, res: Response) {
+async function handleRegister(req: functions.https.Request, res: Response) {
   if (req.method !== "POST") {
     res.status(405).json({error: "Method not allowed"});
     return;
@@ -205,7 +217,7 @@ async function handleRegister(req: Request, res: Response) {
  * @param {functions.https.Request} req - The request object
  * @param {Response} res - The response object
  */
-async function handleUser(req: Request, res: Response) {
+async function handleUser(req: functions.https.Request, res: Response) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     res.status(401).json({error: "No valid authorization header"});
@@ -251,8 +263,17 @@ async function handleUser(req: Request, res: Response) {
   }
 }
 
+// Simple health check function
+export const health = functions.https.onRequest((req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    message: "User service is running"
+  });
+});
+
 // Main auth function that routes to the appropriate handler
-export const auth = functions.https.onRequest((req: Request, res: Response) => {
+export const auth = functions.https.onRequest((req, res) => {
   // Enable CORS for all routes
   res.set("Access-Control-Allow-Origin", "*");
   res.set(
