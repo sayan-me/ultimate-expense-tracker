@@ -19,17 +19,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Package Manager**: Use `pnpm` (required, not `npm` or `yarn`)
 
 **Core Development**:
-- `pnpm dev` - Start PWA development server (localhost:3000)
-- `pnpm build` - Create PWA production build
-- `pnpm start` - Start PWA production server
-- `pnpm lint` - Run ESLint for PWA
+- `cd pwa/ && pnpm dev` - Start PWA development server (localhost:3000)
+- `cd pwa/ && pnpm build` - Create PWA production build
+- `cd pwa/ && pnpm start` - Start PWA production server
+- `cd pwa/ && pnpm lint` - Run ESLint for PWA
 
 **Testing**:
-- `pnpm test` - Run all PWA tests with Vitest
-- `pnpm test:watch` - Run PWA tests in watch mode
-- `pnpm test:coverage` - Run PWA tests with coverage report
-- `pnpm test:stores` - Run only Zustand store tests (critical for state management)
-- `pnpm test:stores:watch` - Watch mode for store tests
+- `cd pwa/ && pnpm test` - Run all PWA tests with Vitest
+- `cd pwa/ && pnpm test:watch` - Run PWA tests in watch mode
+- `cd pwa/ && pnpm test:coverage` - Run PWA tests with coverage report
+- `cd pwa/ && pnpm test:stores` - Run only Zustand store tests (critical for state management)
+- `cd pwa/ && pnpm test:stores:watch` - Watch mode for store tests
 
 ### User Service Backend (Secondary Focus)
 **Location**: `backend/services/user-service/functions/`
@@ -66,26 +66,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Key Architecture Patterns (PWA Focus)
 
 **1. PWA Feature Gating System**
-- User levels: `basic`, `registered`, `premium` (defined in `src/stores/auth.ts:44-46`)
-- Features controlled via `src/config/features.ts`
+- User levels: `basic`, `registered`, `premium` (defined in `pwa/src/stores/auth.ts:44-46`)
+- Features controlled via `pwa/src/config/features.ts`
 - Access checked using `useHasAccessLevel(requiredLevel)` hook
 - Critical for monetization and user experience
 
 **2. PWA State Management**
-- Zustand stores in `src/stores/` for different domains (auth, UI, preferences)
+- Zustand stores in `pwa/src/stores/` for different domains (auth, UI, preferences)
 - All stores use persistence middleware and follow consistent patterns
 - Store selectors and hooks provide clean access patterns
-- **Testing requirement**: All stores must have test coverage in `src/stores/__tests__/`
+- **Testing requirement**: All stores must have test coverage in `pwa/src/stores/__tests__/`
 
 **3. PWA Database Layer**
-- IndexedDB via Dexie.js (`src/lib/db.ts`) for offline storage
+- IndexedDB via Dexie.js (`pwa/src/lib/db.ts`) for offline storage
 - Schema: `transactions` and `accounts` tables with relational structure
 - Offline-first design with eventual cloud sync capability
 - Use `useLiveQuery` for reactive database queries
 
 **4. PWA Component Structure**
-- Feature-based organization in `src/components/`
-- Shadcn/ui components in `src/components/ui/`
+- Feature-based organization in `pwa/src/components/`
+- Shadcn/ui components in `pwa/src/components/ui/`
 - Layout components handle navigation and authentication
 - Responsive design with mobile-first approach
 
@@ -97,7 +97,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **6. PWA Features**
 - Service worker for offline functionality
-- Offline page at `src/app/offline/`
+- Offline page at `pwa/src/app/offline/`
 - Installable with proper manifest configuration
 - Background sync capabilities (planned)
 
@@ -110,7 +110,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Database Operations**: Use Dexie hooks (`useLiveQuery`) for reactive queries
 
-**Component Patterns**: Follow existing patterns in `src/components/` for new components
+**Component Patterns**: Follow existing patterns in `pwa/src/components/` for new components
 
 **Testing**: Store tests are critical - all Zustand stores must have test coverage
 
@@ -140,12 +140,12 @@ See `FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md` for detailed troubleshootin
 
 ## Working with this Repository
 
-**Primary Development**: Focus on PWA (`src/` directory) and User Service integration
+**Primary Development**: Focus on PWA (`pwa/` directory) and User Service integration
 **Secondary Development**: User Service backend (`backend/services/user-service/`)
 **Future Development**: Other backend services are placeholders for future implementation
 
 **Key Files to Monitor**:
-- `src/stores/auth.ts` - Authentication state and user levels
-- `src/config/features.ts` - Feature gating configuration
+- `pwa/src/stores/auth.ts` - Authentication state and user levels
+- `pwa/src/config/features.ts` - Feature gating configuration
 - `backend/services/user-service/functions/src/index.ts` - User service endpoints
-- `FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md` - Deployment troubleshooting
+- `docs/FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md` - Deployment troubleshooting

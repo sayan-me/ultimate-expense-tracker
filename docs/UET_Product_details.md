@@ -1,7 +1,7 @@
 # Product Summary
 
 ## Overview and Target
-The Ultimate Expense Tracker mobile app is designed to help users efficiently manage both individual and group expenses. Whether you're managing household finances, tracking personal spending, or coordinating budgets with roommates, this app offers a comprehensive suite of features to simplify financial management and achieve their financial goals. The app is designed to cater to users with varying needs, from basic personal expense tracking to advanced group financial management, all while ensuring ease of use and fostering responsible financial habits.
+The Ultimate Expense Tracker mobile app is designed to help users efficiently manage both individual and group expenses. Whether you’re managing household finances, tracking personal spending, or coordinating budgets with roommates, this app offers a comprehensive suite of features to simplify financial management and achieve their financial goals. The app is designed to cater to users with varying needs, from basic personal expense tracking to advanced group financial management, all while ensuring ease of use and fostering responsible financial habits.
 
 ---
 
@@ -35,7 +35,7 @@ The Ultimate Expense Tracker mobile app is designed to help users efficiently ma
 ### 4. Group Management
 - **Create and Manage Groups**: Users can create groups and invite members (e.g., family, roommates) to track collective finances.
 - **Group Owners**: Designated group owners can set group budgets, allocate funds to members, and manage group finances.
-- **Shared Budgets**: Group members' income and expenses contribute to a shared budget managed by group owners.
+- **Shared Budgets**: Group members’ income and expenses contribute to a shared budget managed by group owners.
 
 ### 5. Virtual Accounts
 **Explanation**: Virtual accounts are an abstraction layer to help users better manage and organize their financial goals without the complexity of using multiple physical bank accounts. Virtual accounts are intended to give users a way to segregate funds for different purposes, like budgeting, managing loans, or saving for specific goals. This segregation can be done without requiring the user to open multiple actual bank accounts. Following are the app's features for managing the virtual accounts:
@@ -73,57 +73,184 @@ The Ultimate Expense Tracker mobile app is designed to help users efficiently ma
 - **In-App Notifications**: All notifications are available in the app's notification center.
 - **Notification Preferences**: Users can enable/disable push notifications.
 
-## Authentication and Access Levels
-
-The application implements a progressive authentication model with three distinct access tiers:
-
-### 1. Basic Features (No Registration Required)
-Users can access fundamental features without registration, enabling immediate value from the app:
-- Basic expense tracking
-- Simple budgeting
-- Virtual accounts management
-- Basic trend analysis on personal expenses
-- Data export/import
-
-### 2. Registered Users (Free Tier)
-Registration unlocks additional features:
-- Cross-device synchronization
-- Group expense management
-- Customizable categories and tags
-- Enhanced reporting
-
-### 3. Premium Features (Paid Subscription)
-Advanced features available to paid subscribers:
-- Receipt scanning
-- Bank statement analysis
-- Advanced insights
-- Cloud backup
-
-This tiered approach allows users to test the app's core functionality before committing to registration or paid features.
-
+## UI/UX Preferences
+I want you to imagine the best possible layout based on the above application features and target audience. Just keep in mind that the user of this app would mainly use it for either or both of the following purposes: 
+1. Managing personal expenses
+2. Managing group expenses
+Another thing, try using a dark color theme.
 
 ## Data Storage Requirements
-This app needs to run on client side as a PWA, most of the calculations and storages will be on client's phone. We also don't want every user to store their data on remote database, as it will cost us money. We can provide remote storage of data for only paid customers. 
-Appropriate datasore should be selected considering the above.
+Suggest the best possible solution/s.
 
-## Core UI Features
+## Authentication Needs
+Few features of this application would require registration and authentication, but for building the POC, let's leave out the registration and authentication part. We can get back to this after all the functionalities are implemented.
 
-### Navigation Features
-1. **Swipe Navigation**
-   - Right-to-left swipe for back navigation
-   - Smooth transition animations
-   - Visual feedback during swipe
-   - Gesture sensitivity configuration
-   - History-based navigation stack
-   - Key features:
-     - Natural gesture controls
-     - Progress-based animations
-     - Fallback to button navigation
-     - Haptic feedback support
-     - Navigation history management
+## Technical Stack
 
-2. **Traditional Navigation**
-   - Back/forward buttons
-   - Bottom navigation bar
-   - Breadcrumb trails
+### Frontend:
+- **Core Framework**: 
+  - React.js with TypeScript
+  - Vite for build tooling
+- **PWA Technologies**:
+  - Workbox for service worker management
+  - Web App Manifest
+  - IndexedDB for offline storage
+- **UI Framework**:
+  - Material-UI (MUI) with custom theming
+  - Recharts for data visualization
+- **State Management**:
+  - Redux Toolkit
+  - RTK Query for API caching
+- **Progressive Features**:
+  - Background Sync API
+  - Push API
+  - File System Access API
 
+### Backend:
+- **Core Services (Golang)**:
+  - Expense Management Service
+  - Group Management Service
+  - Virtual Account Service
+  - Budget Service
+  - Notification Service
+  
+- **ML Services (Python)**:
+  - Receipt Scanner Service
+  - Expense Suggestion Service
+
+### Database & Caching:
+- **Primary Database**: PostgreSQL
+  - Full-text search capabilities
+  - JSONB for flexible schema
+  - TimescaleDB extension for analytics
+- **Caching**: Redis
+  - Session management
+  - Real-time notifications
+  - API response caching
+
+### Message Queue:
+- **Event Bus**: Apache Kafka
+  - Event streaming
+  - Stream processing
+  - Event sourcing
+  - Analytics pipeline
+
+### Infrastructure:
+- **Container Orchestration**: Kubernetes
+  - Local: KIND cluster
+  - Production: AWS EKS/GKE
+- **API Gateway**: Kong
+  - API management
+  - Rate limiting
+  - Authentication
+  - Developer portal
+
+### Observability:
+- **Monitoring**: Prometheus + Grafana
+- **Logging**: Loki
+- **Tracing**: OpenTelemetry + Tempo
+- **Metrics Visualization**: Grafana
+
+### DevOps:
+- **CI**: GitHub Actions
+- **CD**: ArgoCD
+- **Container Registry**: Docker Hub
+- **Infrastructure as Code**: Terraform
+- **Secret Management**: HashiCorp Vault
+- **GitOps**: ArgoCD + GitHub
+
+### Security:
+- **Authentication**: JWT
+- **Authorization**: RBAC
+- **API Security**: OAuth 2.0
+
+## Technical Preferences
+Not much to say here regarding preference of technology for UI and Database, use the best possible tech out there that best fits the application's usage and future possibilities of scale, etc. 
+For backend the preferred language is Golang, but if another language is suited better for a certain functionality then go for it. For example, maybe Python is more suited for the Receipt Scanning functionality.
+MUST remember the following rules and objectives while generating code and project structure:
+1. The project structure should be modular, scalable, and understandable, this way it should be easier to add features in the future
+2. For UI: All the UI properties should be maintained through a theme file, no hardcoding of values like height, colors, etc in the page files
+3. No hardcoding of values in application code, the values should come from property files or similar
+4. Remember that we are building a progressive web application
+5. If you think this application could be broken down into microservices, then go for it
+6. Now we are building on a local KIND cluster, but finally, we want to deploy this application on a cloud managed Kubernetes cluster like AWS EKS or GKE.
+7. The entire code-base should be version controlled with git. 'dsayan154' is my Github id. Remind committing the code at crucial points of development.
+
+## Must-have Features
+All the key features mentioned above are must-haves, prioritize them as you see fit.
+
+## Development Phases
+
+### Phase 0: Design & Architecture (✅ COMPLETED)
+1. **Tech Stack Selection**
+   - Frontend: React.js, TypeScript, MUI, Workbox
+   - Backend: Golang microservices, Python ML services
+   - Database: PostgreSQL with TimescaleDB
+   - Cache: Redis
+   - Message Queue: Apache Kafka
+   - Infrastructure: Kubernetes, Kong, ArgoCD
+   - Observability: Prometheus, Grafana, Loki, Tempo
+
+2. **Database Design**
+   - PostgreSQL schema design
+   - Table relationships and constraints
+   - Indexes optimization
+   - JSONB for flexible data storage
+   - TimescaleDB for time-series analytics
+
+### Phase 1: Core Infrastructure Setup
+1. **Local Development Environment**
+   - KIND cluster setup
+   - ArgoCD installation
+   - Kong API Gateway
+   - Observability stack
+
+2. **CI/CD Pipeline**
+   - GitHub Actions workflows
+   - Docker image builds
+   - ArgoCD configurations
+
+### Phase 2: Core Services Development
+1. **Backend Services (Golang)**
+   - User Service
+   - Expense Service
+   - Virtual Account Service
+   - Category/Tag Service
+
+2. **Frontend Foundation**
+   - React.js setup with TypeScript
+   - Material-UI theme setup
+   - PWA configuration with Workbox
+   - Core components library
+
+### Phase 3: Basic Expense Management
+1. **Features**
+   - Expense logging
+   - Category management
+   - Basic reporting
+   - Virtual accounts
+
+2. **Data Persistence**
+   - PostgreSQL integration
+   - Redis caching
+   - Offline storage with IndexedDB
+
+### Phase 4: Advanced Features
+1. **Group Management**
+   - Group creation
+   - Expense splitting
+   - Group budgets
+
+2. **ML Services (Python)**
+   - Receipt scanner
+   - Expense suggestions
+
+### Phase 5: Enhancement Features
+1. **Analytics & Insights**
+   - Custom dashboards
+   - Financial reports
+   - Budget tracking
+
+2. **Gamification**
+   - Awards system
+   - Achievement tracking

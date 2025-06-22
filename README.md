@@ -61,6 +61,9 @@ A full-stack Progressive Web Application for tracking personal and group expense
 
 #### Quick Start
 ```bash
+# Navigate to PWA directory
+cd pwa/
+
 # Install dependencies
 pnpm install
 
@@ -70,6 +73,7 @@ pnpm dev
 
 #### Available Commands
 ```bash
+cd pwa/               # Navigate to PWA directory first
 pnpm dev              # Development server (localhost:3000)
 pnpm build            # Production build
 pnpm start            # Production server
@@ -145,21 +149,29 @@ pip install -r requirements.txt && python src/api/routes.py
 
 ### **Active Development**
 ```
-src/                          # PWA source code
-├── app/                      # Next.js app router pages
-├── components/               # React components (80+ components)
-│   ├── ui/                   # Shadcn/ui components
-│   ├── auth/                 # Authentication components
-│   └── layout/               # Layout & navigation
-├── stores/                   # Zustand state management
-│   └── __tests__/            # Store testing (critical)
-├── lib/                      # Utilities & database
-└── config/                   # Feature gates & configuration
+pwa/                          # PWA application
+├── src/                      # PWA source code
+│   ├── app/                  # Next.js app router pages
+│   ├── components/           # React components (80+ components)
+│   │   ├── ui/               # Shadcn/ui components
+│   │   ├── auth/             # Authentication components
+│   │   └── layout/           # Layout & navigation
+│   ├── stores/               # Zustand state management
+│   │   └── __tests__/        # Store testing (critical)
+│   ├── lib/                  # Utilities & database
+│   └── config/               # Feature gates & configuration
+├── package.json              # PWA dependencies
+└── next.config.ts            # Next.js configuration
 
 backend/services/user-service/ # Firebase Functions
 ├── functions/src/index.ts    # User service endpoints
 ├── firebase.json             # Firebase configuration
 └── package.json              # Node.js 20 dependencies
+
+docs/                         # Documentation
+├── FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md
+├── UET_product_details.md
+└── next-steps.md
 ```
 
 ### **Future Development**
@@ -177,7 +189,7 @@ infrastructure/               # Kubernetes & Terraform (future)
 ## 🔧 Development Notes
 
 ### **Firebase Functions Deployment** 
-If you encounter deployment issues, see `FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md` for:
+If you encounter deployment issues, see `docs/FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md` for:
 - Node.js 20 compatibility requirements
 - Discovery timeout configuration
 - Lazy initialization patterns
@@ -194,7 +206,7 @@ If you encounter deployment issues, see `FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGA
 1. **PWA Development** (primary focus)
    ```bash
    git checkout -b feature/pwa-enhancement
-   # Work in src/ directory
+   cd pwa/  # Work in PWA directory
    pnpm test:stores  # Always test stores
    ```
 
