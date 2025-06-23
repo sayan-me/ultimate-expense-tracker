@@ -14,8 +14,9 @@ import {
 import { useRouter } from "next/navigation"
 
 export function UserNav() {
-  const { user, logout, isAuthenticated } = useAuth()
+  const { user, logout } = useAuth()
   const router = useRouter()
+  const isAuthenticated = !!user
 
   const handleLoginClick = () => {
     router.push('/auth/login')

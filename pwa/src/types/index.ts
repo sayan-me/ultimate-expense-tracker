@@ -10,4 +10,7 @@ export type NavItem = {
   title: string;
   href: string;
   icon?: string;
-}; 
+};
+
+// Re-export auth types
+export * from './auth'; 

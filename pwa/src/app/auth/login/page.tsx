@@ -1,33 +1,31 @@
 "use client"
 
-import { useAuth } from "@/contexts/auth-context"
-import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { LoginForm } from "@/components/auth/login-form"
+import { FirebaseDebug } from "@/components/debug/firebase-debug"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useAuthSync } from "@/hooks/use-auth-sync"
 
 export default function LoginPage() {
-  const { login } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const returnUrl = searchParams.get('returnUrl') || '/'
+  
+  // Sync auth context with store
+  useAuthSync()
 
-  const handleMockLogin = async () => {
-    await login('john@example.com', 'password')
+  const handleLoginSuccess = () => {
+    console.log('🎉 Login successful, redirecting to:', returnUrl)
     router.push(returnUrl)
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <Card className="max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle>Login</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleMockLogin}>
-            Mock Login (Temporary)
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="container mx-auto p-4 min-h-screen flex items-center justify-center">
+      <div className="w-full max-w-2xl space-y-4">
+        <FirebaseDebug />
+        <div className="max-w-md mx-auto">
+          <LoginForm onSuccess={handleLoginSuccess} />
+        </div>
+      </div>
     </div>
   )
 } 

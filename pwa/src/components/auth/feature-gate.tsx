@@ -12,7 +12,8 @@ interface FeatureGateProps {
 }
 
 export function FeatureGate({ level, children, fallback }: FeatureGateProps) {
-  const { isAuthenticated } = useAuth()
+  const { user } = useAuth()
+  const isAuthenticated = !!user
 
   // Registered features need authentication
   if (level === "registered" && !isAuthenticated) {

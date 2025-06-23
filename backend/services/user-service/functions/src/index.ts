@@ -5,33 +5,31 @@ import {Request, Response} from "firebase-functions/v1";
 
 admin.initializeApp();
 
-interface Config {
-    supabase: {
-        url: string,
-        service_role_key: string,
-    },
-    app: {
-        api_key: string,
-    },
-}
+// Environment variables for configuration (using process.env directly)
 
-// Initialize Supabase client lazily - moved inside onInit
+// Initialize Supabase client lazily
 let supabase: ReturnType<typeof createClient> | null = null;
-
-// Supabase will be initialized lazily when first needed
 
 function getSupabaseClient() {
   if (!supabase) {
-    const config = functions.config() as Config;
-    if (!config.supabase?.url || !config.supabase?.service_role_key) {
-      throw new Error("Supabase configuration not found");
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error("Supabase configuration not found. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.");
     }
-    supabase = createClient(
-      config.supabase.url,
-      config.supabase.service_role_key
-    );
+    
+    supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
   }
   return supabase;
+}
+
+function getFirebaseApiKey(): string {
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error("Google API key not found. Please set GOOGLE_API_KEY environment variable.");
+  }
+  return apiKey;
 }
 
 interface AuthRequest {
@@ -52,20 +50,61 @@ async function createUserInDB(
   email: string,
   name?: string
 ) {
-  const {data, error} = await getSupabaseClient()
-    .from("users")
-    .insert([
-      {
-        firebase_id: firebaseId,
-        email: email,
-        name: name,
-      },
-    ])
-    .select("id, name, email")
-    .single();
+  try {
+    console.log("Creating user in Supabase DB:");
+    console.log("- Firebase ID:", firebaseId);
+    console.log("- Email:", email);
+    console.log("- Name:", name);
+    console.log("- Supabase URL:", process.env.SUPABASE_URL);
+    console.log("- URL length:", process.env.SUPABASE_URL?.length);
+    console.log("- Key length:", process.env.SUPABASE_SERVICE_ROLE_KEY?.length);
+    
+    // Test basic connectivity first
+    console.log("Testing Supabase connectivity...");
+    try {
+      const testResponse = await fetch(process.env.SUPABASE_URL + '/rest/v1/', {
+        method: 'GET',
+        headers: {
+          'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        }
+      });
+      console.log("Connectivity test status:", testResponse.status);
+      console.log("Connectivity test headers:", Object.fromEntries(testResponse.headers.entries()));
+    } catch (connError) {
+      console.error("Connectivity test failed:", connError);
+    }
+    
+    const supabase = getSupabaseClient();
+    console.log("Supabase client created successfully");
+    
+    const {data, error} = await supabase
+      .from("users")
+      .insert([
+        {
+          firebase_id: firebaseId,
+          email: email,
+          name: name,
+        },
+      ])
+      .select("id, name, email")
+      .single();
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      console.error("Supabase insert error:", error);
+      throw error;
+    }
+    
+    console.log("Supabase insert successful:", data);
+    return data;
+  } catch (error) {
+    console.error("=== SUPABASE ERROR ===");
+    console.error("Error:", error);
+    console.error("Error type:", typeof error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
+    console.error("====================");
+    throw error;
+  }
 }
 
 /**
@@ -101,9 +140,7 @@ async function handleLogin(req: Request, res: Response) {
 
   try {
     const response = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${
-        (functions.config() as Config).app.api_key
-      }`,
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${getFirebaseApiKey()}`,
       {
         method: "POST",
         headers: {
@@ -152,10 +189,20 @@ async function handleLogin(req: Request, res: Response) {
 
 /**
  * Handles user registration
+ * Creates both Firebase user and Supabase database record
  * @param {functions.https.Request} req - The request object
  * @param {Response} res - The response object
  */
 async function handleRegister(req: Request, res: Response) {
+  console.log("=== REGISTRATION REQUEST ===");
+  console.log("Method:", req.method);
+  console.log("Body keys:", Object.keys(req.body || {}));
+  console.log("Environment check:");
+  console.log("- SUPABASE_URL exists:", !!process.env.SUPABASE_URL);
+  console.log("- SUPABASE_SERVICE_ROLE_KEY exists:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+  console.log("- GOOGLE_API_KEY exists:", !!process.env.GOOGLE_API_KEY);
+  console.log("===========================");
+
   if (req.method !== "POST") {
     res.status(405).json({error: "Method not allowed"});
     return;
@@ -163,39 +210,67 @@ async function handleRegister(req: Request, res: Response) {
 
   const {email, password, name} = req.body as AuthRequest;
 
-  if (!email || !password) {
-    res.status(400).json({error: "Email and password are required"});
+  if (!email || !password || !name) {
+    console.error("Missing required fields:", {email: !!email, password: !!password, name: !!name});
+    res.status(400).json({error: "Email, password, and name are required"});
     return;
   }
 
   let firebaseUser: admin.auth.UserRecord | null = null;
 
   try {
+    console.log("Step 1: Creating Firebase user for email:", email);
+    // Create user in Firebase
     firebaseUser = await admin.auth().createUser({
       email,
       password,
       displayName: name,
     });
+    console.log("Step 1 SUCCESS: Firebase user created with UID:", firebaseUser.uid);
 
+    console.log("Step 2: Creating Supabase database record");
+    // Create user in Supabase database
     const dbUser = await createUserInDB(firebaseUser.uid, email, name);
+    console.log("Step 2 SUCCESS: Supabase user created with ID:", dbUser.id);
+
+    console.log("Step 3: Generating custom token");
+    // Generate custom token for immediate sign-in
+    const customToken = await admin.auth().createCustomToken(firebaseUser.uid);
+    console.log("Step 3 SUCCESS: Custom token generated");
 
     res.json({
-      data: {
-        user: firebaseUser,
-        dbUser: {
-          id: dbUser.id,
-          name: dbUser.name,
-          email: dbUser.email,
-        },
+      success: true,
+      message: "User registered successfully",
+      user: {
+        id: dbUser.id,
+        name: dbUser.name,
+        email: dbUser.email,
+        featureLevel: "registered", // Default level for new users
       },
+      customToken, // Client can use this to sign in immediately
     });
   } catch (error: unknown) {
+    // Cleanup: if Firebase user was created but Supabase failed, delete Firebase user
     if (firebaseUser) {
-      await admin.auth().deleteUser(firebaseUser.uid);
+      try {
+        await admin.auth().deleteUser(firebaseUser.uid);
+        console.log("Cleaned up Firebase user after error");
+      } catch (cleanupError) {
+        console.error("Failed to cleanup Firebase user:", cleanupError);
+      }
     }
+    
+    // Enhanced error logging
+    console.error("=== REGISTRATION ERROR ===");
+    console.error("Error type:", typeof error);
+    console.error("Error details:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+    console.error("========================");
+    
     res.status(500).json({
       error: "Failed to create user",
-      message: error instanceof Error ? error.message : "Unknown error",
+      message: error instanceof Error ? error.message : `Unknown error: ${JSON.stringify(error)}`,
+      details: process.env.NODE_ENV === 'development' ? error : undefined,
     });
   }
 }
