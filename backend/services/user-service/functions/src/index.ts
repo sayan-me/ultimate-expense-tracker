@@ -3,7 +3,9 @@ import * as admin from "firebase-admin";
 import {createClient} from "@supabase/supabase-js";
 import {Request, Response} from "firebase-functions/v1";
 
-admin.initializeApp();
+admin.initializeApp({
+  serviceAccountId: process.env.FIREBASE_SERVICE_ACCOUNT_ID || 'uet-stg@appspot.gserviceaccount.com'
+});
 
 // Environment variables for configuration (using process.env directly)
 
@@ -92,6 +94,10 @@ async function createUserInDB(
 
     if (error) {
       console.error("Supabase insert error:", error);
+      // Handle duplicate email error
+      if (error.code === '23505' && error.message.includes('users_email_unique')) {
+        throw new Error('Email already registered');
+      }
       throw error;
     }
     
@@ -233,11 +239,30 @@ async function handleRegister(req: Request, res: Response) {
     const dbUser = await createUserInDB(firebaseUser.uid, email, name);
     console.log("Step 2 SUCCESS: Supabase user created with ID:", dbUser.id);
 
-    console.log("Step 3: Generating custom token");
-    // Generate custom token for immediate sign-in
-    const customToken = await admin.auth().createCustomToken(firebaseUser.uid);
-    console.log("Step 3 SUCCESS: Custom token generated");
+    console.log("Step 3: Authenticating with REST API to get ID token");
+    // Use Firebase REST API to sign in and get ID token (no IAM permissions needed)
+    const signInResponse = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${getFirebaseApiKey()}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email,
+          password: password,
+          returnSecureToken: true,
+        }),
+      }
+    );
 
+    const signInData = await signInResponse.json();
+    if (!signInResponse.ok) {
+      throw new Error(`Failed to authenticate new user: ${signInData.error.message}`);
+    }
+    
+    console.log("Step 3 SUCCESS: ID token generated via REST API");
+    
     res.json({
       success: true,
       message: "User registered successfully",
@@ -246,8 +271,10 @@ async function handleRegister(req: Request, res: Response) {
         name: dbUser.name,
         email: dbUser.email,
         featureLevel: "registered", // Default level for new users
+        uid: firebaseUser.uid,
       },
-      customToken, // Client can use this to sign in immediately
+      firebaseToken: signInData.idToken,
+      refreshToken: signInData.refreshToken,
     });
   } catch (error: unknown) {
     // Cleanup: if Firebase user was created but Supabase failed, delete Firebase user
