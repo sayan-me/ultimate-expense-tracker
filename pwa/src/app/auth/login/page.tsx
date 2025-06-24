@@ -1,7 +1,6 @@
 "use client"
 
 import { LoginForm } from "@/components/auth/login-form"
-import { FirebaseDebug } from "@/components/debug/firebase-debug"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuthSync } from "@/hooks/use-auth-sync"
 
@@ -21,8 +20,7 @@ export default function LoginPage() {
   return (
     <div className="container mx-auto p-4 min-h-screen flex items-center justify-center">
       <div className="w-full max-w-2xl space-y-4">
-        <FirebaseDebug />
-        <div className="max-w-md mx-auto">
+          <div className="max-w-md mx-auto">
           <LoginForm onSuccess={handleLoginSuccess} />
         </div>
       </div>

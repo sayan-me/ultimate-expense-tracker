@@ -142,11 +142,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           </button>
         </div>
 
-        <div className="mt-4 p-3 bg-gray-50 rounded text-xs text-gray-600">
-          <p><strong>🔥 Real Firebase Authentication</strong></p>
-          <p>This form now uses real Firebase Auth + User Service integration</p>
-          <p>Check browser console for detailed auth flow logs</p>
-        </div>
       </CardContent>
     </Card>
   );

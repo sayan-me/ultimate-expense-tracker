@@ -1,5 +1,5 @@
 import { 
-  signInWithEmailAndPassword, 
+  signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   User as FirebaseUser
@@ -17,20 +17,19 @@ export class AuthService {
    */
   async login(email: string, password: string): Promise<AppUser> {
     try {
-      // Step 1: Authenticate with Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('🔐 Attempting login with:', email);
       
-      // Step 2: Get Firebase ID token
-      const idToken = await userCredential.user.getIdToken();
+      // Call user service directly - it handles Firebase auth internally  
+      const userProfile = await this.loginWithUserService({ email, password });
       
-      // Step 3: Call user service to get/sync user profile
-      const userProfile = await this.loginWithUserService({ email, password }, idToken);
+      // User service returns regular Firebase ID token, just use email/password to sign in
+      await signInWithEmailAndPassword(auth, email, password);
       
       return userProfile;
     } catch (error: unknown) {
       console.error('Login error:', error);
-      const errorCode = error && typeof error === 'object' && 'code' in error ? (error as { code: string }).code : '';
-      throw new Error(this.getAuthErrorMessage(errorCode));
+      const message = error && typeof error === 'object' && 'message' in error ? (error as { message: string }).message : 'Login failed';
+      throw new Error(message);
     }
   }
 
@@ -96,7 +95,7 @@ export class AuthService {
   /**
    * Call user service for login
    */
-  private async loginWithUserService(credentials: LoginRequest, idToken: string): Promise<AppUser> {
+  private async loginWithUserService(credentials: LoginRequest): Promise<AppUser> {
     const url = `${env.api.userServiceUrl}/login`;
     console.log('🔗 Calling login endpoint:', url);
     
@@ -104,7 +103,6 @@ export class AuthService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}`,
       },
       body: JSON.stringify(credentials),
     });
@@ -113,13 +111,18 @@ export class AuthService {
       throw new Error(`User service login failed: ${response.statusText}`);
     }
 
-    const data: UserServiceResponse = await response.json();
+    const data = await response.json();
     
-    if (!data.success || !data.user) {
-      throw new Error(data.message || 'Login failed');
+    // Handle login response format (different from registration)
+    if (data.data && data.data.user) {
+      return {
+        ...data.data.user,
+        firebaseToken: data.data.firebaseToken,
+        featureLevel: 'registered' as const
+      };
     }
-
-    return data.user;
+    
+    throw new Error('Invalid login response format');
   }
 
   /**
@@ -196,13 +199,20 @@ export class AuthService {
         throw new Error(`Failed to get user profile: ${response.statusText}`);
       }
 
-      const data: UserServiceResponse = await response.json();
+      const data = await response.json();
       
-      if (!data.success || !data.user) {
-        return null;
+      // Handle user profile response format
+      if (data.data && data.data.dbUser) {
+        return {
+          id: data.data.dbUser.id,
+          name: data.data.dbUser.name,
+          email: data.data.dbUser.email,
+          uid: data.data.user.uid,
+          featureLevel: 'registered' as const
+        };
       }
-
-      return data.user;
+      
+      return null;
     } catch (error) {
       console.error('Error getting user profile:', error);
       return null;

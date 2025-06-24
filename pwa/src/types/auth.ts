@@ -9,6 +9,8 @@ export interface AppUser {
   email: string;
   name: string;
   featureLevel: UserLevel;
+  uid?: string; // Firebase UID
+  firebaseToken?: string; // Firebase ID token
   createdAt?: string;
   updatedAt?: string;
 }
