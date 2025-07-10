@@ -22,7 +22,7 @@ describe('AuthService User Management', () => {
     const mockUser = {
       getIdToken: jest.fn().mockResolvedValue('mock-token')
     }
-    ;(authService as any).getCurrentFirebaseUser = jest.fn().mockReturnValue(mockUser)
+    jest.spyOn(authService, 'getCurrentFirebaseUser').mockReturnValue(mockUser as never)
   })
 
   describe('updateProfile', () => {
@@ -40,7 +40,7 @@ describe('AuthService User Management', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue(mockResponse),
-      } as any)
+      } as Response)
 
       const result = await authService.updateProfile('Jane Doe', 'jane.doe@example.com')
 
@@ -71,7 +71,7 @@ describe('AuthService User Management', () => {
         status: 400,
         statusText: 'Bad Request',
         text: jest.fn().mockResolvedValue('Validation error'),
-      } as any)
+      } as Response)
 
       await expect(authService.updateProfile('Jane Doe')).rejects.toThrow(
         'Failed to update profile: 400 Bad Request - Validation error'
@@ -89,7 +89,7 @@ describe('AuthService User Management', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue(mockResponse),
-      } as any)
+      } as Response)
 
       await authService.changePassword('currentpass', 'newpass123')
 
@@ -125,7 +125,7 @@ describe('AuthService User Management', () => {
         status: 400,
         statusText: 'Bad Request',
         text: jest.fn().mockResolvedValue('Current password is incorrect'),
-      } as any)
+      } as Response)
 
       await expect(authService.changePassword('wrongpass', 'newpass123')).rejects.toThrow(
         'Failed to change password: 400 Bad Request - Current password is incorrect'
@@ -155,7 +155,7 @@ describe('AuthService User Management', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue(mockResponse),
-      } as any)
+      } as Response)
 
       const result = await authService.getLoginHistory(20, 0)
 
@@ -189,7 +189,7 @@ describe('AuthService User Management', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue(mockResponse),
-      } as any)
+      } as Response)
 
       await authService.getLoginHistory()
 
@@ -205,7 +205,7 @@ describe('AuthService User Management', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue({ message: 'User successfully deleted' }),
-      } as any)
+      } as Response)
 
       // Mock logout method
       const logoutSpy = jest.spyOn(authService, 'logout').mockResolvedValue()
@@ -231,7 +231,7 @@ describe('AuthService User Management', () => {
         status: 500,
         statusText: 'Internal Server Error',
         text: jest.fn().mockResolvedValue('Deletion failed'),
-      } as any)
+      } as Response)
 
       await expect(authService.deleteAccount()).rejects.toThrow(
         'Failed to delete account: 500 Internal Server Error - Deletion failed'
