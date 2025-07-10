@@ -368,10 +368,7 @@ async function updateUserInDB(
   email?: string
 ) {
   try {
-    console.log("Updating user in both Firebase and Supabase:");
-    console.log("- Firebase ID:", firebaseId);
-    console.log("- Name:", name);
-    console.log("- Email:", email);
+    functions.logger.info("Updating user in both Firebase and Supabase", { firebaseId, name, email });
 
     // Step 1: Update Firebase user first
     const updateData: any = {};
