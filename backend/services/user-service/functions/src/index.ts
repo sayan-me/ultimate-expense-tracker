@@ -40,6 +40,16 @@ interface AuthRequest {
     name?: string;
 }
 
+interface UpdateUserRequest {
+    name?: string;
+    email?: string;
+}
+
+interface ChangePasswordRequest {
+    currentPassword: string;
+    newPassword: string;
+}
+
 /**
  * Creates a new user in the database
  * @param {string} firebaseId - The Firebase user ID
@@ -127,6 +137,44 @@ async function deleteUserFromDB(firebaseId: string) {
 }
 
 /**
+ * Records login history asynchronously (non-blocking)
+ * @param {number} userId - The user's database ID
+ * @param {string} firebaseId - The Firebase user ID
+ * @param {Request} req - The request object for extracting IP and user agent
+ * @param {boolean} success - Whether the login was successful
+ */
+async function recordLoginHistory(
+  userId: number,
+  firebaseId: string,
+  req: Request,
+  success: boolean = true
+) {
+  try {
+    const clientIp = req.headers['x-forwarded-for'] as string || 
+                     req.headers['x-real-ip'] as string ||
+                     req.connection?.remoteAddress ||
+                     req.socket?.remoteAddress ||
+                     'unknown';
+    
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
+    await getSupabaseClient()
+      .from("login_history")
+      .insert([{
+        user_id: userId,
+        firebase_id: firebaseId,
+        ip_address: clientIp,
+        user_agent: userAgent,
+        success: success,
+        login_method: 'password'
+      }]);
+  } catch (error) {
+    // Log the error but don't throw - this should not block login
+    console.error("Failed to record login history:", error);
+  }
+}
+
+/**
  * Handles user login
  * @param {functions.https.Request} req - The request object
  * @param {Response} res - The response object
@@ -173,6 +221,11 @@ async function handleLogin(req: Request, res: Response) {
       .single();
 
     if (dbError) throw dbError;
+
+    // Record login history asynchronously (non-blocking)
+    recordLoginHistory(Number(dbUser.id), data.localId, req, true).catch(err => {
+      console.error("Login history recording failed:", err);
+    });
 
     res.json({
       data: {
@@ -303,7 +356,82 @@ async function handleRegister(req: Request, res: Response) {
 }
 
 /**
- * Handles user retrieval and deletion
+ * Updates user profile in both Firebase and Supabase
+ * @param {string} firebaseId - The Firebase user ID
+ * @param {string} [name] - The user's name
+ * @param {string} [email] - The user's email
+ * @return {Promise<object>} The updated user data
+ */
+async function updateUserInDB(
+  firebaseId: string,
+  name?: string,
+  email?: string
+) {
+  try {
+    functions.logger.info("Updating user in both Firebase and Supabase", { firebaseId, name, email });
+
+    // Step 1: Update Firebase user first
+    const updateData: any = {};
+    if (name) updateData.displayName = name;
+    if (email) updateData.email = email;
+    
+    if (Object.keys(updateData).length > 0) {
+      await admin.auth().updateUser(firebaseId, updateData);
+      console.log("Firebase user updated successfully");
+    }
+
+    // Step 2: Update Supabase user
+    const supabaseUpdateData: any = {};
+    if (name) supabaseUpdateData.name = name;
+    if (email) supabaseUpdateData.email = email;
+    
+    if (Object.keys(supabaseUpdateData).length > 0) {
+      const {data, error} = await getSupabaseClient()
+        .from("users")
+        .update(supabaseUpdateData)
+        .eq("firebase_id", firebaseId)
+        .select("id, name, email")
+        .single();
+
+      if (error) {
+        console.error("Supabase update error:", error);
+        // If Supabase update fails, try to rollback Firebase changes
+        if (email) {
+          try {
+            // Get the original user data to rollback
+            const originalUser = await admin.auth().getUser(firebaseId);
+            await admin.auth().updateUser(firebaseId, { email: originalUser.email });
+            console.log("Rolled back Firebase email change");
+          } catch (rollbackError) {
+            console.error("Failed to rollback Firebase changes:", rollbackError);
+          }
+        }
+        throw error;
+      }
+
+      console.log("Supabase user updated successfully:", data);
+      return data;
+    }
+
+    // If no updates to Supabase, return current user data
+    const {data, error} = await getSupabaseClient()
+      .from("users")
+      .select("id, name, email")
+      .eq("firebase_id", firebaseId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("=== UPDATE USER ERROR ===");
+    console.error("Error:", error);
+    console.error("=========================");
+    throw error;
+  }
+}
+
+/**
+ * Handles user retrieval, update, and deletion
  * @param {functions.https.Request} req - The request object
  * @param {Response} res - The response object
  */
@@ -336,6 +464,25 @@ async function handleUser(req: Request, res: Response) {
           dbUser: dbUser,
         },
       });
+    } else if (req.method === "PUT") {
+      const {name, email} = req.body as UpdateUserRequest;
+
+      if (!name && !email) {
+        res.status(400).json({error: "At least one field (name or email) is required"});
+        return;
+      }
+
+      const updatedUser = await updateUserInDB(decodedToken.uid, name, email);
+      
+      res.json({
+        success: true,
+        user: {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          uid: decodedToken.uid,
+        },
+      });
     } else if (req.method === "DELETE") {
       await deleteUserFromDB(decodedToken.uid);
       await admin.auth().deleteUser(decodedToken.uid);
@@ -347,7 +494,149 @@ async function handleUser(req: Request, res: Response) {
     res.status(401).json({
       error: req.method === "DELETE" ?
         "Failed to delete user" :
+        req.method === "PUT" ?
+        "Failed to update user" :
         "Failed to get user details",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}
+
+/**
+ * Handles password change
+ * @param {functions.https.Request} req - The request object
+ * @param {Response} res - The response object
+ */
+async function handleChangePassword(req: Request, res: Response) {
+  if (req.method !== "POST") {
+    res.status(405).json({error: "Method not allowed"});
+    return;
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({error: "No valid authorization header"});
+    return;
+  }
+
+  const token = authHeader.split("Bearer ")[1];
+  const {currentPassword, newPassword} = req.body as ChangePasswordRequest;
+
+  if (!currentPassword || !newPassword) {
+    res.status(400).json({error: "Current password and new password are required"});
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    res.status(400).json({error: "New password must be at least 6 characters long"});
+    return;
+  }
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    
+    // Get user's email to verify current password
+    const firebaseUser = await admin.auth().getUser(decodedToken.uid);
+    if (!firebaseUser.email) {
+      res.status(400).json({error: "User email not found"});
+      return;
+    }
+
+    // Verify current password by attempting to sign in
+    const verifyResponse = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${getFirebaseApiKey()}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: firebaseUser.email,
+          password: currentPassword,
+          returnSecureToken: true,
+        }),
+      }
+    );
+
+    if (!verifyResponse.ok) {
+      res.status(400).json({error: "Current password is incorrect"});
+      return;
+    }
+
+    // Update password using Firebase Admin SDK
+    await admin.auth().updateUser(decodedToken.uid, {
+      password: newPassword,
+    });
+
+    res.json({
+      success: true,
+      message: "Password updated successfully",
+    });
+  } catch (error: unknown) {
+    console.error("Password change error:", error);
+    res.status(500).json({
+      error: "Failed to change password",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}
+
+/**
+ * Handles login history retrieval
+ * @param {functions.https.Request} req - The request object
+ * @param {Response} res - The response object
+ */
+async function handleLoginHistory(req: Request, res: Response) {
+  if (req.method !== "GET") {
+    res.status(405).json({error: "Method not allowed"});
+    return;
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({error: "No valid authorization header"});
+    return;
+  }
+
+  const token = authHeader.split("Bearer ")[1];
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+
+    // Get user's database ID
+    const {data: dbUser, error: userError} = await getSupabaseClient()
+      .from("users")
+      .select("id")
+      .eq("firebase_id", decodedToken.uid)
+      .single();
+
+    if (userError) throw userError;
+
+    // Parse pagination parameters
+    const limit = parseInt((req.query.limit as string) || "20");
+    const offset = parseInt((req.query.offset as string) || "0");
+
+    // Fetch login history with pagination
+    const {data: history, error: historyError, count} = await getSupabaseClient()
+      .from("login_history")
+      .select("id, login_timestamp, ip_address, user_agent, login_method, success", { count: 'exact' })
+      .eq("user_id", Number(dbUser.id))
+      .order("login_timestamp", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (historyError) throw historyError;
+
+    res.json({
+      success: true,
+      history: history || [],
+      total: count || 0,
+      limit,
+      offset,
+    });
+  } catch (error: unknown) {
+    console.error("Login history error:", error);
+    res.status(500).json({
+      error: "Failed to retrieve login history",
       message: error instanceof Error ? error.message : "Unknown error",
     });
   }
@@ -361,7 +650,7 @@ export const auth = functions.https.onRequest((req: Request, res: Response) => {
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization"
   );
-  res.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+  res.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 
   // Handle OPTIONS requests
   if (req.method === "OPTIONS") {
@@ -381,6 +670,12 @@ export const auth = functions.https.onRequest((req: Request, res: Response) => {
     return;
   case "user":
     handleUser(req, res);
+    return;
+  case "change-password":
+    handleChangePassword(req, res);
+    return;
+  case "login-history":
+    handleLoginHistory(req, res);
     return;
   default:
     res.status(404).json({error: "Not found"});
