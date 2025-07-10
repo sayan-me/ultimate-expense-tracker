@@ -52,6 +52,14 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {isAuthenticated && (
+          <>
+            <DropdownMenuItem onClick={() => router.push('/settings')}>
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem onClick={isAuthenticated ? handleLogoutClick : handleLoginClick}>
           {isAuthenticated ? 'Log out' : 'Log in'}
         </DropdownMenuItem>

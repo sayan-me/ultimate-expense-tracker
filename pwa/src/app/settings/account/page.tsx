@@ -15,7 +15,7 @@ export default function AccountSettingsPage() {
 
   if (loading) {
     return (
-      <div className="container py-6">
+      <div className="py-6">
         <div className="flex items-center justify-center min-h-[400px]">
           <LoadingSpinner size="lg" />
         </div>
@@ -25,7 +25,7 @@ export default function AccountSettingsPage() {
 
   if (!user) {
     return (
-      <div className="container py-6">
+      <div className="py-6">
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
@@ -37,7 +37,7 @@ export default function AccountSettingsPage() {
   }
 
   return (
-    <div className="container py-6 max-w-4xl mx-auto">
+    <div className="py-6 max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-2">Account Settings</h1>
         <p className="text-muted-foreground">

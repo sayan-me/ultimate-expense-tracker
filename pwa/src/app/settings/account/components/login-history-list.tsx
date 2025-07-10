@@ -131,14 +131,16 @@ export function LoginHistoryList() {
               className={cn(
                 "flex items-center justify-between p-3 rounded-lg border",
                 item.success 
-                  ? "bg-green-50 border-green-200" 
-                  : "bg-red-50 border-red-200"
+                  ? "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800/30" 
+                  : "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800/30"
               )}
             >
               <div className="flex items-center space-x-3">
                 <div className={cn(
                   "p-2 rounded-full",
-                  item.success ? "bg-green-100" : "bg-red-100"
+                  item.success 
+                    ? "bg-green-100 dark:bg-green-900/40" 
+                    : "bg-red-100 dark:bg-red-900/40"
                 )}>
                   {getDeviceIcon(item.user_agent)}
                 </div>
@@ -147,7 +149,7 @@ export function LoginHistoryList() {
                     <span className="font-medium text-sm">
                       {item.success ? 'Successful Login' : 'Failed Login'}
                     </span>
-                    <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">
+                    <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded-full">
                       {item.login_method}
                     </span>
                   </div>
