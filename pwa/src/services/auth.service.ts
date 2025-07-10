@@ -220,6 +220,169 @@ export class AuthService {
   }
 
   /**
+   * Update user profile (name and/or email)
+   */
+  async updateProfile(name?: string, email?: string): Promise<AppUser> {
+    const idToken = await this.getIdToken();
+    if (!idToken) throw new Error('Not authenticated');
+
+    if (!name && !email) {
+      throw new Error('At least one field (name or email) is required');
+    }
+
+    try {
+      const response = await fetch(`${env.api.userServiceUrl}/user`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to update profile: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.success || !data.user) {
+        throw new Error('Profile update failed');
+      }
+
+      return data.user;
+    } catch (error: unknown) {
+      console.error('Profile update error:', error);
+      const message = error && typeof error === 'object' && 'message' in error ? (error as { message: string }).message : 'Profile update failed';
+      throw new Error(message);
+    }
+  }
+
+  /**
+   * Change user password
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const idToken = await this.getIdToken();
+    if (!idToken) throw new Error('Not authenticated');
+
+    if (!currentPassword || !newPassword) {
+      throw new Error('Current password and new password are required');
+    }
+
+    if (newPassword.length < 6) {
+      throw new Error('New password must be at least 6 characters long');
+    }
+
+    try {
+      const response = await fetch(`${env.api.userServiceUrl}/change-password`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to change password: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Password change failed');
+      }
+    } catch (error: unknown) {
+      console.error('Password change error:', error);
+      const message = error && typeof error === 'object' && 'message' in error ? (error as { message: string }).message : 'Password change failed';
+      throw new Error(message);
+    }
+  }
+
+  /**
+   * Get user login history
+   */
+  async getLoginHistory(limit: number = 20, offset: number = 0): Promise<{
+    history: Array<{
+      id: string;
+      login_timestamp: string;
+      ip_address: string;
+      user_agent: string;
+      login_method: string;
+      success: boolean;
+    }>;
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const idToken = await this.getIdToken();
+    if (!idToken) throw new Error('Not authenticated');
+
+    try {
+      const url = `${env.api.userServiceUrl}/login-history?limit=${limit}&offset=${offset}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to get login history: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to retrieve login history');
+      }
+
+      return {
+        history: data.history || [],
+        total: data.total || 0,
+        limit: data.limit || limit,
+        offset: data.offset || offset,
+      };
+    } catch (error: unknown) {
+      console.error('Login history error:', error);
+      const message = error && typeof error === 'object' && 'message' in error ? (error as { message: string }).message : 'Failed to retrieve login history';
+      throw new Error(message);
+    }
+  }
+
+  /**
+   * Delete user account
+   */
+  async deleteAccount(): Promise<void> {
+    const idToken = await this.getIdToken();
+    if (!idToken) throw new Error('Not authenticated');
+
+    try {
+      const response = await fetch(`${env.api.userServiceUrl}/user`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to delete account: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      // After successful deletion, logout the user
+      await this.logout();
+    } catch (error: unknown) {
+      console.error('Account deletion error:', error);
+      const message = error && typeof error === 'object' && 'message' in error ? (error as { message: string }).message : 'Account deletion failed';
+      throw new Error(message);
+    }
+  }
+
+  /**
    * Convert Firebase auth error codes to user-friendly messages
    */
   private getAuthErrorMessage(errorCode: string): string {
