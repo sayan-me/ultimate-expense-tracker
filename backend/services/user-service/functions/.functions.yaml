@@ -1,0 +1,4 @@
+functions:
+  helloWorld:
+    httpsTrigger: {}
+    runtime: nodejs18

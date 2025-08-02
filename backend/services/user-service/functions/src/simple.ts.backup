@@ -1,0 +1,10 @@
+import * as functions from "firebase-functions";
+
+// Simple health check function for testing deployment
+export const health = functions.https.onRequest((req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    message: "User service health check"
+  });
+});

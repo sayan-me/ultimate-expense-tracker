@@ -1,0 +1,23 @@
+global:
+  environment: base
+
+namespaces:
+  - name: app
+    labels: {}
+
+kong:
+  enabled: true
+  admin:
+    enabled: true
+    type: LoadBalancer
+    # http:
+    #   enabled: true
+    # tls:
+    #   enabled: true
+    #   parameters:
+    #     - http2
+  ingress:
+    enabled: true
+  # Override proxy service
+  proxy:
+    type: LoadBalancer
