@@ -13,7 +13,15 @@ export type ActivityItem = {
 }
 
 export const PERSONAL_ACTIVITIES: ActivityItem[] = [
-  { icon: Receipt, label: "Log Transactions", onClick: () => {} },
+  { 
+    icon: Receipt, 
+    label: "Log Transactions", 
+    onClick: () => {
+      // This will be handled by the quick actions component
+      const event = new CustomEvent('openExpenseModal', { detail: { type: 'expense' } })
+      window.dispatchEvent(event)
+    } 
+  },
   { icon: BarChart3, label: "View Stats", onClick: () => {} },
   { icon: PiggyBank, label: "Set Budget", onClick: () => {} },
   { icon: Bell, label: "Notifications", onClick: () => {} },

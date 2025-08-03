@@ -7,7 +7,18 @@ import { env, validateEnvConfig, logEnvStatus } from '@/config/env';
 const envValidation = validateEnvConfig();
 if (!envValidation.isValid) {
   console.error('🔥 Firebase configuration error:', envValidation.errors);
-  throw new Error(`Firebase configuration error: ${envValidation.errors.join(', ')}`);
+  console.warn('⚠️ Some Firebase features may be unavailable, but core expense tracking will work');
+  
+  // Only throw if critical Firebase config is missing
+  const criticalMissing = envValidation.errors.some(error => 
+    error.includes('FIREBASE_API_KEY') || 
+    error.includes('FIREBASE_PROJECT_ID') || 
+    error.includes('FIREBASE_AUTH_DOMAIN')
+  );
+  
+  if (criticalMissing) {
+    throw new Error(`Critical Firebase configuration missing: ${envValidation.errors.join(', ')}`);
+  }
 }
 
 // Log environment status in development

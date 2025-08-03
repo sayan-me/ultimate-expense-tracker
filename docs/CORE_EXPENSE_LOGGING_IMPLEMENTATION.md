@@ -16,12 +16,17 @@ Implement the foundational expense tracking system that allows users to:
 - **State Management**: Zustand stores with persistence middleware
 - **PWA Foundation**: Offline-first architecture ready
 
-### ❌ Missing Core Functionality
-1. **Default Account Creation** - No automatic account setup on first launch
-2. **Expense Logging Form** - No UI to actually add expenses
-3. **Category Management** - No default or custom categories
-4. **Data Integration** - UI components show placeholder data
-5. **Real Calculations** - Balance and spending calculations not implemented
+### ✅ Core Functionality Status (COMPLETED)
+1. ✅ **Default Account Creation** - Auto-creates "Cash" account on first launch
+2. ✅ **Expense Logging Form** - Complete form with validation, categories, tags
+3. ✅ **Category Management** - 8 default expense + 4 income categories + custom creation
+4. ✅ **Data Integration** - Real-time IndexedDB integration throughout UI
+5. ✅ **Real Calculations** - Live balance calculations, monthly trends, transaction counts
+
+### ❌ Deployment Configuration Issues
+1. **Firebase Validation Blocking** - Environment validation prevents app startup without user service
+2. **Authentication Dependency** - Core features blocked by optional authentication requirements
+3. **Configuration Rigidity** - No graceful degradation for missing optional services
 
 ## Architecture Decisions
 
@@ -372,4 +377,81 @@ const DEFAULT_TAGS = [
 - Local data backup before cloud sync
 - Rollback procedures for failed migrations
 
-This implementation plan provides a comprehensive foundation for expense tracking while maintaining the offline-first PWA architecture and preparing for future cloud sync capabilities.
+## Deployment & Configuration Issues
+
+### **✅ RESOLVED - Previous Blocking Issue**
+**Problem**: Firebase environment validation prevented app startup when `NEXT_PUBLIC_USER_SERVICE_URL` validation failed.
+
+**Previous Impact** (Now Resolved): 
+- ✅ Core expense logging now works without authentication setup
+- ✅ Users can track expenses immediately without registration
+- ✅ Adheres to product principle of "no registration required for core features"
+
+**Resolution Applied**: 
+- ✅ `src/lib/firebase.ts` - Converted fatal errors to warnings for non-critical config
+- ✅ `src/config/env.ts` - Moved user service URL to optional configuration
+- ✅ `src/services/auth.service.ts` - Added graceful degradation for missing services
+
+### **✅ COMPLETED - Authentication-Optional Configuration**
+
+#### **Configuration Changes Applied**
+
+1. **✅ Environment Configuration** (`src/config/env.ts`)
+   - ✅ Moved `NEXT_PUBLIC_USER_SERVICE_URL` from required to optional
+   - ✅ Modified validation to warn instead of error for missing user service
+   - ✅ App startup works without authentication services
+
+2. **✅ Firebase Initialization** (`src/lib/firebase.ts`)
+   - ✅ Removed fatal error throw for environment validation failures
+   - ✅ Converted to warning logs instead of app crash
+   - ✅ Core features work independently of user service
+
+3. **✅ Auth Service Graceful Degradation** (`src/services/auth.service.ts`)
+   - ✅ Added null checks for missing user service URL in all methods
+   - ✅ Proper error handling with "service unavailable" messages
+   - ✅ Expense tracking functionality maintained regardless of auth status
+
+#### **✅ Achieved Outcomes**
+- ✅ **Core expense logging works immediately** without authentication
+- ✅ **App starts successfully** with any Firebase configuration
+- ✅ **Authentication features** show appropriate "unavailable" states
+- ✅ **No functional degradation** for offline-first expense tracking
+- ✅ **ChunkLoadError resolved** through development server cache clearing
+
+### **Deployment Strategy**
+
+#### **Local Development**
+- Core features work without complete Firebase setup
+- User service can be optional for expense tracking development
+- Authentication features gracefully disabled when service unavailable
+
+#### **Production Deployment**
+- Expense tracking available to all users immediately
+- Authentication features enabled when user service is deployed
+- Graceful user experience for both scenarios
+
+## Security Considerations
+
+### **Authentication-Optional Design**
+- Core expense data remains local-only until user chooses to register
+- No data loss when transitioning from anonymous to authenticated usage
+- Clear user communication about data locality vs cloud backup
+
+### **Data Privacy**
+- Local IndexedDB storage for anonymous users
+- User-controlled data migration to cloud upon registration
+- No involuntary data sharing or cloud storage
+
+## Testing Strategy Updates
+
+### **Configuration Testing**
+- Test app startup with missing environment variables
+- Verify expense logging works without user service
+- Test graceful degradation of authentication features
+
+### **Authentication Flow Testing**
+- Anonymous usage → expense logging works
+- User registration → data migration works
+- Service unavailable → appropriate error messages
+
+This implementation plan provides a comprehensive foundation for expense tracking while maintaining the offline-first PWA architecture, ensuring authentication-optional core functionality, and preparing for future cloud sync capabilities.

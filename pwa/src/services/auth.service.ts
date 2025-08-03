@@ -96,6 +96,10 @@ export class AuthService {
    * Call user service for login
    */
   private async loginWithUserService(credentials: LoginRequest): Promise<AppUser> {
+    if (!env.api.userServiceUrl) {
+      throw new Error('User service is not configured. Please check your environment variables.');
+    }
+    
     const url = `${env.api.userServiceUrl}/login`;
     console.log('🔗 Calling login endpoint:', url);
     
@@ -129,6 +133,10 @@ export class AuthService {
    * Call user service for registration
    */
   private async registerWithUserService(userData: RegisterRequest): Promise<AppUser> {
+    if (!env.api.userServiceUrl) {
+      throw new Error('User service is not configured. Please check your environment variables.');
+    }
+    
     const url = `${env.api.userServiceUrl}/register`;
     console.log('🔗 Calling register endpoint:', url);
     console.log('📝 Registration data:', { ...userData, password: '[HIDDEN]' });
@@ -182,6 +190,11 @@ export class AuthService {
     const idToken = await this.getIdToken();
     if (!idToken) return null;
 
+    if (!env.api.userServiceUrl) {
+      console.warn('User service not configured - user profile unavailable');
+      return null;
+    }
+
     try {
       const response = await fetch(`${env.api.userServiceUrl}/user`, {
         method: 'GET',
@@ -226,6 +239,10 @@ export class AuthService {
     const idToken = await this.getIdToken();
     if (!idToken) throw new Error('Not authenticated');
 
+    if (!env.api.userServiceUrl) {
+      throw new Error('User service is not configured. Please check your environment variables.');
+    }
+
     if (!name && !email) {
       throw new Error('At least one field (name or email) is required');
     }
@@ -265,6 +282,10 @@ export class AuthService {
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
     const idToken = await this.getIdToken();
     if (!idToken) throw new Error('Not authenticated');
+
+    if (!env.api.userServiceUrl) {
+      throw new Error('User service is not configured. Please check your environment variables.');
+    }
 
     if (!currentPassword || !newPassword) {
       throw new Error('Current password and new password are required');
@@ -320,6 +341,10 @@ export class AuthService {
     const idToken = await this.getIdToken();
     if (!idToken) throw new Error('Not authenticated');
 
+    if (!env.api.userServiceUrl) {
+      throw new Error('User service is not configured. Please check your environment variables.');
+    }
+
     try {
       const url = `${env.api.userServiceUrl}/login-history?limit=${limit}&offset=${offset}`;
       const response = await fetch(url, {
@@ -359,6 +384,10 @@ export class AuthService {
   async deleteAccount(): Promise<void> {
     const idToken = await this.getIdToken();
     if (!idToken) throw new Error('Not authenticated');
+
+    if (!env.api.userServiceUrl) {
+      throw new Error('User service is not configured. Please check your environment variables.');
+    }
 
     try {
       const response = await fetch(`${env.api.userServiceUrl}/user`, {
