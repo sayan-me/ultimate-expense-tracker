@@ -103,7 +103,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Guidelines
 
-### PWA Development
+### PWA Development (Follow .cursorrules patterns)
+**Code Style**:
+- Use early returns for readability
+- Use Tailwind classes exclusively (no CSS or style tags)
+- Use descriptive variable/function names with "handle" prefix for events (e.g., `handleClick`)
+- Use `const` instead of `function` declarations
+- Implement accessibility features (tabindex, aria-label, keyboard handlers)
+- Use lowercase-with-dashes for directory names (e.g., `components/auth-wizard`)
+
+**React/Next.js Patterns**:
+- Minimize `'use client'`, `useEffect`, `setState` - prefer RSC and SSR
+- Use dynamic imports for code splitting
+- Mobile-first responsive design approach
+- Structure: exported components, subcomponents, helpers, static content, types
+
 **State Updates**: Always use Zustand store actions, never mutate state directly
 
 **Feature Development**: Check feature gates before implementing user-level restricted features
@@ -123,6 +137,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Debugging**: Use `firebase deploy --only functions --debug` for troubleshooting
 
+### Go Services Development (Future/Placeholder)
+**Structure**: All Go services follow consistent patterns in `backend/services/`
+- Standard Go project layout: `cmd/server/`, `internal/`, `tests/integration/`
+- Each service has: config, handler, model, repository, service layers
+
+**Testing Commands** (when services are implemented):
+- `make test` - Run unit tests with verbose output
+- `make test-coverage` - Generate coverage report and open in browser
+- `make test-integration` - Run integration tests
+- `make lint` - Run golangci-lint
+
+**Current Status**: Services are placeholder structures only
+
 ## Deployment Status
 
 ### Production Deployments
@@ -137,6 +164,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Fresh Projects**: Use new Firebase projects to avoid legacy configuration issues
 
 See `FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md` for detailed troubleshooting guide.
+
+## Important Constraints
+
+**Protected Files** (Never modify without explicit user request):
+- `.cursorrules` - Development rules and patterns
+- `docs/UET_Product_details.md` - Product specifications
+- `docs/HomePage_UI_layout.md` - UI design specifications
+
+**Package Manager Requirements**:
+- PWA: Use `pnpm` exclusively (not `npm` or `yarn`)
+- User Service: Use `npm` (Firebase Functions requirement)
+
+**Task Documentation** (MANDATORY):
+- **Always create TASK.md** when starting any new task or feature work
+- Document task objectives, approach, progress, and completion status
+- Update TASK.md throughout the development process with progress and changes
+- Include context for future developers and maintain task history
+- Template structure: objective, approach, progress tracking, blockers, completion criteria
 
 ## Working with this Repository
 
