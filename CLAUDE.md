@@ -20,6 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Core Development**:
 - `cd pwa/ && pnpm dev` - Start PWA development server (localhost:3000)
+- `cd pwa/ && pnpm dev:verbose` - Start dev server with debug logging enabled
 - `cd pwa/ && pnpm build` - Create PWA production build
 - `cd pwa/ && pnpm start` - Start PWA production server
 - `cd pwa/ && pnpm lint` - Run ESLint for PWA
@@ -30,6 +31,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `cd pwa/ && pnpm test:coverage` - Run PWA tests with coverage report
 - `cd pwa/ && pnpm test:stores` - Run only Zustand store tests (critical for state management)
 - `cd pwa/ && pnpm test:stores:watch` - Watch mode for store tests
+- `cd pwa/ && vitest run src/path/to/specific.test.ts` - Run individual test file
 
 ### User Service Backend (Secondary Focus)
 **Location**: `backend/services/user-service/functions/`
@@ -72,34 +74,53 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Critical for monetization and user experience
 
 **2. PWA State Management**
-- Zustand stores in `pwa/src/stores/` for different domains (auth, UI, preferences)
+- Zustand stores in `pwa/src/stores/` for different domains (auth, UI, preferences, offline-sync)
 - All stores use persistence middleware and follow consistent patterns
 - Store selectors and hooks provide clean access patterns
 - **Testing requirement**: All stores must have test coverage in `pwa/src/stores/__tests__/`
 
-**3. PWA Database Layer**
-- IndexedDB via Dexie.js (`pwa/src/lib/db.ts`) for offline storage
-- Schema: `transactions` and `accounts` tables with relational structure
-- Offline-first design with eventual cloud sync capability
-- Use `useLiveQuery` for reactive database queries
+**3. PWA Offline-First Architecture**
+- **Database Layer**: IndexedDB via Dexie.js (`pwa/src/lib/db.ts`) for offline storage
+- **Schema**: `transactions`, `accounts`, and `categories` tables with relational structure
+- **Reactive Queries**: Use `useLiveQuery` hooks for reactive database queries
+- **Migration Support**: Database versioning with upgrade scripts for schema changes
+- **Sync Queue**: Offline operations queued in `offline-sync` store for eventual sync
+- **Network-Aware**: Network status tracking and automatic sync when online
 
-**4. PWA Component Structure**
+**4. PWA Authentication Architecture**
+- **Dual Authentication**: Firebase Auth + User Service backend integration
+- **State Synchronization**: Auth context and Zustand store kept in sync via `useAuthSync` hook
+- **Feature Level Mapping**: User service response maps to feature levels (`basic`, `registered`, `premium`)
+- **Token Management**: Firebase ID tokens used for backend authentication
+- **Persistent State**: Authentication state persisted across sessions
+
+**5. PWA Component Structure**
 - Feature-based organization in `pwa/src/components/`
 - Shadcn/ui components in `pwa/src/components/ui/`
 - Layout components handle navigation and authentication
 - Responsive design with mobile-first approach
+- Comprehensive test coverage for UI components
 
-**5. User Service Backend Integration**
+**6. User Service Backend Integration**
 - Firebase Functions deployed at: `https://us-central1-uet-stg.cloudfunctions.net/auth`
-- Endpoints: `/login`, `/register`, `/user` (GET/DELETE)
+- Endpoints: `/login`, `/register`, `/user` (GET/PUT/DELETE), `/change-password`, `/login-history`
 - Supabase integration for user data persistence
 - CORS enabled for PWA integration
+- Custom token generation for seamless Firebase Auth integration
 
-**6. PWA Features**
+**7. PWA Features**
 - Service worker for offline functionality
 - Offline page at `pwa/src/app/offline/`
 - Installable with proper manifest configuration
-- Background sync capabilities (planned)
+- Background sync capabilities via operation queue
+- Network status monitoring and automatic sync retry
+
+**8. Expense Logging System (Current Development)**
+- **Current Branch**: `feature/basic-expense-logging` with prototype implementation
+- **Database Operations**: CRUD operations via `useTransactions`, `useAccounts`, `useCategories` hooks
+- **Data Validation**: Zod schemas for expense validation (`pwa/src/lib/validations/expense.ts`)
+- **Category Management**: Default and custom categories with type restrictions
+- **Account Management**: Multiple account types with balance tracking
 
 ## Development Guidelines
 
@@ -122,11 +143,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Feature Development**: Check feature gates before implementing user-level restricted features
 
-**Database Operations**: Use Dexie hooks (`useLiveQuery`) for reactive queries
+**Database Operations**: 
+- Use Dexie hooks (`useLiveQuery`) for reactive queries
+- Use custom hooks from `pwa/src/hooks/use-db.ts` for CRUD operations
+- Always handle database migrations when schema changes are needed
+- Queue offline operations in sync store for eventual cloud synchronization
 
 **Component Patterns**: Follow existing patterns in `pwa/src/components/` for new components
 
-**Testing**: Store tests are critical - all Zustand stores must have test coverage
+**Authentication Integration**:
+- Use `useAuthSync` hook to keep context and store in sync
+- Use `useAuthState` for components that need both auth sources
+- Always check user levels before accessing premium features
+
+**Testing**: 
+- Store tests are critical - all Zustand stores must have test coverage
+- Use Vitest with jsdom environment for component testing
+- Mock IndexedDB with `fake-indexeddb` for database tests
+- Test offline functionality with network status mocking
+
+**Offline-First Development**:
+- Always implement offline-first patterns for data operations
+- Queue operations when offline using `useOfflineSyncStore`
+- Provide user feedback for sync status and network connectivity
+- Handle sync conflicts gracefully
 
 ### User Service Backend Development
 **Environment Setup**: Always use Node.js 20 (`nvm use 20`) before working with Firebase Functions
@@ -191,6 +231,17 @@ See `FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md` for detailed troubleshootin
 
 **Key Files to Monitor**:
 - `pwa/src/stores/auth.ts` - Authentication state and user levels
+- `pwa/src/stores/offline-sync.ts` - Offline operation queue and network status
 - `pwa/src/config/features.ts` - Feature gating configuration
+- `pwa/src/lib/db.ts` - IndexedDB schema and database initialization
+- `pwa/src/hooks/use-db.ts` - Database operation hooks with reactive queries
+- `pwa/src/services/auth.service.ts` - Firebase Auth and User Service integration
+- `pwa/src/hooks/use-auth-sync.ts` - Authentication state synchronization
 - `backend/services/user-service/functions/src/index.ts` - User service endpoints
 - `docs/FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md` - Deployment troubleshooting
+
+**Development Context**:
+- **Current Work**: Basic expense logging prototype with known bugs (see recent commits)
+- **Active Branch**: `feature/basic-expense-logging` - contains foundational expense tracking functionality
+- **Critical Testing**: All Zustand stores must have comprehensive test coverage
+- **Database Evolution**: Schema versioning in place for future feature additions

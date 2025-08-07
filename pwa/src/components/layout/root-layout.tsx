@@ -3,6 +3,7 @@
 import { Header } from "@/components/layout/header"
 import { BottomNav } from "@/components/layout/bottom-nav"
 import { ActivitiesBar } from "@/components/layout/activities-bar"
+import { ExpenseModalHandler } from "@/components/global/expense-modal-handler"
 import { cn } from "@/lib/utils"
 
 interface RootLayoutProps {
@@ -19,6 +20,7 @@ export function AppLayout({ children, className }: RootLayoutProps) {
       </main>
       <ActivitiesBar />
       <BottomNav />
+      <ExpenseModalHandler />
     </div>
   )
 } 

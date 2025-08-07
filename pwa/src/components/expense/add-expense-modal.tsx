@@ -1,57 +1,84 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
 import { AddExpenseForm } from "./add-expense-form"
 
 interface AddExpenseModalProps {
-  defaultType?: "expense" | "income"
-  trigger?: React.ReactNode
+    defaultType?: "expense" | "income"
+    trigger?: React.ReactNode
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
 }
 
-export function AddExpenseModal({ defaultType = "expense", trigger }: AddExpenseModalProps) {
-  const [open, setOpen] = useState(false)
+export function AddExpenseModal({
+    defaultType = "expense",
+    trigger,
+    open: externalOpen,
+    onOpenChange: externalOnOpenChange,
+}: AddExpenseModalProps) {
+    const [internalOpen, setInternalOpen] = useState(false)
+    const [currentType, setCurrentType] = useState<"expense" | "income">(defaultType)
 
-  const defaultTrigger = (
-    <Button 
-      size="lg" 
-      className={`${
-        defaultType === "expense" 
-          ? "bg-red-600 hover:bg-red-700" 
-          : "bg-green-600 hover:bg-green-700"
-      } shadow-lg`}
-    >
-      <Plus className="h-5 w-5 mr-2" />
-      Add {defaultType}
-    </Button>
-  )
+    // Use external control if provided, otherwise use internal state
+    const open = externalOpen !== undefined ? externalOpen : internalOpen
+    const setOpen = externalOnOpenChange || setInternalOpen
 
-  const handleSuccess = () => {
-    setOpen(false)
-  }
+    // Reset type when modal opens
+    useEffect(() => {
+        if (open) {
+            setCurrentType(defaultType)
+        }
+    }, [open, defaultType])
 
-  const handleCancel = () => {
-    setOpen(false)
-  }
+    const defaultTrigger = (
+        <Button
+            size="lg"
+            className={`${
+                defaultType === "expense"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-green-600 hover:bg-green-700"
+            } shadow-lg`}
+        >
+            <Plus className="h-5 w-5 mr-2" />
+            Add {defaultType}
+        </Button>
+    )
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || defaultTrigger}
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add New {defaultType === "expense" ? "Expense" : "Income"}</DialogTitle>
-        </DialogHeader>
-        <AddExpenseForm
-          defaultType={defaultType}
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-        />
-      </DialogContent>
-    </Dialog>
-  )
+    const handleSuccess = () => {
+        setOpen(false)
+    }
+
+    const handleCancel = () => {
+        setOpen(false)
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>{trigger || defaultTrigger}</DialogTrigger>
+            <DialogContent className="w-[90vw] h-[70vh] overflow-y-scroll scrollbar-hide fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <DialogHeader>
+                    <DialogTitle>
+                        Add New{" "}
+                        {currentType === "expense" ? "Expense" : "Income"}
+                    </DialogTitle>
+                </DialogHeader>
+                <AddExpenseForm
+                    defaultType={defaultType}
+                    onSuccess={handleSuccess}
+                    onCancel={handleCancel}
+                    onTypeChange={setCurrentType}
+                />
+            </DialogContent>
+        </Dialog>
+    )
 }

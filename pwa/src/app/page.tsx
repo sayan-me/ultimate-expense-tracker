@@ -1,7 +1,6 @@
 import { Overview } from "@/components/home/overview/overview"
 import { QuickActions } from "@/components/home/quick-actions"
 import { OverviewSkeleton } from "@/components/home/overview/loading"
-import { FloatingActionButton } from "@/components/home/floating-action-button"
 import { Suspense } from "react"
 
 export default function HomePage() {
@@ -11,9 +10,6 @@ export default function HomePage() {
       <Suspense fallback={<OverviewSkeleton />}>
         <Overview />
       </Suspense>
-      
-      {/* Floating Action Button for Quick Expense Entry */}
-      <FloatingActionButton />
     </div>
   )
 }
