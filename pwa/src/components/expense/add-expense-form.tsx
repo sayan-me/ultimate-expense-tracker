@@ -28,12 +28,15 @@ import { useDB } from "@/contexts/db-context"
 import { expenseSchema, type ExpenseFormData } from "@/lib/validations/expense"
 import { CategorySelector } from "./category-selector"
 import { TagsInput } from "./tags-input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { cn } from "@/lib/utils"
 
 interface AddExpenseFormProps {
     onSuccess?: () => void
     onCancel?: () => void
     defaultType?: "expense" | "income"
     onTypeChange?: (type: "expense" | "income") => void
+    className?: string
 }
 
 export function AddExpenseForm({
@@ -41,6 +44,7 @@ export function AddExpenseForm({
     onCancel,
     defaultType = "expense",
     onTypeChange,
+    className,
 }: AddExpenseFormProps) {
     const { transactions, accounts } = useDB()
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -91,13 +95,14 @@ export function AddExpenseForm({
     // TODO: Implement currency formatting if needed
 
     return (
-        <div className="w-full">
+        <div className={cn("flex flex-col h-full min-h-0", className)}>
             <Form {...form}>
-                    <form
-                        onSubmit={form.handleSubmit(handleSubmit)}
-                        className="space-y-4"
-                    >
-                        {/* Transaction Type Tabs */}
+                <form
+                    onSubmit={form.handleSubmit(handleSubmit)}
+                    className="flex flex-col h-full min-h-0"
+                >
+                    {/* Fixed Transaction Type Tabs */}
+                    <div className="px-6 pb-4 shrink-0">
                         <Tabs
                             value={watchedType}
                             onValueChange={(value) => {
@@ -121,8 +126,12 @@ export function AddExpenseForm({
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
+                    </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Scrollable Form Fields */}
+                    <ScrollArea className="flex-1 min-h-0">
+                        <div className="px-6 space-y-4 pb-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Amount */}
                             <FormField
                                 control={form.control}
@@ -306,10 +315,13 @@ export function AddExpenseForm({
                                     </FormItem>
                                 )}
                             />
+                            </div>
                         </div>
+                    </ScrollArea>
 
-                        {/* Submit Buttons */}
-                        <div className="flex gap-3 pt-4">
+                    {/* Fixed Submit Buttons */}
+                    <div className="px-6 pt-4 pb-6 shrink-0 bg-background border-t">
+                        <div className="flex gap-3">
                             <Button
                                 type="submit"
                                 disabled={isSubmitting}
@@ -333,8 +345,9 @@ export function AddExpenseForm({
                                 </Button>
                             )}
                         </div>
-                    </form>
-                </Form>
+                    </div>
+                </form>
+            </Form>
         </div>
     )
 }

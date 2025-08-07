@@ -65,18 +65,21 @@ export function AddExpenseModal({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{trigger || defaultTrigger}</DialogTrigger>
-            <DialogContent className="w-[90vw] h-[70vh] overflow-y-scroll scrollbar-hide fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                <DialogHeader>
-                    <DialogTitle>
-                        Add New{" "}
-                        {currentType === "expense" ? "Expense" : "Income"}
-                    </DialogTitle>
-                </DialogHeader>
+            <DialogContent className="w-[90vw] h-[70vh] fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col p-0">
+                <div className="p-6 pb-0 shrink-0">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Add New{" "}
+                            {currentType === "expense" ? "Expense" : "Income"}
+                        </DialogTitle>
+                    </DialogHeader>
+                </div>
                 <AddExpenseForm
                     defaultType={defaultType}
                     onSuccess={handleSuccess}
                     onCancel={handleCancel}
                     onTypeChange={setCurrentType}
+                    className="flex-1 overflow-hidden"
                 />
             </DialogContent>
         </Dialog>
