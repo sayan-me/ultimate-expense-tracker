@@ -30,7 +30,7 @@ interface PreferencesState extends StoreState {
 }
 
 const initialState = {
-  theme: 'system' as Theme,
+  theme: 'dark' as Theme,
   isGroupMode: false,
   notificationsEnabled: true,
   personalShortcuts: [],
