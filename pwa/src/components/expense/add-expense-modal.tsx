@@ -1,16 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
+    BaseModal,
+    BaseModalWithTrigger,
+    ModalHeader
+} from "@/components/ui/modal"
 import { AddExpenseForm } from "./add-expense-form"
 
 interface AddExpenseModalProps {
@@ -40,19 +35,6 @@ export function AddExpenseModal({
         }
     }, [open, defaultType])
 
-    const defaultTrigger = (
-        <Button
-            size="lg"
-            className={`${
-                defaultType === "expense"
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-green-600 hover:bg-green-700"
-            } shadow-lg`}
-        >
-            <Plus className="h-5 w-5 mr-2" />
-            Add {defaultType}
-        </Button>
-    )
 
     const handleSuccess = () => {
         setOpen(false)
@@ -62,18 +44,17 @@ export function AddExpenseModal({
         setOpen(false)
     }
 
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>{trigger || defaultTrigger}</DialogTrigger>
-            <DialogContent className="w-[90vw] h-[70vh] fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col p-0">
-                <div className="p-6 pb-0 shrink-0">
-                    <DialogHeader>
-                        <DialogTitle>
-                            Add New{" "}
-                            {currentType === "expense" ? "Expense" : "Income"}
-                        </DialogTitle>
-                    </DialogHeader>
-                </div>
+    if (trigger) {
+        return (
+            <BaseModalWithTrigger
+                trigger={trigger}
+                open={open}
+                onOpenChange={setOpen}
+                size="md"
+            >
+                <ModalHeader
+                    title={`Add New ${currentType === "expense" ? "Expense" : "Income"}`}
+                />
                 <AddExpenseForm
                     defaultType={defaultType}
                     onSuccess={handleSuccess}
@@ -81,7 +62,22 @@ export function AddExpenseModal({
                     onTypeChange={setCurrentType}
                     className="flex-1 overflow-hidden"
                 />
-            </DialogContent>
-        </Dialog>
+            </BaseModalWithTrigger>
+        )
+    }
+
+    return (
+        <BaseModal open={open} onOpenChange={setOpen} size="md">
+            <ModalHeader
+                title={`Add New ${currentType === "expense" ? "Expense" : "Income"}`}
+            />
+            <AddExpenseForm
+                defaultType={defaultType}
+                onSuccess={handleSuccess}
+                onCancel={handleCancel}
+                onTypeChange={setCurrentType}
+                className="flex-1 overflow-hidden"
+            />
+        </BaseModal>
     )
 }

@@ -27,15 +27,6 @@ export function ScrollArea({ children, className }: ScrollAreaProps) {
     const isAtBottom = scrollTop >= scrollHeight - clientHeight - 5
     setShowBottomFade(isScrollable && !isAtBottom)
     
-    // Debug logging (remove in production)
-    console.log('Scroll check:', {
-      scrollTop,
-      scrollHeight,
-      clientHeight,
-      isScrollable,
-      showTopFade: isScrollable && scrollTop > 5,
-      showBottomFade: isScrollable && !isAtBottom
-    })
   }
 
   useEffect(() => {

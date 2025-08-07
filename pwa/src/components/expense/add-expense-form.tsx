@@ -28,7 +28,7 @@ import { useDB } from "@/contexts/db-context"
 import { expenseSchema, type ExpenseFormData } from "@/lib/validations/expense"
 import { CategorySelector } from "./category-selector"
 import { TagsInput } from "./tags-input"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ModalFixedSection, ModalScrollableContent, ModalFooter } from "@/components/ui/modal"
 import { cn } from "@/lib/utils"
 
 interface AddExpenseFormProps {
@@ -102,7 +102,7 @@ export function AddExpenseForm({
                     className="flex flex-col h-full min-h-0"
                 >
                     {/* Fixed Transaction Type Tabs */}
-                    <div className="px-6 pb-4 shrink-0">
+                    <ModalFixedSection>
                         <Tabs
                             value={watchedType}
                             onValueChange={(value) => {
@@ -126,11 +126,10 @@ export function AddExpenseForm({
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
-                    </div>
+                    </ModalFixedSection>
 
                     {/* Scrollable Form Fields */}
-                    <ScrollArea className="flex-1 min-h-0">
-                        <div className="px-6 space-y-4 pb-4">
+                    <ModalScrollableContent>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Amount */}
                             <FormField
@@ -315,12 +314,11 @@ export function AddExpenseForm({
                                     </FormItem>
                                 )}
                             />
-                            </div>
                         </div>
-                    </ScrollArea>
+                    </ModalScrollableContent>
 
                     {/* Fixed Submit Buttons */}
-                    <div className="px-6 pt-4 pb-6 shrink-0 bg-background border-t">
+                    <ModalFooter>
                         <div className="flex gap-3">
                             <Button
                                 type="submit"
@@ -345,7 +343,7 @@ export function AddExpenseForm({
                                 </Button>
                             )}
                         </div>
-                    </div>
+                    </ModalFooter>
                 </form>
             </Form>
         </div>
