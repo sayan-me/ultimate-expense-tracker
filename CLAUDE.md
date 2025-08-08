@@ -17,10 +17,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### PWA Development (Primary Focus)
 **Package Manager**: Use `pnpm` (required, not `npm` or `yarn`)
+**Node.js Version**: Node.js 18+ recommended for PWA development
 
 **Core Development**:
 - `cd pwa/ && pnpm dev` - Start PWA development server (localhost:3000)
 - `cd pwa/ && pnpm dev:verbose` - Start dev server with debug logging enabled
+- `cd pwa/ && pnpm dev:progress` - Start dev server with progress tracking
+- `cd pwa/ && pnpm dev:quick` - Quick development start using shell script
 - `cd pwa/ && pnpm build` - Create PWA production build
 - `cd pwa/ && pnpm start` - Start PWA production server
 - `cd pwa/ && pnpm lint` - Run ESLint for PWA
@@ -35,7 +38,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### User Service Backend (Secondary Focus)
 **Location**: `backend/services/user-service/functions/`
-**Runtime**: Node.js 20 (required for Firebase CLI compatibility)
+**Runtime**: Node.js 20 (required for Firebase CLI v14+ compatibility)
+**Note**: Must use Node.js 20 specifically for Firebase Functions, different from PWA requirements
 
 **Development Commands**:
 - `cd backend/services/user-service/functions/`
@@ -125,19 +129,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Guidelines
 
 ### PWA Development (Follow .cursorrules patterns)
-**Code Style**:
+**Code Style & Structure**:
 - Use early returns for readability
 - Use Tailwind classes exclusively (no CSS or style tags)
 - Use descriptive variable/function names with "handle" prefix for events (e.g., `handleClick`)
-- Use `const` instead of `function` declarations
-- Implement accessibility features (tabindex, aria-label, keyboard handlers)
+- Use `const` instead of `function` declarations (e.g., `const toggle = () =>`)
 - Use lowercase-with-dashes for directory names (e.g., `components/auth-wizard`)
+- Structure files: exported components, subcomponents, helpers, static content, types
+
+**Accessibility Requirements**:
+- Implement accessibility on all interactive elements
+- Add `tabindex="0"`, `aria-label`, `on:click`, `on:keydown` to interactive elements
+- Use class: syntax instead of tertiary operators in class tags when possible
+- Define types for functions and components where possible
 
 **React/Next.js Patterns**:
 - Minimize `'use client'`, `useEffect`, `setState` - prefer RSC and SSR
-- Use dynamic imports for code splitting
+- Use dynamic imports for code splitting and optimization
 - Mobile-first responsive design approach
-- Structure: exported components, subcomponents, helpers, static content, types
+- Optimize images: use WebP format, include size data, implement lazy loading
 
 **State Updates**: Always use Zustand store actions, never mutate state directly
 
@@ -156,11 +166,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Use `useAuthState` for components that need both auth sources
 - Always check user levels before accessing premium features
 
-**Testing**: 
-- Store tests are critical - all Zustand stores must have test coverage
-- Use Vitest with jsdom environment for component testing
-- Mock IndexedDB with `fake-indexeddb` for database tests
-- Test offline functionality with network status mocking
+**Testing Configuration & Requirements**: 
+- **Framework**: Vitest with React plugin and jsdom environment
+- **Setup**: Test setup file at `src/tests/setup.ts` with global test utilities
+- **Store Tests**: Critical - all Zustand stores must have comprehensive test coverage
+- **Component Tests**: Use Vitest with jsdom environment and React Testing Library
+- **Database Tests**: Mock IndexedDB with `fake-indexeddb` for offline storage testing
+- **Network Tests**: Test offline functionality with network status mocking
+- **Path Alias**: `@` alias resolves to `./src` for clean imports in tests
+- **Coverage**: Use `pnpm test:coverage` for detailed coverage reports
 
 **Offline-First Development**:
 - Always implement offline-first patterns for data operations
@@ -183,10 +197,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Each service has: config, handler, model, repository, service layers
 
 **Testing Commands** (when services are implemented):
-- `make test` - Run unit tests with verbose output
-- `make test-coverage` - Generate coverage report and open in browser
-- `make test-integration` - Run integration tests
-- `make lint` - Run golangci-lint
+- `make test` - Run unit tests with verbose output (`go test ./... -v`)
+- `make test-coverage` - Generate coverage report and open in browser (`go test ./... -coverprofile=coverage.out`)
+- `make test-integration` - Run integration tests with tags (`go test ./tests/integration/... -v -tags=integration`)
+- `make lint` - Run golangci-lint for code quality
 
 **Current Status**: Services are placeholder structures only
 
@@ -213,15 +227,16 @@ See `FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md` for detailed troubleshootin
 - `docs/HomePage_UI_layout.md` - UI design specifications
 
 **Package Manager Requirements**:
-- PWA: Use `pnpm` exclusively (not `npm` or `yarn`)
-- User Service: Use `npm` (Firebase Functions requirement)
+- **PWA**: Use `pnpm` exclusively (not `npm` or `yarn`)
+- **User Service**: Use `npm` (Firebase Functions requirement)
+- **Go Services**: Use `make` commands for build, test, and lint operations
 
-**Task Documentation** (MANDATORY):
-- **Always create TASK.md** when starting any new task or feature work
-- Document task objectives, approach, progress, and completion status
-- Update TASK.md throughout the development process with progress and changes
-- Include context for future developers and maintain task history
-- Template structure: objective, approach, progress tracking, blockers, completion criteria
+**Development Documentation Requirements**:
+- **Task Documentation**: Always create TASK.md when starting new tasks or features
+- **Progress Tracking**: Document objectives, approach, progress, blockers, and completion criteria
+- **Code Documentation**: Use JSDoc comments for functions and components to improve IDE intellisense
+- **Error Handling**: Implement proper error handling and user input validation
+- **Security**: Follow secure coding practices and never commit sensitive information
 
 ## Working with this Repository
 
