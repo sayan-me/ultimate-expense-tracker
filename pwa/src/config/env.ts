@@ -3,12 +3,11 @@
  * Centralizes all environment variable access with validation
  */
 
-// Required environment variables
+// Required environment variables for core functionality
 const requiredEnvVars = {
   NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  NEXT_PUBLIC_USER_SERVICE_URL: process.env.NEXT_PUBLIC_USER_SERVICE_URL,
 } as const;
 
 // Optional environment variables with defaults
@@ -16,6 +15,7 @@ const optionalEnvVars = {
   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
   NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
+  NEXT_PUBLIC_USER_SERVICE_URL: process.env.NEXT_PUBLIC_USER_SERVICE_URL || '',
   NEXT_PUBLIC_USE_FIREBASE_EMULATOR: process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true',
   NEXT_PUBLIC_DEBUG_MODE: process.env.NEXT_PUBLIC_DEBUG_MODE === 'true',
   NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Ultimate Expense Tracker',
@@ -54,9 +54,9 @@ export const env = {
     appId: optionalEnvVars.NEXT_PUBLIC_FIREBASE_APP_ID,
   },
   
-  // API configuration
+  // API configuration (optional for core features)
   api: {
-    userServiceUrl: requiredEnvVars.NEXT_PUBLIC_USER_SERVICE_URL,
+    userServiceUrl: optionalEnvVars.NEXT_PUBLIC_USER_SERVICE_URL,
   },
   
   // Development configuration
@@ -97,9 +97,13 @@ export function validateEnvConfig(): {
     warnings.push('Firebase Auth Domain should end with .firebaseapp.com');
   }
   
-  // Validate User Service URL format
-  if (env.api.userServiceUrl && !env.api.userServiceUrl.startsWith('https://')) {
-    warnings.push('User Service URL should use HTTPS in production');
+  // Validate User Service URL format (if provided)
+  if (env.api.userServiceUrl) {
+    if (!env.api.userServiceUrl.startsWith('https://')) {
+      warnings.push('User Service URL should use HTTPS in production');
+    }
+  } else {
+    warnings.push('User Service URL not configured - authentication features will be unavailable');
   }
   
   // Development warnings
@@ -127,7 +131,8 @@ export function logEnvStatus(): void {
   console.log('App Name:', env.app.name);
   console.log('App Version:', env.app.version);
   console.log('Firebase Project:', env.firebase.projectId);
-  console.log('User Service URL:', env.api.userServiceUrl);
+  console.log('User Service URL:', env.api.userServiceUrl || '❌ Not configured');
+  console.log('User Service Status:', env.api.userServiceUrl ? '✅ Available' : '⚠️ Authentication features disabled');
   console.log('Debug Mode:', env.development.debugMode);
   console.log('Firebase Emulator:', env.development.useFirebaseEmulator);
   

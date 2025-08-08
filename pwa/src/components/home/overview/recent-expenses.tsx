@@ -1,52 +1,19 @@
 "use client"
 
-import { formatCurrency } from "@/lib/utils"
+import { formatAmount } from "@/lib/validations/expense"
 import { format } from "date-fns"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getRecentExpenses } from "@/lib/data"
-import { useEffect, useState } from "react"
-import { Alert } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
-
-type Expense = {
-  id: string
-  date: Date
-  amount: number
-  category: string
-  description: string
-  type: "expense" | "income"
-}
+import { useDB } from "@/contexts/db-context"
+import { AddExpenseModal } from "@/components/expense/add-expense-modal"
 
 export function RecentExpenses() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [expenses, setExpenses] = useState<Expense[]>([])
+  const { transactions } = useDB()
+  
+  // Get recent transactions (limit to 5)
+  const recentTransactions = transactions.useRecentTransactions(5)
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const result = await getRecentExpenses()
-        setExpenses(result.transactions)
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to load expenses'))
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
-
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <span>Failed to load expenses: {error.message}</span>
-      </Alert>
-    )
-  }
-
-  if (isLoading) {
+  if (!recentTransactions) {
     return (
       <div className="rounded-lg border bg-card shadow-sm">
         <div className="flex items-center justify-between p-6 pb-4">
@@ -72,33 +39,88 @@ export function RecentExpenses() {
     )
   }
 
+  if (recentTransactions.length === 0) {
+    return (
+      <div className="rounded-lg border bg-card shadow-sm">
+        <div className="flex items-center justify-between p-6 pb-4">
+          <h3 className="text-sm font-medium text-muted-foreground">Recent Transactions</h3>
+          <button
+            onClick={() => {/* To be implemented in routing phase */}}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="View all transactions"
+          >
+            View All
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
+            <ArrowRight className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <h4 className="font-medium text-sm mb-1">No transactions yet</h4>
+          <p className="text-sm text-muted-foreground mb-4">
+            Start by adding your first expense or income
+          </p>
+          <AddExpenseModal
+            trigger={
+              <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 transition-colors">
+                <Plus className="h-4 w-4" />
+                Add Transaction
+              </button>
+            }
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="rounded-lg border bg-card shadow-sm">
       <div className="flex items-center justify-between p-6 pb-4">
-        <h3 className="text-sm font-medium text-muted-foreground">Recent Expenses</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">Recent Transactions</h3>
         <button
           onClick={() => {/* To be implemented in routing phase */}}
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="View all expenses"
+          aria-label="View all transactions"
         >
           View All
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>
       <div className="divide-y">
-        {expenses.map((expense) => (
-          <div key={expense.id} className="flex items-center justify-between p-4">
+        {recentTransactions.map((transaction) => (
+          <div key={transaction.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
             <div className="space-y-1">
-              <p className="font-medium">{expense.description}</p>
+              <p className="font-medium">{transaction.description}</p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>{expense.category}</span>
+                <span className="flex items-center gap-1">
+                  <div 
+                    className="w-2 h-2 rounded-full" 
+                    style={{ 
+                      backgroundColor: transaction.type === 'expense' ? '#ef4444' : '#10b981' 
+                    }}
+                  />
+                  {transaction.category}
+                </span>
                 <span>•</span>
-                <time dateTime={expense.date.toISOString()}>
-                  {format(expense.date, "MMM d, h:mm a")}
+                <time dateTime={transaction.date.toISOString()}>
+                  {format(transaction.date, "MMM d, h:mm a")}
                 </time>
               </div>
             </div>
-            <p className="font-medium">{formatCurrency(expense.amount)}</p>
+            <div className="text-right">
+              <p className={`font-medium ${
+                transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
+              }`}>
+                {transaction.type === 'expense' ? '-' : '+'}
+                {formatAmount(transaction.amount)}
+              </p>
+              {transaction.tags && transaction.tags.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {transaction.tags.join(', ')}
+                </p>
+              )}
+            </div>
           </div>
         ))}
       </div>

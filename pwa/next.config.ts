@@ -16,7 +16,7 @@ const config: NextConfig = {
 
 const nextConfig = withPWA({
   dest: 'public',
-  disable: false,
+  disable: process.env.NODE_ENV === 'development',
   register: true,
   skipWaiting: true,
   runtimeCaching: [
