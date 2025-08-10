@@ -23,7 +23,7 @@ export function DBProvider({ children }: { children: ReactNode }) {
       try {
         await initializeDefaultData();
       } catch (error) {
-        console.error('Failed to initialize default data:', error);
+        console.error('❌ Failed to initialize default data:', error);
       }
     };
 

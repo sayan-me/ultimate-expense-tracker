@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { CalendarIcon, Tags } from "lucide-react"
+import { Tags } from "lucide-react"
 import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
@@ -51,32 +51,45 @@ export function AddExpenseForm({
 
     const form = useForm<ExpenseFormData>({
         resolver: zodResolver(expenseSchema),
+        mode: "onSubmit", // Only validate on submit, not on change
+        reValidateMode: "onChange", // Re-validate after first submit attempt
         defaultValues: {
             type: defaultType,
             date: new Date(),
             tags: [],
-            amount: 0,
-            category: "",
-            description: "",
-            accountId: 0,
+            // Remove pre-filled values that interfere with UX
+            // amount: undefined, // Let user start fresh
+            // category: "", // Let placeholder show through
+            // description: "", // Let placeholder show through
+            // accountId: undefined, // Will be set by user selection
         },
     })
 
     const watchedType = form.watch("type")
 
+
     const handleSubmit = async (data: ExpenseFormData) => {
         setIsSubmitting(true)
         try {
-            await transactions.addTransaction(data)
+            // Ensure all required fields are properly typed for database insertion
+            const transactionData = {
+                ...data,
+                amount: data.amount!, // Now guaranteed to be defined by validation
+                accountId: data.accountId!, // Now guaranteed to be defined by validation
+                category: data.category!.trim(), // Now guaranteed to be defined by validation
+                description: data.description!.trim(), // Now guaranteed to be defined by validation
+            }
+            
+            await transactions.addTransaction(transactionData)
 
             // Update account balance
             const account = await accounts.accounts?.find(
-                (acc) => acc.id === data.accountId
+                (acc) => acc.id === transactionData.accountId
             )
             if (account) {
                 const balanceChange =
-                    data.type === "income" ? data.amount : -data.amount
-                await accounts.updateAccount(data.accountId, {
+                    transactionData.type === "income" ? transactionData.amount : -transactionData.amount
+                await accounts.updateAccount(transactionData.accountId, {
                     balance: account.balance + balanceChange,
                 })
             }
@@ -148,15 +161,18 @@ export function AddExpenseForm({
                                                     step="0.01"
                                                     min="0"
                                                     max="1000000"
-                                                    placeholder="0.00"
+                                                    placeholder="Enter amount..."
                                                     className="pl-8"
                                                     {...field}
+                                                    value={field.value || ""}
                                                     onChange={(e) => {
-                                                        const value =
-                                                            parseFloat(
-                                                                e.target.value
-                                                            ) || 0
-                                                        field.onChange(value)
+                                                        const inputValue = e.target.value
+                                                        if (inputValue === "") {
+                                                            field.onChange(undefined)
+                                                        } else {
+                                                            const value = parseFloat(inputValue)
+                                                            field.onChange(isNaN(value) ? undefined : value)
+                                                        }
                                                     }}
                                                 />
                                             </div>
@@ -177,7 +193,7 @@ export function AddExpenseForm({
                                             onValueChange={(value) =>
                                                 field.onChange(parseInt(value))
                                             }
-                                            value={field.value?.toString()}
+                                            value={field.value?.toString() || ""}
                                         >
                                             <FormControl>
                                                 <SelectTrigger>
@@ -226,7 +242,7 @@ export function AddExpenseForm({
                                     <FormControl>
                                         <CategorySelector
                                             type={watchedType}
-                                            value={field.value}
+                                            value={field.value || ""}
                                             onChange={field.onChange}
                                         />
                                     </FormControl>
@@ -247,6 +263,7 @@ export function AddExpenseForm({
                                             placeholder={`What was this ${watchedType} for?`}
                                             maxLength={200}
                                             {...field}
+                                            value={field.value || ""}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -263,30 +280,27 @@ export function AddExpenseForm({
                                     <FormItem>
                                         <FormLabel>Date *</FormLabel>
                                         <FormControl>
-                                            <div className="relative">
-                                                <Input
-                                                    type="datetime-local"
-                                                    {...field}
-                                                    value={
-                                                        field.value
-                                                            ? format(
-                                                                  field.value,
-                                                                  "yyyy-MM-dd'T'HH:mm"
-                                                              )
-                                                            : ""
-                                                    }
-                                                    onChange={(e) => {
-                                                        const date = e.target
-                                                            .value
-                                                            ? new Date(
-                                                                  e.target.value
-                                                              )
-                                                            : new Date()
-                                                        field.onChange(date)
-                                                    }}
-                                                />
-                                                <CalendarIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                                            </div>
+                                            <Input
+                                                type="datetime-local"
+                                                {...field}
+                                                value={
+                                                    field.value
+                                                        ? format(
+                                                              field.value,
+                                                              "yyyy-MM-dd'T'HH:mm"
+                                                          )
+                                                        : ""
+                                                }
+                                                onChange={(e) => {
+                                                    const date = e.target
+                                                        .value
+                                                        ? new Date(
+                                                              e.target.value
+                                                          )
+                                                        : new Date()
+                                                    field.onChange(date)
+                                                }}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
