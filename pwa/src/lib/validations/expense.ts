@@ -31,12 +31,8 @@ export const expenseSchema = z.object({
   
   description: z
     .string()
-    .min(1, "Description is required")
     .max(200, "Description too long")
-    .optional()
-    .refine((val) => val && val.trim().length > 0, {
-      message: "Description is required"
-    }),
+    .optional(),
   
   accountId: z
     .number({

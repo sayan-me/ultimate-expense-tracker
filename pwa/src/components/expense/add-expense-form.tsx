@@ -77,7 +77,7 @@ export function AddExpenseForm({
                 amount: data.amount!, // Now guaranteed to be defined by validation
                 accountId: data.accountId!, // Now guaranteed to be defined by validation
                 category: data.category!.trim(), // Now guaranteed to be defined by validation
-                description: data.description!.trim(), // Now guaranteed to be defined by validation
+                description: data.description?.trim() || "", // Optional field
             }
             
             await transactions.addTransaction(transactionData)
@@ -257,7 +257,7 @@ export function AddExpenseForm({
                             name="description"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Description *</FormLabel>
+                                    <FormLabel>Description</FormLabel>
                                     <FormControl>
                                         <Input
                                             placeholder={`What was this ${watchedType} for?`}
@@ -280,27 +280,30 @@ export function AddExpenseForm({
                                     <FormItem>
                                         <FormLabel>Date *</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="datetime-local"
-                                                {...field}
-                                                value={
-                                                    field.value
-                                                        ? format(
-                                                              field.value,
-                                                              "yyyy-MM-dd'T'HH:mm"
-                                                          )
-                                                        : ""
-                                                }
-                                                onChange={(e) => {
-                                                    const date = e.target
-                                                        .value
-                                                        ? new Date(
-                                                              e.target.value
-                                                          )
-                                                        : new Date()
-                                                    field.onChange(date)
-                                                }}
-                                            />
+                                            <div className="relative">
+                                                <Input
+                                                    type="datetime-local"
+                                                    className="pr-10"
+                                                    {...field}
+                                                    value={
+                                                        field.value
+                                                            ? format(
+                                                                  field.value,
+                                                                  "yyyy-MM-dd'T'HH:mm"
+                                                              )
+                                                            : ""
+                                                    }
+                                                    onChange={(e) => {
+                                                        const date = e.target
+                                                            .value
+                                                            ? new Date(
+                                                                  e.target.value
+                                                              )
+                                                            : new Date()
+                                                        field.onChange(date)
+                                                    }}
+                                                />
+                                            </div>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
