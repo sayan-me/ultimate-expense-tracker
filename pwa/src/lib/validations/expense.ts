@@ -10,25 +10,29 @@ export const expenseSchema = z.object({
       invalid_type_error: "Amount must be a number"
     })
     .positive("Amount must be positive")
-    .max(1000000, "Amount cannot exceed 1,000,000"),
+    .max(1000000, "Amount cannot exceed 1,000,000")
+    .optional()
+    .refine((val) => val !== undefined && val > 0, {
+      message: "Amount is required and must be positive"
+    }),
   
   type: z.enum(["expense", "income"], {
     required_error: "Transaction type is required"
   }),
   
   category: z
-    .string({
-      required_error: "Category is required"
-    })
-    .min(1, "Category cannot be empty")
-    .max(50, "Category name too long"),
+    .string()
+    .min(1, "Category is required")
+    .max(50, "Category name too long")
+    .optional()
+    .refine((val) => val && val.trim().length > 0, {
+      message: "Category is required"
+    }),
   
   description: z
-    .string({
-      required_error: "Description is required"
-    })
-    .min(1, "Description cannot be empty")
-    .max(200, "Description too long"),
+    .string()
+    .max(200, "Description too long")
+    .optional(),
   
   accountId: z
     .number({
@@ -36,14 +40,24 @@ export const expenseSchema = z.object({
       invalid_type_error: "Invalid account selection"
     })
     .int("Invalid account ID")
-    .positive("Invalid account ID"),
+    .positive("Invalid account ID")
+    .optional()
+    .refine((val) => val !== undefined && val > 0, {
+      message: "Please select an account"
+    }),
   
   date: z
     .date({
       required_error: "Date is required",
       invalid_type_error: "Invalid date"
     })
-    .max(new Date(), "Date cannot be in the future"),
+    .refine((date) => {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999); // Allow today until end of day
+      return date <= today;
+    }, {
+      message: "Date cannot be in the future"
+    }),
   
   tags: z
     .array(z.string().max(30, "Tag name too long"))
