@@ -155,12 +155,12 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
       const user = userEvent.setup()
       renderWithProviders(<CategorySelector type="expense" value="" onChange={vi.fn()} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
-        const popoverContent = screen.getByPlaceholderText('Search categories...')
-          .closest('[class*="w-[--radix-popover-trigger-width]"]')
-        expect(popoverContent).toBeInTheDocument()
+        const dropdown = screen.getByText('Food & Dining').closest('[class*="absolute"]')
+        expect(dropdown).toBeInTheDocument()
       })
     })
 
@@ -168,10 +168,11 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
       const user = userEvent.setup()
       renderWithProviders(<CategorySelector type="expense" value="" onChange={vi.fn()} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
-        const scrollableArea = screen.getByPlaceholderText('Search categories...')
+        const scrollableArea = screen.getByText('Food & Dining')
           .closest('[class*="max-h-64"]')
         expect(scrollableArea).toBeInTheDocument()
         expect(scrollableArea).toHaveClass('overflow-y-auto')

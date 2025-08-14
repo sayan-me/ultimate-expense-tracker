@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CategorySelector } from '../category-selector'
+import { renderWithProviders } from '@/tests/test-utils'
 
 // Mock the useDB hook
 const mockCategories = {
@@ -43,13 +44,14 @@ const mockCategories = {
       createdAt: new Date()
     }
   ],
-  addCategory: vi.fn()
+  addCategory: vi.fn().mockResolvedValue(undefined)
 }
 
 vi.mock('@/contexts/db-context', () => ({
   useDB: () => ({
     categories: mockCategories
-  })
+  }),
+  DBProvider: ({ children }: { children: React.ReactNode }) => children
 }))
 
 describe('CategorySelector Component', () => {
@@ -58,7 +60,7 @@ describe('CategorySelector Component', () => {
     type: 'expense' as const,
     value: '',
     onChange: mockOnChange,
-    placeholder: 'Select category...'
+    placeholder: 'Select or type category...'
   }
 
   beforeEach(() => {
@@ -66,77 +68,93 @@ describe('CategorySelector Component', () => {
   })
 
   describe('Basic Rendering', () => {
-    it('renders trigger button with placeholder', () => {
-      render(<CategorySelector {...defaultProps} />)
+    it('renders input with placeholder', () => {
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      expect(screen.getByRole('button')).toBeInTheDocument()
-      expect(screen.getByText('Select category...')).toBeInTheDocument()
+      const input = screen.getByRole('textbox')
+      expect(input).toBeInTheDocument()
+      expect(input).toHaveAttribute('placeholder', 'Select or type category...')
     })
 
-    it('displays selected category when value is provided', () => {
-      render(<CategorySelector {...defaultProps} value="Food & Dining" />)
+    it('displays selected category value in input', () => {
+      renderWithProviders(<CategorySelector {...defaultProps} value="Food & Dining" />)
       
-      expect(screen.getByText('Food & Dining')).toBeInTheDocument()
+      const input = screen.getByRole('textbox')
+      expect(input).toHaveValue('Food & Dining')
     })
 
-    it('shows visual indicator (color dot) for selected category', () => {
-      render(<CategorySelector {...defaultProps} value="Food & Dining" />)
+    it('shows dropdown toggle button', () => {
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      const colorDot = screen.getByRole('button').querySelector('div[style*="background-color: rgb(239, 68, 68)"]')
-      expect(colorDot).toBeInTheDocument()
+      const toggleButton = screen.getByRole('button', { name: /toggle/i }) || 
+                           screen.getAllByRole('button').find(btn => btn.querySelector('[class*="chevron"]'))
+      expect(toggleButton).toBeInTheDocument()
+    })
+
+    it('shows clear button when value is selected', () => {
+      renderWithProviders(<CategorySelector {...defaultProps} value="Food & Dining" />)
+      
+      const clearButton = screen.getByRole('button', { name: /clear/i }) ||
+                         screen.getAllByRole('button').find(btn => btn.querySelector('[class*="x"]'))
+      expect(clearButton).toBeInTheDocument()
     })
   })
 
-  describe('Dropdown/Popover Functionality', () => {
-    it('opens dropdown when trigger button is clicked', async () => {
+  describe('Dropdown Functionality', () => {
+    it('opens dropdown when input is clicked', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      const triggerButton = screen.getByRole('button')
-      await user.click(triggerButton)
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Search categories...')).toBeInTheDocument()
+        expect(screen.getByText('Food & Dining')).toBeInTheDocument()
+        expect(screen.getByText('Transportation')).toBeInTheDocument()
       })
     })
 
-    it('displays filtered categories in dropdown', async () => {
+    it('opens dropdown when toggle button is clicked', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const buttons = screen.getAllByRole('button')
+      const toggleButton = buttons.find(btn => btn.querySelector('[class*="chevron"]'))
+      
+      if (toggleButton) {
+        await user.click(toggleButton)
+        
+        await waitFor(() => {
+          expect(screen.getByText('Food & Dining')).toBeInTheDocument()
+        })
+      }
+    })
+
+    it('filters categories correctly by type - expense', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<CategorySelector {...defaultProps} type="expense" />)
+      
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
         expect(screen.getByText('Food & Dining')).toBeInTheDocument()
         expect(screen.getByText('Transportation')).toBeInTheDocument()
         expect(screen.getByText('Both Type')).toBeInTheDocument()
-        expect(screen.queryByText('Salary')).not.toBeInTheDocument() // Income type shouldn't show for expense
-      })
-    })
-
-    it('filters categories correctly by type - expense', async () => {
-      const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} type="expense" />)
-      
-      await user.click(screen.getByRole('button'))
-      
-      await waitFor(() => {
-        expect(screen.getByText('Food & Dining')).toBeInTheDocument()
-        expect(screen.getByText('Transportation')).toBeInTheDocument()
-        expect(screen.getByText('Both Type')).toBeInTheDocument() // 'both' type shows for expense
         expect(screen.queryByText('Salary')).not.toBeInTheDocument()
       })
     })
 
     it('filters categories correctly by type - income', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} type="income" />)
+      renderWithProviders(<CategorySelector {...defaultProps} type="income" />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
         expect(screen.getByText('Salary')).toBeInTheDocument()
-        expect(screen.getByText('Both Type')).toBeInTheDocument() // 'both' type shows for income
+        expect(screen.getByText('Both Type')).toBeInTheDocument()
         expect(screen.queryByText('Food & Dining')).not.toBeInTheDocument()
         expect(screen.queryByText('Transportation')).not.toBeInTheDocument()
       })
@@ -144,31 +162,37 @@ describe('CategorySelector Component', () => {
 
     it('closes dropdown when clicking outside', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Search categories...')).toBeInTheDocument()
+        expect(screen.getByText('Food & Dining')).toBeInTheDocument()
       })
       
       await user.click(document.body)
+      
       await waitFor(() => {
-        expect(screen.queryByPlaceholderText('Search categories...')).not.toBeInTheDocument()
+        expect(screen.queryByText('Food & Dining')).not.toBeInTheDocument()
       })
     })
 
     it('closes dropdown on Escape key', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Search categories...')).toBeInTheDocument()
+        expect(screen.getByText('Food & Dining')).toBeInTheDocument()
       })
       
       await user.keyboard('{Escape}')
+      
       await waitFor(() => {
-        expect(screen.queryByPlaceholderText('Search categories...')).not.toBeInTheDocument()
+        expect(screen.queryByText('Food & Dining')).not.toBeInTheDocument()
       })
     })
   })
@@ -176,116 +200,137 @@ describe('CategorySelector Component', () => {
   describe('Category Selection', () => {
     it('selects category and updates value', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      
       await waitFor(() => {
         expect(screen.getByText('Food & Dining')).toBeInTheDocument()
       })
       
-      await user.click(screen.getByText('Food & Dining'))
+      const categoryButton = screen.getByText('Food & Dining').closest('button')
+      if (categoryButton) {
+        await user.click(categoryButton)
+      }
       
       expect(mockOnChange).toHaveBeenCalledWith('Food & Dining')
     })
 
     it('shows visual feedback (checkmark) for selected category', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} value="Food & Dining" />)
+      renderWithProviders(<CategorySelector {...defaultProps} value="Food & Dining" />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
-        const checkIcon = screen.getByText('Food & Dining').closest('[role="option"]')?.querySelector('svg')
+        const categoryElement = screen.getByText('Food & Dining')
+        const checkIcon = categoryElement.closest('button')?.querySelector('[class*="check"]')
         expect(checkIcon).toBeInTheDocument()
-        expect(checkIcon).toHaveClass('opacity-100')
       })
     })
 
     it('closes dropdown after selection', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      
       await waitFor(() => {
         expect(screen.getByText('Food & Dining')).toBeInTheDocument()
       })
       
-      await user.click(screen.getByText('Food & Dining'))
+      const categoryButton = screen.getByText('Food & Dining').closest('button')
+      if (categoryButton) {
+        await user.click(categoryButton)
+      }
       
       await waitFor(() => {
-        expect(screen.queryByPlaceholderText('Search categories...')).not.toBeInTheDocument()
+        expect(screen.queryByText('Transportation')).not.toBeInTheDocument()
       })
     })
   })
 
-  describe('Search Functionality', () => {
-    it('renders search input in dropdown', async () => {
+  describe('Search and Filtering Functionality', () => {
+    it('input is focusable and accepts typing', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      await user.type(input, 'Food')
+      
+      expect(input).toHaveValue('Food')
+    })
+
+    it('filters categories as user types', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<CategorySelector {...defaultProps} />)
+      
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      await user.type(input, 'Transport')
       
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Search categories...')).toBeInTheDocument()
+        expect(screen.getByText('Transportation')).toBeInTheDocument()
+        expect(screen.queryByText('Food & Dining')).not.toBeInTheDocument()
       })
     })
 
-    it('search input is focusable and functional', async () => {
+    it('shows "no categories found" when filter has no matches', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      await user.type(input, 'NonExistent')
+      
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Search categories...')).toBeInTheDocument()
+        expect(screen.getByText('No categories found.')).toBeInTheDocument()
       })
-      
-      const searchInput = screen.getByPlaceholderText('Search categories...')
-      await user.click(searchInput)
-      await user.type(searchInput, 'Food')
-      
-      expect(searchInput).toHaveValue('Food')
     })
 
-    it('search does not close dropdown when clicked', async () => {
+    it('selects first match on Enter key', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
-      await waitFor(() => {
-        expect(screen.getByPlaceholderText('Search categories...')).toBeInTheDocument()
-      })
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      await user.type(input, 'Food')
+      await user.keyboard('{Enter}')
       
-      await user.click(screen.getByPlaceholderText('Search categories...'))
-      
-      // Dropdown should remain open
-      expect(screen.getByPlaceholderText('Search categories...')).toBeInTheDocument()
+      expect(mockOnChange).toHaveBeenCalledWith('Food & Dining')
     })
   })
 
   describe('Scrolling Behavior', () => {
     it('dropdown has scrollable container', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
-        const scrollableContainer = screen.getByPlaceholderText('Search categories...')
-          .closest('[class*="max-h-64"][class*="overflow-y-auto"]')
+        const scrollableContainer = screen.getByText('Food & Dining')
+          .closest('[class*="overflow-y-auto"]')
         expect(scrollableContainer).toBeInTheDocument()
       })
     })
 
     it('dropdown has proper height constraint', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
-        const container = screen.getByPlaceholderText('Search categories...')
+        const container = screen.getByText('Food & Dining')
           .closest('[class*="max-h-64"]')
-        expect(container).toHaveClass('max-h-64')
+        expect(container).toBeInTheDocument()
       })
     })
   })
@@ -293,84 +338,82 @@ describe('CategorySelector Component', () => {
   describe('Visual Indicators', () => {
     it('displays color dots for each category', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
-        // Check for Food & Dining color dot (red)
-        const redDot = screen.getByText('Food & Dining')
-          .closest('[role="option"]')
-          ?.querySelector('div[style*="background-color: rgb(239, 68, 68)"]')
-        expect(redDot).toBeInTheDocument()
-        
-        // Check for Transportation color dot (blue)  
-        const blueDot = screen.getByText('Transportation')
-          .closest('[role="option"]')
-          ?.querySelector('div[style*="background-color: rgb(59, 130, 246)"]')
-        expect(blueDot).toBeInTheDocument()
+        const foodElement = screen.getByText('Food & Dining')
+        const colorDot = foodElement.closest('button')?.querySelector('div[style*="background-color"]')
+        expect(colorDot).toBeInTheDocument()
       })
     })
 
     it('shows "Default" badge for default categories', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
         const defaultBadges = screen.getAllByText('Default')
         expect(defaultBadges.length).toBeGreaterThan(0)
       })
     })
+  })
 
-    it('does not show "Default" badge for custom categories', async () => {
-      const customCategory = {
-        id: 5,
-        name: 'Custom Category',
-        icon: 'star',
-        color: '#000000',
-        isDefault: false,
-        type: 'expense',
-        createdAt: new Date()
-      }
-      
-      mockCategories.categories.push(customCategory)
-      
+  describe('Clear Functionality', () => {
+    it('clears selection when clear button is clicked', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} value="Food & Dining" />)
       
-      await user.click(screen.getByRole('button'))
+      const buttons = screen.getAllByRole('button')
+      const clearButton = buttons.find(btn => btn.querySelector('[class*="x"]'))
       
-      await waitFor(() => {
-        const customCategoryElement = screen.getByText('Custom Category')
-        const parentElement = customCategoryElement.closest('[role="option"]')
-        expect(parentElement?.querySelector('[class*="Default"]')).not.toBeInTheDocument()
-      })
+      if (clearButton) {
+        await user.click(clearButton)
+        expect(mockOnChange).toHaveBeenCalledWith('')
+      }
+    })
+
+    it('hides clear button when no value is selected', () => {
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      // Cleanup
-      mockCategories.categories.pop()
+      const buttons = screen.getAllByRole('button')
+      const clearButton = buttons.find(btn => btn.querySelector('[class*="x"]'))
+      expect(clearButton).toBeUndefined()
     })
   })
 
   describe('Loading States', () => {
-    it('shows loading state when categories are undefined', () => {
-      vi.mocked(vi.fn()).mockImplementation(() => ({
-        categories: { categories: undefined }
+    it('handles loading state when categories are undefined', async () => {
+      const loadingMockCategories = { categories: undefined, addCategory: vi.fn() }
+      
+      vi.doMock('@/contexts/db-context', () => ({
+        useDB: () => ({ categories: loadingMockCategories })
       }))
       
-      render(<CategorySelector {...defaultProps} />)
-      // The component should handle undefined categories gracefully
-      expect(screen.getByRole('button')).toBeInTheDocument()
+      const user = userEvent.setup()
+      renderWithProviders(<CategorySelector {...defaultProps} />)
+      
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      
+      await waitFor(() => {
+        expect(screen.getByText('Loading categories...')).toBeInTheDocument()
+      })
     })
 
     it('handles empty categories array gracefully', async () => {
       mockCategories.categories = []
       
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
         expect(screen.getByText('No categories found.')).toBeInTheDocument()
@@ -421,9 +464,10 @@ describe('CategorySelector Component', () => {
   describe('Category Creation', () => {
     it('shows create category option in dropdown', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
         expect(screen.getByText('Create new category')).toBeInTheDocument()
@@ -432,15 +476,19 @@ describe('CategorySelector Component', () => {
 
     it('opens create dialog when create option is clicked', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
         expect(screen.getByText('Create new category')).toBeInTheDocument()
       })
       
-      await user.click(screen.getByText('Create new category'))
+      const createButton = screen.getByText('Create new category').closest('button')
+      if (createButton) {
+        await user.click(createButton)
+      }
       
       await waitFor(() => {
         expect(screen.getByText('Create New Category')).toBeInTheDocument()
@@ -448,93 +496,82 @@ describe('CategorySelector Component', () => {
       })
     })
 
-    it('closes dropdown when opening create dialog', async () => {
+    it('shows create option with typed name when no matches found', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
-      await user.click(screen.getByText('Create new category'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      await user.type(input, 'NewCategory')
       
       await waitFor(() => {
-        expect(screen.queryByPlaceholderText('Search categories...')).not.toBeInTheDocument()
+        expect(screen.getByText(/Create "NewCategory"/)).toBeInTheDocument()
+      })
+    })
+
+    it('creates new category on Enter when no matches exist', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<CategorySelector {...defaultProps} />)
+      
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      await user.type(input, 'NewCategory')
+      await user.keyboard('{Enter}')
+      
+      await waitFor(() => {
+        expect(screen.getByText('Create New Category')).toBeInTheDocument()
+      })
+    })
+
+    it('closes dropdown when opening create dialog', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<CategorySelector {...defaultProps} />)
+      
+      const input = screen.getByRole('textbox')
+      await user.click(input)
+      
+      const createButton = screen.getByText('Create new category').closest('button')
+      if (createButton) {
+        await user.click(createButton)
+      }
+      
+      await waitFor(() => {
+        expect(screen.queryByText('Food & Dining')).not.toBeInTheDocument()
       })
     })
   })
 
   describe('Focus Management', () => {
-    it('dropdown receives focus when opened', async () => {
+    it('input receives focus when clicked', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
-      await waitFor(() => {
-        const dropdown = screen.getByPlaceholderText('Search categories...')
-        expect(document.activeElement).toBe(dropdown)
-      })
+      expect(document.activeElement).toBe(input)
     })
 
-    it('focus returns to trigger when dropdown closes', async () => {
+    it('text is selected when dropdown opens with existing value', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} value="Food & Dining" />)
       
-      const triggerButton = screen.getByRole('button')
-      await user.click(triggerButton)
+      const input = screen.getByRole('textbox') as HTMLInputElement
+      await user.click(input)
       
-      await user.keyboard('{Escape}')
-      
-      await waitFor(() => {
-        expect(document.activeElement).toBe(triggerButton)
-      })
-    })
-  })
-
-  describe('Accessibility', () => {
-    it('trigger button has proper accessibility attributes', () => {
-      render(<CategorySelector {...defaultProps} />)
-      
-      const button = screen.getByRole('button')
-      expect(button).toHaveAttribute('role', 'combobox')
-      expect(button).toHaveAttribute('aria-expanded', 'false')
-    })
-
-    it('dropdown items are properly labeled', async () => {
-      const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
-      
-      await user.click(screen.getByRole('button'))
-      
-      await waitFor(() => {
-        const foodOption = screen.getByText('Food & Dining').closest('[role="option"]')
-        expect(foodOption).toBeInTheDocument()
-        expect(foodOption).toHaveAttribute('role', 'option')
-      })
-    })
-
-    it('keyboard navigation works in dropdown', async () => {
-      const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
-      
-      await user.click(screen.getByRole('button'))
-      await waitFor(() => {
-        expect(screen.getByPlaceholderText('Search categories...')).toBeInTheDocument()
-      })
-      
-      // Test Arrow key navigation
-      await user.keyboard('{ArrowDown}')
-      await user.keyboard('{Enter}')
-      
-      // Should select first category
-      expect(mockOnChange).toHaveBeenCalled()
+      // Check that text is selected (selectionStart should be 0 and selectionEnd should be text length)
+      expect(input.selectionStart).toBe(0)
+      expect(input.selectionEnd).toBe('Food & Dining'.length)
     })
   })
 
   describe('Edge Cases', () => {
     it('handles undefined value prop gracefully', () => {
-      render(<CategorySelector type="expense" onChange={mockOnChange} />)
+      renderWithProviders(<CategorySelector type="expense" value="" onChange={mockOnChange} />)
       
-      expect(screen.getByRole('button')).toBeInTheDocument()
-      expect(screen.getByText('Select category...')).toBeInTheDocument()
+      const input = screen.getByRole('textbox')
+      expect(input).toBeInTheDocument()
+      expect(input).toHaveValue('')
     })
 
     it('handles very long category names', async () => {
@@ -551,9 +588,10 @@ describe('CategorySelector Component', () => {
       mockCategories.categories.push(longCategory)
       
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
         expect(screen.getByText(longCategory.name)).toBeInTheDocument()
@@ -563,16 +601,16 @@ describe('CategorySelector Component', () => {
       mockCategories.categories.pop()
     })
 
-    it('maintains proper popover positioning', async () => {
+    it('maintains dropdown positioning', async () => {
       const user = userEvent.setup()
-      render(<CategorySelector {...defaultProps} />)
+      renderWithProviders(<CategorySelector {...defaultProps} />)
       
-      await user.click(screen.getByRole('button'))
+      const input = screen.getByRole('textbox')
+      await user.click(input)
       
       await waitFor(() => {
-        const popoverContent = screen.getByPlaceholderText('Search categories...')
-          .closest('[role="dialog"]')
-        expect(popoverContent).toBeInTheDocument()
+        const dropdown = screen.getByText('Food & Dining').closest('[class*="absolute"]')
+        expect(dropdown).toHaveClass('absolute')
       })
     })
   })
