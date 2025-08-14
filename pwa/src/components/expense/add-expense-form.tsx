@@ -28,7 +28,11 @@ import { useDB } from "@/contexts/db-context"
 import { expenseSchema, type ExpenseFormData } from "@/lib/validations/expense"
 import { CategorySelector } from "./category-selector"
 import { TagsInput } from "./tags-input"
-import { ModalFixedSection, ModalScrollableContent, ModalFooter } from "@/components/ui/modal"
+import {
+    ModalFixedSection,
+    ModalScrollableContent,
+    ModalFooter,
+} from "@/components/ui/modal"
 import { cn } from "@/lib/utils"
 
 interface AddExpenseFormProps {
@@ -67,7 +71,6 @@ export function AddExpenseForm({
 
     const watchedType = form.watch("type")
 
-
     const handleSubmit = async (data: ExpenseFormData) => {
         setIsSubmitting(true)
         try {
@@ -79,7 +82,7 @@ export function AddExpenseForm({
                 category: data.category!.trim(), // Now guaranteed to be defined by validation
                 description: data.description?.trim() || "", // Optional field
             }
-            
+
             await transactions.addTransaction(transactionData)
 
             // Update account balance
@@ -88,7 +91,9 @@ export function AddExpenseForm({
             )
             if (account) {
                 const balanceChange =
-                    transactionData.type === "income" ? transactionData.amount : -transactionData.amount
+                    transactionData.type === "income"
+                        ? transactionData.amount
+                        : -transactionData.amount
                 await accounts.updateAccount(transactionData.accountId, {
                     balance: account.balance + balanceChange,
                 })
@@ -143,7 +148,7 @@ export function AddExpenseForm({
 
                     {/* Scrollable Form Fields */}
                     <ModalScrollableContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Amount */}
                             <FormField
                                 control={form.control}
@@ -166,12 +171,22 @@ export function AddExpenseForm({
                                                     {...field}
                                                     value={field.value || ""}
                                                     onChange={(e) => {
-                                                        const inputValue = e.target.value
+                                                        const inputValue =
+                                                            e.target.value
                                                         if (inputValue === "") {
-                                                            field.onChange(undefined)
+                                                            field.onChange(
+                                                                undefined
+                                                            )
                                                         } else {
-                                                            const value = parseFloat(inputValue)
-                                                            field.onChange(isNaN(value) ? undefined : value)
+                                                            const value =
+                                                                parseFloat(
+                                                                    inputValue
+                                                                )
+                                                            field.onChange(
+                                                                isNaN(value)
+                                                                    ? undefined
+                                                                    : value
+                                                            )
                                                         }
                                                     }}
                                                 />
@@ -183,6 +198,7 @@ export function AddExpenseForm({
                             />
 
                             {/* Account */}
+                            {/* TODO: Account selector should be a separate component just like Category selector and should be imported here */}
                             <FormField
                                 control={form.control}
                                 name="accountId"
@@ -193,7 +209,9 @@ export function AddExpenseForm({
                                             onValueChange={(value) =>
                                                 field.onChange(parseInt(value))
                                             }
-                                            value={field.value?.toString() || ""}
+                                            value={
+                                                field.value?.toString() || ""
+                                            }
                                         >
                                             <FormControl>
                                                 <SelectTrigger>
@@ -283,7 +301,7 @@ export function AddExpenseForm({
                                             <div className="relative">
                                                 <Input
                                                     type="datetime-local"
-                                                    className="pr-10"
+                                                    className="pr-16"
                                                     {...field}
                                                     value={
                                                         field.value
