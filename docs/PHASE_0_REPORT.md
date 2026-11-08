@@ -181,7 +181,7 @@ All "After" results were re-run independently by the reviewing session, not only
 
 ## Decisions needed (for Sayan and Arghya)
 
-1. **Merge** this branch into main via PR. Sayan as repo owner.
+1. **Merge:** decide whether and how this branch gets merged into main.
 2. **Next 16:** stay on 15.5.x for now, or move to 16. Moving requires `@serwist/turbopack` or building with `--webpack`.
 3. **Firebase function:** confirm it stays deployed until the Phase 4 auth rework, and agree on the Phase 4 direction. ROADMAP recommends Supabase Auth with Postgres and RLS, dropping Firebase.
 4. **Superseded docs:** delete `TASK.md`, `next-steps.md` and the outdated architecture and planning docs, or keep them marked as historical.

@@ -4,7 +4,6 @@ Last reviewed: 2026-11-08
 
 ## Context
 
-- **Repo owner / main contributor:** Sayan (`sayan-me` / `dsayan154`). **Co-contributor:** Arghya Guha. Changes go via PRs to Sayan's repo.
 - **History:**
   - Nov–Dec 2024: specs, DB schema, empty microservice/infra scaffold.
   - Dec 2024–Feb 2025: PWA shell (layout, overview, activities bar, feature gating, Zustand stores).
@@ -92,7 +91,7 @@ Each phase is shippable on its own.
 
 ### Phase 0: Clean-up
 
-1. [x] Branch from `origin/main`; [ ] deliver as PR to Sayan.
+1. [x] Work on branch `chore/phase-0-cleanup` from `origin/main`; [x] pushed for review.
 2. [x] Upgrade Next/React to current patched versions (Next 15.5.29, React 19.3.1); replace `next-pwa` with Serwist; commit `pnpm-lock.yaml`.
 3. [x] Make Firebase optional so `pnpm build` passes with no env vars.
 4. [x] Delete dead Zustand stores, stub services, infra folders, debug pages.
