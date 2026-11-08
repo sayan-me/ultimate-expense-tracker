@@ -1,37 +1,43 @@
-import { describe, it, expect } from 'vitest'
-import { screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
 import { MonthlySpend } from './monthly-spend'
-import { renderWithProviders } from '@/tests/test-utils'
+import { getMonthlySpendData } from '@/lib/data'
+
+// Component still runs on mock data (lib/data); stub it for deterministic tests
+vi.mock('@/lib/data', () => ({
+  getMonthlySpendData: vi.fn(),
+}))
 
 describe('MonthlySpend', () => {
-  it('renders monthly spend section', () => {
-    renderWithProviders(<MonthlySpend />)
-    expect(screen.getByText('Monthly Spend vs Budget')).toBeInTheDocument()
+  beforeEach(() => {
+    vi.mocked(getMonthlySpendData).mockResolvedValue({ monthlySpend: 1200, monthlyBudget: 2000 })
   })
 
-  it('displays spent and budget amounts', () => {
-    renderWithProviders(<MonthlySpend />)
-    expect(screen.getByText('$1,200.00')).toBeInTheDocument()
+  it('shows loading skeletons before data resolves', () => {
+    render(<MonthlySpend />)
+    expect(screen.getByTestId('skeleton-title')).toBeInTheDocument()
+    expect(screen.queryByText('Monthly Spend vs Budget')).not.toBeInTheDocument()
+  })
+
+  it('renders monthly spend section once loaded', async () => {
+    render(<MonthlySpend />)
+    expect(await screen.findByText('Monthly Spend vs Budget')).toBeInTheDocument()
+  })
+
+  it('displays spent and budget amounts', async () => {
+    render(<MonthlySpend />)
+    expect(await screen.findByText('$1,200.00')).toBeInTheDocument()
     expect(screen.getByText('$2,000.00')).toBeInTheDocument()
   })
 
-  it('shows percentage used', () => {
-    renderWithProviders(<MonthlySpend />)
-    expect(screen.getByText('60% used')).toBeInTheDocument()
+  it('shows percentage used', async () => {
+    render(<MonthlySpend />)
+    expect(await screen.findByText('60% used')).toBeInTheDocument()
   })
 
-  it('displays loading skeletons when isLoading is true', () => {
-    renderWithProviders(<MonthlySpend isLoading={true} />)
-    expect(screen.getByTestId('skeleton-title')).toBeInTheDocument()
-    expect(screen.getByTestId('skeleton-spent')).toBeInTheDocument()
-    expect(screen.getByTestId('skeleton-budget')).toBeInTheDocument()
-    expect(screen.getByTestId('skeleton-progress')).toBeInTheDocument()
+  it('shows an error alert when loading fails', async () => {
+    vi.mocked(getMonthlySpendData).mockRejectedValue(new Error('boom'))
+    render(<MonthlySpend />)
+    expect(await screen.findByText(/Failed to load monthly spend data: boom/)).toBeInTheDocument()
   })
-
-  it('does not show spend data while loading', () => {
-    renderWithProviders(<MonthlySpend isLoading={true} />)
-    expect(screen.queryByText('Monthly Spend vs Budget')).not.toBeInTheDocument()
-    expect(screen.queryByText('$1,200.00')).not.toBeInTheDocument()
-    expect(screen.queryByText('$2,000.00')).not.toBeInTheDocument()
-  })
-}) 
+})

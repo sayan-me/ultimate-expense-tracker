@@ -1,76 +1,58 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { GroupStats } from './group-stats'
+import { getGroupStats } from '@/lib/data'
+
+// Component still runs on mock data (lib/data); stub it for deterministic tests
+vi.mock('@/lib/data', () => ({
+  getGroupStats: vi.fn(),
+}))
 
 describe('GroupStats', () => {
-  const mockData = {
-    totalSpending: 1500,
-    monthlyBudget: 2000,
-    categories: [
-      { name: 'Food', amount: 500 },
-      { name: 'Transport', amount: 300 }
-    ]
-  }
-
-  it('renders loading skeleton when isLoading is true', () => {
-    render(<GroupStats isLoading />)
-    expect(screen.getByTestId('skeleton')).toBeInTheDocument()
-  })
-
-  it('renders group stats with initial data', () => {
-    render(<GroupStats initialData={mockData} />)
-    expect(screen.getByText('$1,500')).toBeInTheDocument()
-    expect(screen.getByText('of $2,000 budget')).toBeInTheDocument()
-  })
-
-  it('renders progress bar with correct percentage', () => {
-    render(<GroupStats initialData={mockData} />)
-    const progressBar = screen.getByRole('progressbar')
-    expect(progressBar).toHaveStyle({ width: '75%' })
-    expect(progressBar).toHaveAttribute('aria-valuenow', '1500')
-    expect(progressBar).toHaveAttribute('aria-valuemax', '2000')
-  })
-
-  it('renders category view button', () => {
-    render(<GroupStats initialData={mockData} />)
-    expect(screen.getByRole('button', { 
-      name: /view category-wise spending/i 
-    })).toBeInTheDocument()
-  })
-
-  it('handles zero budget case gracefully', () => {
-    render(<GroupStats initialData={{ 
-      ...mockData, 
-      monthlyBudget: 0 
-    }} />)
-    expect(screen.getByRole('progressbar')).toHaveStyle({ width: '100%' })
-  })
-
-  it('handles errors gracefully', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const mockData = {
-      totalSpending: undefined,
-      monthlyBudget: 2000,
-      categories: []
-    }
-
-    render(<GroupStats initialData={mockData} />)
-    expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
-    consoleError.mockRestore()
-  })
-
-  it('shows error message when category view is clicked', async () => {
-    render(<GroupStats initialData={{
+  beforeEach(() => {
+    vi.mocked(getGroupStats).mockResolvedValue({
       totalSpending: 1500,
-      monthlyBudget: 2000,
-      categories: []
-    }} />)
-
-    const button = screen.getByRole('button', { 
-      name: /view category-wise spending/i 
+      monthlyBudget: 3000,
+      categories: [{ name: 'Food', amount: 500 }],
     })
-    fireEvent.click(button)
-
-    expect(screen.getByText(/Category view not implemented yet/i)).toBeInTheDocument()
   })
-}) 
+
+  it('does not render stats while loading', () => {
+    render(<GroupStats />)
+    expect(screen.queryByText('Group Stats')).not.toBeInTheDocument()
+  })
+
+  it('renders group stats once loaded', async () => {
+    render(<GroupStats />)
+    expect(await screen.findByText('Group Stats')).toBeInTheDocument()
+    expect(screen.getByText('$1500')).toBeInTheDocument()
+    expect(screen.getByText('of $3000 budget')).toBeInTheDocument()
+  })
+
+  it('renders progress bar with correct values', async () => {
+    render(<GroupStats />)
+    const bar = await screen.findByRole('progressbar')
+    expect(bar).toHaveAttribute('aria-valuenow', '1500')
+    expect(bar).toHaveAttribute('aria-valuemax', '3000')
+    expect(bar).toHaveStyle({ width: '50%' })
+  })
+
+  it('renders category view button', async () => {
+    render(<GroupStats />)
+    expect(await screen.findByRole('button', { name: /view category-wise spending/i })).toBeInTheDocument()
+  })
+
+  it('shows an error alert when loading fails', async () => {
+    vi.mocked(getGroupStats).mockRejectedValue(new Error('boom'))
+    render(<GroupStats />)
+    expect(await screen.findByText(/Failed to load group stats: boom/)).toBeInTheDocument()
+  })
+
+  it('shows an error when the unimplemented category view is clicked', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 })
+    render(<GroupStats />)
+    await user.click(await screen.findByRole('button', { name: /view category-wise spending/i }))
+    expect(screen.getByText(/Category view not implemented yet/)).toBeInTheDocument()
+  })
+})

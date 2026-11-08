@@ -1,37 +1,28 @@
-import withPWA from 'next-pwa'
-import type { NextConfig } from "next"
-import type { Configuration } from 'webpack'
+import withSerwistInit from '@serwist/next'
+import type { NextConfig } from 'next'
+import { randomUUID } from 'node:crypto'
+
+// Revision for the precached offline fallback page (changes every build)
+const revision = randomUUID()
+
+const withSerwist = withSerwistInit({
+  swSrc: 'src/app/sw.ts',
+  swDest: 'public/sw.js',
+  additionalPrecacheEntries: [{ url: '/offline', revision }],
+  // The service worker is only built for production; avoids stale caches in dev.
+  disable: process.env.NODE_ENV === 'development',
+})
 
 const config: NextConfig = {
   reactStrictMode: true,
-  webpack: (config: Configuration) => {
+  webpack: (config) => {
     config.resolve = config.resolve || {}
     config.resolve.fallback = {
       ...config.resolve.fallback,
-      "punycode": false,
-    };
-    return config;
+      punycode: false,
+    }
+    return config
   },
 }
 
-const nextConfig = withPWA({
-  dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
-  register: true,
-  skipWaiting: true,
-  runtimeCaching: [
-    {
-      urlPattern: /^https:\/\/api\./,
-      handler: 'NetworkFirst',
-      options: {
-        cacheName: 'api-cache',
-        expiration: {
-          maxEntries: 50,
-          maxAgeSeconds: 60 * 60 * 24
-        }
-      }
-    }
-  ]
-}) as unknown as (config: NextConfig) => NextConfig
-
-export default nextConfig(config)
+export default withSerwist(config)

@@ -1,56 +1,54 @@
-import * as React from 'react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen } from '@testing-library/react'
 import { Overview } from './overview'
 import { renderWithProviders } from '@/tests/test-utils'
 
+let mockGroupMode = false
+
+vi.mock('@/contexts/activities-context', async () => {
+  const actual = await vi.importActual<typeof import('@/contexts/activities-context')>('@/contexts/activities-context')
+  return { ...actual, useActivities: () => ({ isGroupMode: mockGroupMode }) }
+})
+
+// Child widgets have their own tests; stub them here
+vi.mock('./current-balance', () => ({ CurrentBalance: () => <div>Total Balance</div> }))
+vi.mock('./monthly-spend', () => ({ MonthlySpend: () => <div>Monthly Spend vs Budget</div> }))
+vi.mock('./recent-expenses', () => ({ RecentExpenses: () => <div>Recent Transactions</div> }))
+vi.mock('./group-stats', () => ({ GroupStats: () => <div>Group Stats Widget</div> }))
+vi.mock('./outstanding-balances', () => ({ OutstandingBalances: () => <div>Outstanding Balances Widget</div> }))
+vi.mock('./group-activity-feed', () => ({ GroupActivityFeed: () => <div>Group Activity Widget</div> }))
+
 describe('Overview', () => {
+  beforeEach(() => {
+    mockGroupMode = false
+  })
+
   it('renders financial overview section', () => {
     renderWithProviders(<Overview />)
     expect(screen.getByLabelText('Financial overview')).toBeInTheDocument()
   })
 
-  it('shows personal mode components by default', () => {
+  it('shows personal mode components by default', async () => {
     renderWithProviders(<Overview />)
-    expect(screen.getByText('Total Balance')).toBeInTheDocument()
-    expect(screen.getByText('Monthly Spend vs Budget')).toBeInTheDocument()
-    expect(screen.getByText('Recent Expenses')).toBeInTheDocument()
+    expect(await screen.findByText('Total Balance')).toBeInTheDocument()
+    expect(await screen.findByText('Monthly Spend vs Budget')).toBeInTheDocument()
+    expect(await screen.findByText('Recent Transactions')).toBeInTheDocument()
   })
 
-  it('passes loading state to child components', () => {
+  it('does not render group mode components in personal mode', async () => {
     renderWithProviders(<Overview />)
-    // Initially not loading
-    expect(screen.getByText('Total Balance')).toBeInTheDocument()
-    expect(screen.getByText('Monthly Spend vs Budget')).toBeInTheDocument()
-    expect(screen.getByText('Recent Expenses')).toBeInTheDocument()
+    await screen.findByText('Total Balance')
+    expect(screen.queryByText('Group Stats Widget')).not.toBeInTheDocument()
+    expect(screen.queryByText('Outstanding Balances Widget')).not.toBeInTheDocument()
   })
 
-  it('does not render group mode components in personal mode', () => {
+  it('shows sign-in fallbacks instead of group widgets when signed out', () => {
+    mockGroupMode = true
     renderWithProviders(<Overview />)
-    expect(screen.queryByText('Group Stats')).not.toBeInTheDocument()
-    expect(screen.queryByText('Outstanding Balances')).not.toBeInTheDocument()
+    expect(screen.getByText('Group Stats')).toBeInTheDocument()
+    expect(screen.getByText('Outstanding Balances')).toBeInTheDocument()
+    expect(screen.getByText('Recent Activity')).toBeInTheDocument()
+    expect(screen.queryByText('Group Stats Widget')).not.toBeInTheDocument()
+    expect(screen.queryByText('Total Balance')).not.toBeInTheDocument()
   })
-
-  describe('when loading', () => {
-    it('shows loading skeletons for all sections', () => {
-      // Mock useState to return isLoading as true
-      vi.spyOn(React, 'useState').mockImplementationOnce(() => ['personal', vi.fn()])
-      vi.spyOn(React, 'useState').mockImplementationOnce(() => [true, vi.fn()])
-      
-      renderWithProviders(<Overview />)
-      const section = screen.getByLabelText('Financial overview')
-      expect(section).toBeInTheDocument()
-      
-      // Check for three skeleton elements
-      const skeletons = screen.getAllByRole('generic').filter(el => 
-        el.className.includes('skeleton')
-      )
-      expect(skeletons).toHaveLength(3)
-      
-      // Verify skeleton dimensions
-      expect(skeletons[0]).toHaveClass('h-[160px]') // CurrentBalance skeleton
-      expect(skeletons[1]).toHaveClass('h-[120px]') // MonthlySpend skeleton
-      expect(skeletons[2]).toHaveClass('h-[280px]') // RecentExpenses skeleton
-    })
-  })
-}) 
+})

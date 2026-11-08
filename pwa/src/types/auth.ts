@@ -42,6 +42,8 @@ export interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   loading: boolean;
   error: string | null;
+  /** False when Firebase env vars are missing; sign-in is unavailable. */
+  isAuthConfigured: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<AppUser>;
   logout: () => Promise<void>;

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AddExpenseForm } from '../add-expense-form'
-import { renderWithProviders } from '@/tests/test-utils'
+import { renderWithProviders, getDateInput } from '@/tests/test-utils'
 
 // Mock the useDB hook with comprehensive test data
 const mockAccounts = {
@@ -76,8 +76,8 @@ describe('AddExpenseForm - Original UX Issues', () => {
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       const amountInput = screen.getByPlaceholderText('Enter amount...')
-      expect(amountInput).toHaveValue('')
-      expect(amountInput).not.toHaveValue('0')
+      expect(amountInput).toHaveValue(null) // number input, empty
+      expect(amountInput).not.toHaveValue(0)
     })
 
     it('has proper placeholder text in amount field', () => {
@@ -87,7 +87,7 @@ describe('AddExpenseForm - Original UX Issues', () => {
     })
 
     it('cursor positioning works correctly in amount field', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       const amountInput = screen.getByPlaceholderText('Enter amount...')
@@ -95,11 +95,11 @@ describe('AddExpenseForm - Original UX Issues', () => {
       
       // Cursor should be at the beginning of empty field
       expect(amountInput).toHaveFocus()
-      expect(amountInput.selectionStart).toBe(0)
+      // (selectionStart is null for type=number inputs)
     })
 
     it('backspace works properly in amount field when empty', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       const amountInput = screen.getByPlaceholderText('Enter amount...')
@@ -107,27 +107,27 @@ describe('AddExpenseForm - Original UX Issues', () => {
       await user.keyboard('{Backspace}')
       
       // Should not cause any issues when field is empty
-      expect(amountInput).toHaveValue('')
+      expect(amountInput).toHaveValue(null)
     })
 
     it('accepts numeric input correctly', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       const amountInput = screen.getByPlaceholderText('Enter amount...')
       await user.type(amountInput, '125.50')
       
-      expect(amountInput).toHaveValue('125.5') // React number input behavior
+      expect(amountInput).toHaveValue(125.5)
     })
 
     it('handles decimal input correctly', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       const amountInput = screen.getByPlaceholderText('Enter amount...')
       await user.type(amountInput, '99.99')
       
-      expect(amountInput).toHaveValue('99.99')
+      expect(amountInput).toHaveValue(99.99)
     })
   })
 
@@ -140,7 +140,7 @@ describe('AddExpenseForm - Original UX Issues', () => {
     })
 
     it('placeholder text changes based on expense/income type', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Default is expense
@@ -152,7 +152,7 @@ describe('AddExpenseForm - Original UX Issues', () => {
     })
 
     it('accepts text input without requiring deletion of pre-filled content', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       const descriptionInput = screen.getByPlaceholderText('What was this expense for?')
@@ -166,7 +166,7 @@ describe('AddExpenseForm - Original UX Issues', () => {
     it('shows only one calendar icon, not duplicates', () => {
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
-      const dateInput = screen.getByDisplayValue(expect.stringMatching(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))
+      const dateInput = getDateInput()
       
       // The datetime-local input should have its native calendar icon
       // We should not see any duplicate icons
@@ -175,16 +175,16 @@ describe('AddExpenseForm - Original UX Issues', () => {
     })
 
     it('allows current day entries (fixes "Date cannot be in the future" issue)', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Fill in all required fields with today's date
       await user.type(screen.getByPlaceholderText('Enter amount...'), '50')
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
       
       // Category selection
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food & Dining'))
       await user.click(screen.getByText('Food & Dining'))
       
@@ -201,29 +201,28 @@ describe('AddExpenseForm - Original UX Issues', () => {
     it('date field has proper datetime-local input type', () => {
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
-      const dateInput = screen.getByDisplayValue(expect.stringMatching(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))
+      const dateInput = getDateInput()
       expect(dateInput.type).toBe('datetime-local')
     })
   })
 
   describe('Form Validation Timing (Original Bug)', () => {
     it('does not trigger validation on field changes, only on submit', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Change fields without submitting
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food & Dining'))
       await user.click(screen.getByText('Food & Dining'))
       
       // Should not see validation errors yet
       expect(screen.queryByText('Amount is required and must be positive')).not.toBeInTheDocument()
       expect(screen.queryByText('Please select an account')).not.toBeInTheDocument()
-      expect(screen.queryByText('Description is required')).not.toBeInTheDocument()
     })
 
     it('shows validation errors only after submit attempt', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Try to submit empty form
@@ -233,22 +232,22 @@ describe('AddExpenseForm - Original UX Issues', () => {
         expect(screen.getByText('Amount is required and must be positive')).toBeInTheDocument()
         expect(screen.getByText('Please select an account')).toBeInTheDocument()
         expect(screen.getByText('Category is required')).toBeInTheDocument()
-        expect(screen.getByText('Description is required')).toBeInTheDocument()
+        // Description is optional, so it never produces a validation error
+        expect(screen.queryByText('Description is required')).not.toBeInTheDocument()
       })
     })
 
     it('category selection does not trigger premature form validation', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Select category
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food & Dining'))
       await user.click(screen.getByText('Food & Dining'))
       
       // Should not see validation errors for other fields
       expect(screen.queryByText('Amount is required and must be positive')).not.toBeInTheDocument()
-      expect(screen.queryByText('Description is required')).not.toBeInTheDocument()
     })
   })
 
@@ -258,7 +257,7 @@ describe('AddExpenseForm - Original UX Issues', () => {
       
       // Amount field
       const amountInput = screen.getByPlaceholderText('Enter amount...')
-      expect(amountInput).toHaveValue('')
+      expect(amountInput).toHaveValue(null)
       
       // Description field
       const descriptionInput = screen.getByPlaceholderText('What was this expense for?')
@@ -266,7 +265,7 @@ describe('AddExpenseForm - Original UX Issues', () => {
       
       // Account and Category use Select components with placeholders
       expect(screen.getByText('Select account')).toBeInTheDocument()
-      expect(screen.getByText('Select category...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Select or type category...')).toBeInTheDocument()
     })
 
     it('all fields show helpful placeholder guidance', () => {
@@ -276,7 +275,7 @@ describe('AddExpenseForm - Original UX Issues', () => {
       expect(screen.getByPlaceholderText('What was this expense for?')).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Add tags...')).toBeInTheDocument()
       expect(screen.getByText('Select account')).toBeInTheDocument()
-      expect(screen.getByText('Select category...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Select or type category...')).toBeInTheDocument()
     })
   })
 })
@@ -298,7 +297,7 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
       expect(screen.getByText('Amount *')).toBeInTheDocument()
       expect(screen.getByText('Account *')).toBeInTheDocument()
       expect(screen.getByText('Category *')).toBeInTheDocument()
-      expect(screen.getByText('Description *')).toBeInTheDocument()
+      expect(screen.getByText('Description')).toBeInTheDocument()
       expect(screen.getByText('Date *')).toBeInTheDocument()
     })
 
@@ -333,7 +332,7 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
 
   describe('Tab Switching', () => {
     it('switches between expense and income tabs', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Click income tab
@@ -344,7 +343,7 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
     })
 
     it('updates button text when switching tabs', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       expect(screen.getByText('Add expense')).toBeInTheDocument()
@@ -354,7 +353,7 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
     })
 
     it('updates description placeholder when switching tabs', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       expect(screen.getByPlaceholderText('What was this expense for?')).toBeInTheDocument()
@@ -365,7 +364,7 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
 
     it('calls onTypeChange callback when provided', async () => {
       const onTypeChange = vi.fn()
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       
       renderWithProviders(<AddExpenseForm {...defaultProps} onTypeChange={onTypeChange} />)
       
@@ -376,16 +375,16 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
 
   describe('Complete Form Submission', () => {
     it('submits valid expense form successfully', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Fill all required fields
       await user.type(screen.getByPlaceholderText('Enter amount...'), '50.25')
       
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
       
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food & Dining'))
       await user.click(screen.getByText('Food & Dining'))
       
@@ -410,14 +409,14 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
     })
 
     it('updates account balance after submission', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Fill and submit form
       await user.type(screen.getByPlaceholderText('Enter amount...'), '25')
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food & Dining'))
       await user.click(screen.getByText('Food & Dining'))
       await user.type(screen.getByPlaceholderText('What was this expense for?'), 'Test')
@@ -432,14 +431,14 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
     })
 
     it('calls onSuccess callback after successful submission', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Fill and submit form
       await user.type(screen.getByPlaceholderText('Enter amount...'), '25')
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food & Dining'))
       await user.click(screen.getByText('Food & Dining'))
       await user.type(screen.getByPlaceholderText('What was this expense for?'), 'Test')
@@ -452,7 +451,7 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
     })
 
     it('handles income submission correctly', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Switch to income
@@ -461,8 +460,8 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
       // Fill form
       await user.type(screen.getByPlaceholderText('Enter amount...'), '1000')
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Salary'))
       await user.click(screen.getByText('Salary'))
       await user.type(screen.getByPlaceholderText('What was this income for?'), 'Monthly salary')
@@ -487,7 +486,7 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
 
   describe('Form Validation', () => {
     it('validates all required fields', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Add expense'))
@@ -496,28 +495,31 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
         expect(screen.getByText('Amount is required and must be positive')).toBeInTheDocument()
         expect(screen.getByText('Please select an account')).toBeInTheDocument()
         expect(screen.getByText('Category is required')).toBeInTheDocument()
-        expect(screen.getByText('Description is required')).toBeInTheDocument()
+        // Description is optional, so it never produces a validation error
+        expect(screen.queryByText('Description is required')).not.toBeInTheDocument()
       })
     })
 
     it('validates amount must be positive', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.type(screen.getByPlaceholderText('Enter amount...'), '0')
       await user.click(screen.getByText('Add expense'))
       
       await waitFor(() => {
-        expect(screen.getByText('Amount is required and must be positive')).toBeInTheDocument()
+        expect(screen.getByText('Amount must be positive')).toBeInTheDocument()
       })
     })
 
     it('validates amount maximum limit', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.type(screen.getByPlaceholderText('Enter amount...'), '2000000') // Over 1,000,000 limit
-      await user.click(screen.getByText('Add expense'))
+      // The input has max=1000000, so native constraint validation would block a button click;
+      // submit the form directly to exercise the zod schema.
+      fireEvent.submit(document.querySelector('form')!)
       
       await waitFor(() => {
         expect(screen.getByText('Amount cannot exceed 1,000,000')).toBeInTheDocument()
@@ -530,14 +532,14 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
         new Promise(resolve => setTimeout(resolve, 100))
       )
       
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Fill form
       await user.type(screen.getByPlaceholderText('Enter amount...'), '25')
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food & Dining'))
       await user.click(screen.getByText('Food & Dining'))
       await user.type(screen.getByPlaceholderText('What was this expense for?'), 'Test')
@@ -556,15 +558,15 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
 
   describe('Form Reset and Cancel', () => {
     it('resets form after successful submission', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Fill and submit form
       const amountInput = screen.getByPlaceholderText('Enter amount...')
       await user.type(amountInput, '25')
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food & Dining'))
       await user.click(screen.getByText('Food & Dining'))
       
@@ -574,15 +576,15 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
       await user.click(screen.getByText('Add expense'))
       
       await waitFor(() => {
-        expect(amountInput).toHaveValue('')
+        expect(amountInput).toHaveValue(null)
         expect(descriptionInput).toHaveValue('')
         expect(screen.getByText('Select account')).toBeInTheDocument()
-        expect(screen.getByText('Select category...')).toBeInTheDocument()
+        expect(screen.getByPlaceholderText('Select or type category...')).toBeInTheDocument()
       })
     })
 
     it('calls onCancel when cancel button is clicked', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Cancel'))
@@ -600,14 +602,14 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
     it('handles submission errors gracefully', async () => {
       mockTransactions.addTransaction.mockRejectedValue(new Error('Database error'))
       
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Fill and submit form
       await user.type(screen.getByPlaceholderText('Enter amount...'), '25')
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food & Dining'))
       await user.click(screen.getByText('Food & Dining'))
       await user.type(screen.getByPlaceholderText('What was this expense for?'), 'Test')

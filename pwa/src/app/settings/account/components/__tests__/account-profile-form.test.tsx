@@ -1,22 +1,23 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { AccountProfileForm } from '../account-profile-form'
 import { useAuth } from '@/contexts/auth-context'
 import { authService } from '@/services/auth.service'
 
 // Mock the auth context
-jest.mock('@/contexts/auth-context', () => ({
-  useAuth: jest.fn(),
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: vi.fn(),
 }))
 
 // Mock the auth service
-jest.mock('@/services/auth.service', () => ({
+vi.mock('@/services/auth.service', () => ({
   authService: {
-    updateProfile: jest.fn(),
+    updateProfile: vi.fn(),
   },
 }))
 
-const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
-const mockUpdateProfile = authService.updateProfile as jest.MockedFunction<typeof authService.updateProfile>
+const mockUseAuth = useAuth as vi.MockedFunction<typeof useAuth>
+const mockUpdateProfile = authService.updateProfile as vi.MockedFunction<typeof authService.updateProfile>
 
 describe('AccountProfileForm', () => {
   const mockUser = {
@@ -33,12 +34,13 @@ describe('AccountProfileForm', () => {
       firebaseUser: null,
       loading: false,
       error: null,
-      login: jest.fn(),
-      register: jest.fn(),
-      logout: jest.fn(),
-      clearError: jest.fn(),
+      isAuthConfigured: true,
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+      clearError: vi.fn(),
     })
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   it('renders form with user data', () => {
@@ -61,7 +63,7 @@ describe('AccountProfileForm', () => {
   it('shows error when no changes are detected', async () => {
     render(<AccountProfileForm />)
     
-    const form = screen.getByRole('form')
+    const form = document.querySelector('form') as HTMLFormElement
     fireEvent.submit(form)
     
     await waitFor(() => {
@@ -78,7 +80,7 @@ describe('AccountProfileForm', () => {
     const nameInput = screen.getByDisplayValue('John Doe')
     fireEvent.change(nameInput, { target: { value: 'Jane Doe' } })
     
-    const form = screen.getByRole('form')
+    const form = document.querySelector('form') as HTMLFormElement
     fireEvent.submit(form)
     
     await waitFor(() => {
@@ -95,7 +97,7 @@ describe('AccountProfileForm', () => {
     const nameInput = screen.getByDisplayValue('John Doe')
     fireEvent.change(nameInput, { target: { value: 'Jane Doe' } })
     
-    const form = screen.getByRole('form')
+    const form = document.querySelector('form') as HTMLFormElement
     fireEvent.submit(form)
     
     await waitFor(() => {
@@ -115,7 +117,7 @@ describe('AccountProfileForm', () => {
     fireEvent.change(nameInput, { target: { value: 'Jane Doe' } })
     fireEvent.change(emailInput, { target: { value: 'jane.doe@example.com' } })
     
-    const form = screen.getByRole('form')
+    const form = document.querySelector('form') as HTMLFormElement
     fireEvent.submit(form)
     
     await waitFor(() => {

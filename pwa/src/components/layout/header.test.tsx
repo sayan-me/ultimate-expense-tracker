@@ -4,9 +4,9 @@ import { Header } from './header'
 import { renderWithProviders } from '@/tests/test-utils'
 
 describe('Header Component', () => {
-  it('renders header with user greeting', () => {
+  it('renders header with a generic greeting when signed out', () => {
     renderWithProviders(<Header />)
-    expect(screen.getByText(/Hello, User!/)).toBeInTheDocument()
+    expect(screen.getByText(/^Good (morning|afternoon|evening)!$/)).toBeInTheDocument()
   })
 
   it('displays current date', () => {

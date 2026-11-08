@@ -13,7 +13,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
-  const { login, register, loading, error, clearError } = useAuth();
+  const { login, register, loading, error, clearError, isAuthConfigured } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -52,6 +52,20 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     clearError();
     setFormData({ email: '', password: '', name: '' });
   };
+
+  if (!isAuthConfigured) {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle>Sign-in not configured</CardTitle>
+          <CardDescription>
+            Sign-in is not set up for this deployment. You can keep tracking
+            expenses locally on this device without an account.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md mx-auto">

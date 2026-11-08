@@ -1,3 +1,5 @@
+> **Superseded.** This document is historical and no longer reflects the project plan. See [docs/ROADMAP.md](ROADMAP.md) for the current status and roadmap.
+
 ## Updated Next Steps (as of Feb 11, 2025)
 
 ### Immediate Priority (Phase 1 Completion)

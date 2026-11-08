@@ -34,7 +34,15 @@ describe('ActivitiesContext', () => {
     })
     
     expect(result.current.isCustomizing).toBe(true)
-    expect(result.current.isActivitiesBarOpen).toBe(true)
+
+    // Leaving customization mode also closes the activities bar
+    act(() => {
+      result.current.toggleActivitiesBar(true)
+      result.current.toggleCustomizationMode(false)
+    })
+
+    expect(result.current.isCustomizing).toBe(false)
+    expect(result.current.isActivitiesBarOpen).toBe(false)
   })
 
   it('toggles between personal and group modes', () => {
@@ -50,7 +58,10 @@ describe('ActivitiesContext', () => {
 
   it('manages quick actions selection', () => {
     const { result } = renderHook(() => useActivities(), { wrapper })
-    const newAction = result.current.actions[0]
+    // Pick an action that is not already a default quick action
+    const newAction = result.current.actions.find(
+      a => !result.current.selectedQuickActions.some(s => s.label === a.label)
+    )!
     
     act(() => {
       result.current.toggleQuickAction(newAction)
@@ -67,7 +78,9 @@ describe('ActivitiesContext', () => {
 
   it('persists quick actions to localStorage', () => {
     const { result } = renderHook(() => useActivities(), { wrapper })
-    const newAction = result.current.actions[0]
+    const newAction = result.current.actions.find(
+      a => !result.current.selectedQuickActions.some(s => s.label === a.label)
+    )!
     
     act(() => {
       result.current.toggleQuickAction(newAction)
@@ -75,6 +88,6 @@ describe('ActivitiesContext', () => {
     
     const stored = localStorage.getItem('quickActions')
     expect(stored).not.toBeNull()
-    expect(JSON.parse(stored!)).toContainEqual(newAction)
+    expect(JSON.parse(stored!)).toContainEqual({ label: newAction.label })
   })
 }) 

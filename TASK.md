@@ -1,3 +1,5 @@
+> **Superseded.** This document is historical and no longer reflects the project plan. See [docs/ROADMAP.md](docs/ROADMAP.md) for the current status and roadmap.
+
 # TASK.md - Feature Analysis and Priority Recommendation
 
 ## Objective

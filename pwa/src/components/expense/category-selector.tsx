@@ -56,10 +56,12 @@ export function CategorySelector({
         if (isOpen) {
             setSearchQuery(value || "")
             // Focus input after dropdown is rendered
-            setTimeout(() => {
+            const focusTimer = setTimeout(() => {
                 inputRef.current?.focus()
                 inputRef.current?.select()
             }, 50)
+            // Cancel on close/select so focus isn't stolen from the next field
+            return () => clearTimeout(focusTimer)
         } else {
             setSearchQuery("")
         }

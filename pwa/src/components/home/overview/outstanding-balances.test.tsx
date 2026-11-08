@@ -1,62 +1,70 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { OutstandingBalances } from './outstanding-balances'
+import { getOutstandingBalances } from '@/lib/data'
+
+// Component still runs on mock data (lib/data); stub it for deterministic tests
+vi.mock('@/lib/data', () => ({
+  getOutstandingBalances: vi.fn(),
+}))
 
 describe('OutstandingBalances', () => {
-  const mockBalances = {
+  const balances = {
     balances: [
       { memberId: '1', memberName: 'Alice', amount: 50, owesTo: 'Group Pool' },
       { memberId: '2', memberName: 'Bob', amount: -30, owesTo: 'Group Pool' },
-      { memberId: '3', memberName: 'Charlie', amount: 25, owesTo: 'Alice' }
-    ]
+      { memberId: '3', memberName: 'Charlie', amount: 0, owesTo: 'Alice' },
+    ],
   }
 
-  it('renders outstanding balances section', () => {
-    render(<OutstandingBalances initialData={mockBalances} />)
-    expect(screen.getByText('Outstanding Balances')).toBeInTheDocument()
+  beforeEach(() => {
+    vi.mocked(getOutstandingBalances).mockResolvedValue(balances)
   })
 
-  it('displays loading skeletons when isLoading is true', () => {
-    render(<OutstandingBalances isLoading={true} />)
-    expect(screen.getByTestId('skeleton-title')).toBeInTheDocument()
-    expect(screen.getByTestId('skeleton-name-1')).toBeInTheDocument()
-    expect(screen.getByTestId('skeleton-amount-1')).toBeInTheDocument()
-    expect(screen.getByTestId('skeleton-button')).toBeInTheDocument()
+  it('does not render the section while loading', () => {
+    render(<OutstandingBalances />)
+    expect(screen.queryByText('Outstanding Balances')).not.toBeInTheDocument()
   })
 
-  it('shows member balances with correct formatting', () => {
-    render(<OutstandingBalances initialData={mockBalances} />)
-    expect(screen.getByText('Alice')).toBeInTheDocument()
-    expect(screen.getByText(/owes \$50\.00 to Group Pool/)).toBeInTheDocument()
-    expect(screen.getByText(/gets \$30\.00 from Group Pool/)).toBeInTheDocument()
-    expect(screen.getByText(/owes \$25\.00 to Alice/)).toBeInTheDocument()
+  it('renders outstanding balances section once loaded', async () => {
+    render(<OutstandingBalances />)
+    expect(await screen.findByText('Outstanding Balances')).toBeInTheDocument()
   })
 
-  it('displays "No outstanding balances" when balances array is empty', () => {
-    render(<OutstandingBalances initialData={{ balances: [] }} />)
-    expect(screen.getByText('No outstanding balances')).toBeInTheDocument()
+  it('shows member balances with settlement text', async () => {
+    render(<OutstandingBalances />)
+    expect(await screen.findByText('Alice')).toBeInTheDocument()
+    expect(screen.getByText('$50.00')).toBeInTheDocument()
+    expect(screen.getByText('Owes to Group Pool')).toBeInTheDocument()
+    expect(screen.getByText('$30.00')).toBeInTheDocument()
+    expect(screen.getByText('Gets from Group Pool')).toBeInTheDocument()
+    expect(screen.getByText('Settled')).toBeInTheDocument()
   })
 
-  it('shows error message when there is an error', () => {
-    render(<OutstandingBalances initialData={undefined} />)
-    // Force error state
-    const errorMessage = screen.queryByText(/failed to load balances/i)
-    expect(errorMessage).not.toBeInTheDocument()
+  it('colors amounts owed red and amounts receivable green', async () => {
+    render(<OutstandingBalances />)
+    expect(await screen.findByText('$50.00')).toHaveClass('text-red-500')
+    expect(screen.getByText('$30.00')).toHaveClass('text-green-500')
   })
 
-  it('applies correct color classes for positive and negative amounts', () => {
-    render(<OutstandingBalances initialData={mockBalances} />)
-    const owesText = screen.getByText(/owes \$50\.00/)
-    const receivesText = screen.getByText(/receives \$30\.00/)
-    
-    expect(owesText).toHaveClass('text-destructive')
-    expect(receivesText).toHaveClass('text-green-600')
-  })
-
-  it('renders view all button with correct attributes', () => {
-    render(<OutstandingBalances initialData={mockBalances} />)
-    const button = screen.getByRole('button', { name: 'View all balances' })
-    expect(button).toBeInTheDocument()
+  it('renders a view all button', async () => {
+    render(<OutstandingBalances />)
+    const button = await screen.findByRole('button', { name: 'View all balances' })
     expect(button).toHaveClass('text-muted-foreground')
   })
-}) 
+
+  it('shows an error alert when loading fails', async () => {
+    vi.mocked(getOutstandingBalances).mockRejectedValue(new Error('boom'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(<OutstandingBalances />)
+    expect(await screen.findByText(/Failed to load balances: boom/)).toBeInTheDocument()
+  })
+
+  it('shows an error alert when the unimplemented detail view is requested', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 })
+    render(<OutstandingBalances />)
+    await user.click(await screen.findByRole('button', { name: 'View all balances' }))
+    expect(screen.getByText(/Detailed view not implemented yet/)).toBeInTheDocument()
+  })
+})

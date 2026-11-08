@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
-import { screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import { Plus } from 'lucide-react'
 import { QuickActions } from './quick-actions'
-import { renderWithProviders } from '@/tests/test-utils'
 import { useActivities } from '@/contexts/activities-context'
 
 // Mock the activities context
@@ -14,9 +14,9 @@ describe('QuickActions', () => {
     // Setup default mock values
     vi.mocked(useActivities).mockReturnValue({
       selectedQuickActions: [
-        { icon: vi.fn(), label: "Log Transactions", onClick: vi.fn() },
-        { icon: vi.fn(), label: "Set Budget", onClick: vi.fn() },
-        { icon: vi.fn(), label: "View Stats", onClick: vi.fn() }
+        { icon: Plus, label: "Log Transactions", onClick: vi.fn() },
+        { icon: Plus, label: "Set Budget", onClick: vi.fn() },
+        { icon: Plus, label: "View Stats", onClick: vi.fn() }
       ],
       toggleCustomizationMode: vi.fn(),
       toggleActivitiesBar: vi.fn(),
@@ -27,27 +27,27 @@ describe('QuickActions', () => {
   })
 
   it('renders section title', () => {
-    renderWithProviders(<QuickActions />)
+    render(<QuickActions />)
     expect(screen.getByText('Quick Actions')).toBeInTheDocument()
   })
 
   it('renders selected quick actions', () => {
-    renderWithProviders(<QuickActions />)
+    render(<QuickActions />)
     expect(screen.getByText('Log Transactions')).toBeInTheDocument()
     expect(screen.getByText('Set Budget')).toBeInTheDocument()
     expect(screen.getByText('View Stats')).toBeInTheDocument()
   })
 
   it('displays customize button with settings icon', () => {
-    renderWithProviders(<QuickActions />)
+    render(<QuickActions />)
     const customizeButton = screen.getByRole('button', { name: /customize quick actions/i })
     expect(customizeButton).toBeInTheDocument()
     expect(customizeButton.querySelector('svg')).toBeInTheDocument() // Settings icon
   })
 
   it('shows empty slots when less than 9 actions selected', () => {
-    renderWithProviders(<QuickActions />)
-    const emptySlots = screen.getAllByRole('presentation')
+    const { container } = render(<QuickActions />)
+    const emptySlots = container.querySelectorAll('div[aria-hidden="true"]')
     expect(emptySlots.length).toBe(6) // 9 total - 3 selected = 6 empty
   })
 
@@ -63,7 +63,7 @@ describe('QuickActions', () => {
       isGroupMode: false
     })
 
-    renderWithProviders(<QuickActions />)
+    render(<QuickActions />)
     const customizeButton = screen.getByRole('button', { name: /customize quick actions/i })
     fireEvent.click(customizeButton)
     
@@ -84,7 +84,7 @@ describe('QuickActions', () => {
       isGroupMode: false
     })
 
-    renderWithProviders(<QuickActions />)
+    render(<QuickActions />)
     const actionButton = screen.getByRole('button', { name: /test action/i })
     fireEvent.click(actionButton)
     
@@ -92,7 +92,7 @@ describe('QuickActions', () => {
   })
 
   it('applies correct styles to quick action buttons', () => {
-    renderWithProviders(<QuickActions />)
+    render(<QuickActions />)
     const actionButton = screen.getByRole('button', { name: /log transactions/i })
     
     expect(actionButton).toHaveClass('bg-primary/10')
@@ -100,7 +100,7 @@ describe('QuickActions', () => {
   })
 
   it('maintains accessibility features', () => {
-    renderWithProviders(<QuickActions />)
+    render(<QuickActions />)
     const buttons = screen.getAllByRole('button')
     buttons.forEach(button => {
       expect(button).toHaveAttribute('aria-label')
