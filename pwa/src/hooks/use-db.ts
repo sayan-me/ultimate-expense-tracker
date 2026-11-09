@@ -1,5 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, getDb, type Transaction, type Account, type Category } from "@/lib/db";
+import { db, getDb, type Transaction, type Account, type Category, type RecurringTransaction } from "@/lib/db";
+import { materializeDueRecurring } from "@/lib/recurring";
 
 export function useTransactions() {
   const transactions = useLiveQuery(() => db.transactions.orderBy('createdAt').reverse().toArray());
@@ -245,5 +246,50 @@ export function useBudgets() {
     deleteBudget,
     useOverallBudget,
     useCategoryBudget,
+  };
+}
+
+export function useRecurringTransactions() {
+  const recurringTransactions = useLiveQuery(() => db.recurringTransactions.toArray());
+
+  const addRecurring = async (recurring: Omit<RecurringTransaction, "id" | "createdAt" | "updatedAt">) => {
+    const now = new Date();
+    return await db.recurringTransactions.add({ ...recurring, createdAt: now, updatedAt: now });
+  };
+
+  const updateRecurring = async (id: number, changes: Partial<RecurringTransaction>) => {
+    return await db.recurringTransactions.update(id, { ...changes, updatedAt: new Date() });
+  };
+
+  const deleteRecurring = async (id: number) => {
+    return await db.recurringTransactions.delete(id);
+  };
+
+  // Materializes every active recurring transaction's overdue occurrences
+  // (lib/recurring.ts) into real transaction rows, advancing each one's
+  // nextRunDate past what it just produced — one Dexie transaction per
+  // recurring item so a row's new transactions and its advanced
+  // nextRunDate always land together.
+  const runDueRecurringTransactions = async (asOf: Date = new Date()) => {
+    const all = await db.recurringTransactions.toArray();
+    for (const recurring of all) {
+      const { transactions, nextRunDate } = materializeDueRecurring(recurring, asOf)
+      if (transactions.length === 0) continue
+      await getDb().transaction("rw", ["transactions", "recurringTransactions"], async () => {
+        const now = new Date()
+        for (const t of transactions) {
+          await db.transactions.add({ ...t, createdAt: now, updatedAt: now })
+        }
+        await db.recurringTransactions.update(recurring.id!, { nextRunDate, updatedAt: now })
+      })
+    }
+  };
+
+  return {
+    recurringTransactions,
+    addRecurring,
+    updateRecurring,
+    deleteRecurring,
+    runDueRecurringTransactions,
   };
 }

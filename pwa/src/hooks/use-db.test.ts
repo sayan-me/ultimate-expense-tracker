@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
-import { useTransactions, useBudgets } from './use-db'
+import { useTransactions, useBudgets, useRecurringTransactions } from './use-db'
 import { db } from '@/lib/db'
 import { computeAccountBalance } from '@/lib/account-balance'
 
@@ -302,6 +302,165 @@ describe('useBudgets', () => {
     })
 
     await waitFor(async () => expect(await db.budgets.count()).toBe(0))
+  })
+})
+
+describe('useRecurringTransactions', () => {
+  let accountId: number
+
+  beforeEach(async () => {
+    await db.recurringTransactions.clear()
+    await db.transactions.clear()
+    await db.accounts.clear()
+    accountId = await db.accounts.add({ name: 'Cash', type: 'cash', openingBalance: 0, createdAt: new Date() })
+  })
+
+  it('addRecurring creates a new recurring transaction', async () => {
+    const { result } = renderHook(() => useRecurringTransactions())
+    await act(async () => {
+      await result.current.addRecurring({
+        accountId,
+        type: 'expense',
+        category: 'Subscriptions',
+        description: 'Streaming',
+        amount: 1500,
+        frequency: 'monthly',
+        startDate: new Date('2026-11-01T00:00:00'),
+        nextRunDate: new Date('2026-11-01T00:00:00'),
+        isActive: true,
+      })
+    })
+
+    await waitFor(async () => {
+      const all = await db.recurringTransactions.toArray()
+      expect(all).toHaveLength(1)
+      expect(all[0]).toMatchObject({ category: 'Subscriptions', amount: 1500, isActive: true })
+    })
+  })
+
+  it('updateRecurring changes fields, e.g. toggling isActive', async () => {
+    const { result } = renderHook(() => useRecurringTransactions())
+    let id!: number
+    await act(async () => {
+      id = (await result.current.addRecurring({
+        accountId,
+        type: 'expense',
+        category: 'Subscriptions',
+        description: 'Streaming',
+        amount: 1500,
+        frequency: 'monthly',
+        startDate: new Date('2026-11-01T00:00:00'),
+        nextRunDate: new Date('2026-11-01T00:00:00'),
+        isActive: true,
+      })) as number
+    })
+
+    await act(async () => {
+      await result.current.updateRecurring(id, { isActive: false })
+    })
+
+    await waitFor(async () => expect((await db.recurringTransactions.get(id))?.isActive).toBe(false))
+  })
+
+  it('deleteRecurring removes it', async () => {
+    const { result } = renderHook(() => useRecurringTransactions())
+    let id!: number
+    await act(async () => {
+      id = (await result.current.addRecurring({
+        accountId,
+        type: 'expense',
+        category: 'Subscriptions',
+        description: 'Streaming',
+        amount: 1500,
+        frequency: 'monthly',
+        startDate: new Date('2026-11-01T00:00:00'),
+        nextRunDate: new Date('2026-11-01T00:00:00'),
+        isActive: true,
+      })) as number
+    })
+    await waitFor(async () => expect(await db.recurringTransactions.count()).toBe(1))
+
+    await act(async () => {
+      await result.current.deleteRecurring(id)
+    })
+
+    await waitFor(async () => expect(await db.recurringTransactions.count()).toBe(0))
+  })
+
+  it('runDueRecurringTransactions materializes overdue occurrences into real transactions and advances nextRunDate', async () => {
+    const { result } = renderHook(() => useRecurringTransactions())
+    await act(async () => {
+      await result.current.addRecurring({
+        accountId,
+        type: 'expense',
+        category: 'Subscriptions',
+        description: 'Streaming',
+        amount: 1500,
+        frequency: 'monthly',
+        startDate: new Date('2026-08-01T00:00:00'),
+        nextRunDate: new Date('2026-08-01T00:00:00'),
+        isActive: true,
+      })
+    })
+
+    await act(async () => {
+      await result.current.runDueRecurringTransactions(new Date('2026-11-05T00:00:00'))
+    })
+
+    await waitFor(async () => {
+      const txs = await db.transactions.where('category').equals('Subscriptions').toArray()
+      expect(txs).toHaveLength(4) // Aug, Sep, Oct, Nov
+    })
+    const [updated] = await db.recurringTransactions.toArray()
+    expect(updated.nextRunDate).toEqual(new Date('2026-12-01T00:00:00'))
+  })
+
+  it('runDueRecurringTransactions does nothing for an inactive recurring transaction', async () => {
+    const { result } = renderHook(() => useRecurringTransactions())
+    await act(async () => {
+      await result.current.addRecurring({
+        accountId,
+        type: 'expense',
+        category: 'Subscriptions',
+        description: 'Streaming',
+        amount: 1500,
+        frequency: 'monthly',
+        startDate: new Date('2026-08-01T00:00:00'),
+        nextRunDate: new Date('2026-08-01T00:00:00'),
+        isActive: false,
+      })
+    })
+
+    await act(async () => {
+      await result.current.runDueRecurringTransactions(new Date('2026-11-05T00:00:00'))
+    })
+
+    expect(await db.transactions.count()).toBe(0)
+  })
+
+  it('runDueRecurringTransactions does nothing when nothing is due yet', async () => {
+    const { result } = renderHook(() => useRecurringTransactions())
+    await act(async () => {
+      await result.current.addRecurring({
+        accountId,
+        type: 'income',
+        category: 'Salary',
+        description: '',
+        amount: 500000,
+        frequency: 'monthly',
+        startDate: new Date('2026-12-01T00:00:00'),
+        nextRunDate: new Date('2026-12-01T00:00:00'),
+        isActive: true,
+      })
+    })
+
+    await act(async () => {
+      await result.current.runDueRecurringTransactions(new Date('2026-11-05T00:00:00'))
+    })
+
+    expect(await db.transactions.count()).toBe(0)
+    const [unchanged] = await db.recurringTransactions.toArray()
+    expect(unchanged.nextRunDate).toEqual(new Date('2026-12-01T00:00:00'))
   })
 })
 
