@@ -44,7 +44,13 @@ export const PERSONAL_ACTIVITIES: ActivityItem[] = [
   { icon: FileText, label: "View Loan Accounts", onClick: () => {} },
   { icon: FileUp, label: "Analyze Bank Statement", onClick: () => {} },
   { icon: Award, label: "View Awards & Achievements", onClick: () => {} },
-  { icon: Target, label: "Manage Goals", onClick: () => {} },
+  {
+    icon: Target,
+    label: "Manage Goals",
+    onClick: () => {
+      window.location.href = "/goals"
+    },
+  },
   {
     icon: Clock,
     label: "Manage Recurring Expenses",
