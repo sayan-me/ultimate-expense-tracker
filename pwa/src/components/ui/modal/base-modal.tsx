@@ -5,6 +5,16 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { BaseModalProps, MODAL_SIZES } from "./types"
 
+// Below `sm` (640px) the dialog becomes a full-height bottom sheet —
+// a centered card sized in `vh` doesn't account for a mobile keyboard
+// overlaying the viewport (M2 in the bug report). At `sm:` and up it's
+// the original centered card, sized per MODAL_SIZES.
+const RESPONSIVE_POSITION =
+  "inset-x-0 bottom-0 top-auto left-0 right-0 translate-x-0 translate-y-0 " +
+  "w-full h-[100dvh] max-h-[100dvh] rounded-t-xl rounded-b-none " +
+  "sm:inset-auto sm:top-1/2 sm:left-1/2 sm:bottom-auto sm:right-auto " +
+  "sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:h-auto"
+
 export function BaseModal({
   children,
   open: externalOpen,
@@ -22,11 +32,12 @@ export function BaseModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent 
+      <DialogContent
         className={cn(
           sizeClasses.width,
           sizeClasses.height,
-          "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col p-0",
+          "fixed flex flex-col p-0",
+          RESPONSIVE_POSITION,
           className
         )}
       >
@@ -61,11 +72,12 @@ export function BaseModalWithTrigger({
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent 
+      <DialogContent
         className={cn(
           sizeClasses.width,
           sizeClasses.height,
-          "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col p-0",
+          "fixed flex flex-col p-0",
+          RESPONSIVE_POSITION,
           className
         )}
       >
