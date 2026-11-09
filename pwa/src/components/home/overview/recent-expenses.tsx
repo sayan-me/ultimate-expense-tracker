@@ -11,7 +11,7 @@ import { AddExpenseModal } from "@/components/expense/add-expense-modal"
 import type { Transaction } from "@/lib/db"
 
 export function RecentExpenses() {
-  const { transactions } = useDB()
+  const { transactions, categories } = useDB()
   const router = useRouter()
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
 
@@ -19,6 +19,12 @@ export function RecentExpenses() {
   const recentTransactions = transactions.useRecentTransactions(5)
 
   const goToHistory = () => router.push("/history")
+
+  // U5 (bug report): the category dot was colored by transaction type
+  // (always red for an expense), not by the category's own stored
+  // color. Look it up by name.
+  const categoryColor = (categoryName: string, fallback: string) =>
+    categories.categories?.find((c) => c.name === categoryName)?.color ?? fallback
 
   if (!recentTransactions) {
     return (
@@ -100,36 +106,39 @@ export function RecentExpenses() {
             key={transaction.id}
             type="button"
             onClick={() => setEditingTransaction(transaction)}
-            className="flex w-full items-center justify-between p-4 text-left hover:bg-muted/50 transition-colors"
+            className="flex w-full items-center gap-3 justify-between p-4 text-left hover:bg-muted/50 transition-colors"
             aria-label={`Edit ${transaction.description || transaction.category}`}
           >
-            <div className="space-y-1">
-              <p className="font-medium">{transaction.description || transaction.category}</p>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
+            <div className="space-y-1 min-w-0">
+              <p className="font-medium truncate">{transaction.description || transaction.category}</p>
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1 whitespace-nowrap">
                   <div
-                    className="w-2 h-2 rounded-full"
+                    className="w-2 h-2 rounded-full shrink-0"
                     style={{
-                      backgroundColor: transaction.type === 'expense' ? '#ef4444' : '#10b981'
+                      backgroundColor: categoryColor(
+                        transaction.category,
+                        transaction.type === 'expense' ? '#ef4444' : '#10b981'
+                      )
                     }}
                   />
                   {transaction.category}
                 </span>
-                <span>•</span>
-                <time dateTime={transaction.date.toISOString()}>
+                <span className="whitespace-nowrap">•</span>
+                <time dateTime={transaction.date.toISOString()} className="whitespace-nowrap">
                   {format(transaction.date, "MMM d, h:mm a")}
                 </time>
               </div>
             </div>
-            <div className="text-right">
-              <p className={`font-medium ${
+            <div className="text-right shrink-0">
+              <p className={`font-medium whitespace-nowrap ${
                 transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
               }`}>
                 {transaction.type === 'expense' ? '-' : '+'}
                 {formatAmount(transaction.amount)}
               </p>
               {transaction.tags && transaction.tags.length > 0 && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground truncate">
                   {transaction.tags.join(', ')}
                 </p>
               )}

@@ -33,7 +33,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog"
 import { useDB } from "@/contexts/db-context"
-import { expenseSchema, type ExpenseFormData } from "@/lib/validations/expense"
+import { expenseSchema, formatAmount, type ExpenseFormData } from "@/lib/validations/expense"
 import type { Transaction } from "@/lib/db"
 import { CategorySelector } from "./category-selector"
 import { TagsInput } from "./tags-input"
@@ -236,9 +236,17 @@ export function AddExpenseForm({
                                     <FormItem>
                                         <FormLabel>Account *</FormLabel>
                                         <Select
-                                            onValueChange={(value) =>
+                                            onValueChange={(value) => {
                                                 field.onChange(parseInt(value))
-                                            }
+                                                // The zod resolver only
+                                                // re-validates a field once
+                                                // it has already errored;
+                                                // trigger it explicitly so
+                                                // the label clears as soon
+                                                // as a value is picked
+                                                // (U3 in the bug report).
+                                                form.trigger("accountId")
+                                            }}
                                             value={
                                                 field.value?.toString() || ""
                                             }
@@ -262,9 +270,9 @@ export function AddExpenseForm({
                                                                     }
                                                                 </span>
                                                                 <span className="text-sm text-muted-foreground">
-                                                                    ($
-                                                                    {account.balance.toFixed(
-                                                                        2
+                                                                    (
+                                                                    {formatAmount(
+                                                                        account.balance
                                                                     )}
                                                                     )
                                                                 </span>
@@ -328,30 +336,40 @@ export function AddExpenseForm({
                                     <FormItem>
                                         <FormLabel>Date *</FormLabel>
                                         <FormControl>
-                                            <div className="relative">
-                                                <Input
-                                                    type="datetime-local"
-                                                    className="pr-16"
-                                                    {...field}
-                                                    value={
-                                                        field.value
-                                                            ? format(
-                                                                  field.value,
-                                                                  "yyyy-MM-dd'T'HH:mm"
-                                                              )
-                                                            : ""
-                                                    }
-                                                    onChange={(e) => {
-                                                        const date = e.target
-                                                            .value
-                                                            ? new Date(
-                                                                  e.target.value
-                                                              )
-                                                            : new Date()
-                                                        field.onChange(date)
-                                                    }}
-                                                />
-                                            </div>
+                                            {/* FormControl (a Radix Slot)
+                                                merges its id/aria-* props
+                                                onto its one direct child —
+                                                it must be the Input itself,
+                                                not a wrapping div, or the
+                                                label ends up pointing at
+                                                nothing (A2 in the bug
+                                                report). The pr-16 below was
+                                                also removed: it pushed the
+                                                native calendar icon 64px in
+                                                from the edge for no reason
+                                                (M7) — the default padding
+                                                already clears it. */}
+                                            <Input
+                                                type="datetime-local"
+                                                {...field}
+                                                value={
+                                                    field.value
+                                                        ? format(
+                                                              field.value,
+                                                              "yyyy-MM-dd'T'HH:mm"
+                                                          )
+                                                        : ""
+                                                }
+                                                onChange={(e) => {
+                                                    const date = e.target
+                                                        .value
+                                                        ? new Date(
+                                                              e.target.value
+                                                          )
+                                                        : new Date()
+                                                    field.onChange(date)
+                                                }}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

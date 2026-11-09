@@ -1,6 +1,6 @@
 "use client"
 
-import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { ModalHeaderProps } from "./types"
 
@@ -15,11 +15,13 @@ export function ModalHeader({
         <DialogTitle className="text-lg font-semibold leading-none tracking-tight">
           {title}
         </DialogTitle>
-        {subtitle && (
-          <p className="text-sm text-muted-foreground mt-1">
-            {subtitle}
-          </p>
-        )}
+        {/* Radix requires every dialog to have a description it can
+            point aria-describedby at, or it logs a warning on every
+            open (C3 in the bug report). Visible when a subtitle is
+            given, screen-reader-only otherwise. */}
+        <DialogDescription className={cn("mt-1", !subtitle && "sr-only")}>
+          {subtitle ?? title}
+        </DialogDescription>
       </DialogHeader>
     </div>
   )

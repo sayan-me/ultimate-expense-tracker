@@ -13,6 +13,8 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>
 }
 
+const INSTALL_PROMPT_DISMISSED_KEY = 'uet-install-prompt-dismissed'
+
 export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showPrompt, setShowPrompt] = useState(false)
@@ -24,6 +26,17 @@ export function InstallPrompt() {
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true)
       return
+    }
+
+    // Respect a previous dismissal (U8 in the bug report — it used to
+    // come back on every load). localStorage can throw in private mode
+    // or with site data blocked, so this is best-effort.
+    try {
+      if (localStorage.getItem(INSTALL_PROMPT_DISMISSED_KEY)) {
+        return
+      }
+    } catch {
+      // ignore — fall through and show the prompt as before
     }
 
     // Detect iOS Safari specifically (not Chrome or other browsers on iOS)
@@ -88,6 +101,11 @@ export function InstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false)
+    try {
+      localStorage.setItem(INSTALL_PROMPT_DISMISSED_KEY, String(Date.now()))
+    } catch {
+      // ignore — worst case the prompt reappears next load
+    }
   }
 
   // Don't show if already installed

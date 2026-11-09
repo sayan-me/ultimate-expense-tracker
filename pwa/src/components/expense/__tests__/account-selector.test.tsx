@@ -129,9 +129,9 @@ describe('Account Selector in Add Expense Form', () => {
       
       await waitFor(() => {
         expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument()
-        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2500\.50\)/ })).toBeInTheDocument()
-        expect(screen.getByRole('option', { name: /Credit\sCard\s*\(\$-150\.75\)/ })).toBeInTheDocument()
-        expect(screen.getByRole('option', { name: /Savings\s*\(\$10000\.00\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Credit\sCard\s*\(-\$150\.75\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Savings\s*\(\$10,000\.00\)/ })).toBeInTheDocument()
       })
     })
 
@@ -144,13 +144,13 @@ describe('Account Selector in Add Expense Form', () => {
       await waitFor(() => {
         // Check positive balance formatting
         expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument()
-        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2500\.50\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ })).toBeInTheDocument()
         
         // Check negative balance formatting (credit card)
-        expect(screen.getByRole('option', { name: /Credit\sCard\s*\(\$-150\.75\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Credit\sCard\s*\(-\$150\.75\)/ })).toBeInTheDocument()
         
         // Check large balance formatting
-        expect(screen.getByRole('option', { name: /Savings\s*\(\$10000\.00\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Savings\s*\(\$10,000\.00\)/ })).toBeInTheDocument()
       })
     })
 
@@ -193,7 +193,7 @@ describe('Account Selector in Add Expense Form', () => {
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2500\.50\)/ }))
+      await user.click(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ }))
       
       await waitFor(() => {
         expect(screen.getByRole('combobox')).toHaveTextContent(/Bank Account/)
@@ -208,7 +208,7 @@ describe('Account Selector in Add Expense Form', () => {
       await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
       
       await waitFor(() => {
-        expect(screen.queryByRole('option', { name: /Bank\sAccount\s*\(\$2500\.50\)/ })).not.toBeInTheDocument()
+        expect(screen.queryByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ })).not.toBeInTheDocument()
       })
     })
 
@@ -222,7 +222,7 @@ describe('Account Selector in Add Expense Form', () => {
       
       // Change to different account
       await user.click(screen.getByRole('combobox'))
-      await user.click(screen.getByRole('option', { name: /Savings\s*\(\$10000\.00\)/ }))
+      await user.click(screen.getByRole('option', { name: /Savings\s*\(\$10,000\.00\)/ }))
       
       await waitFor(() => {
         expect(screen.getByRole('combobox')).toHaveTextContent(/Savings/)
@@ -239,8 +239,8 @@ describe('Account Selector in Add Expense Form', () => {
       
       await waitFor(() => {
         expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument()
-        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2500\.50\)/ })).toBeInTheDocument()
-        expect(screen.getByRole('option', { name: /Savings\s*\(\$10000\.00\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Savings\s*\(\$10,000\.00\)/ })).toBeInTheDocument()
       })
     })
 
@@ -251,7 +251,7 @@ describe('Account Selector in Add Expense Form', () => {
       await user.click(screen.getByText('Select account'))
       
       await waitFor(() => {
-        expect(screen.getByRole('option', { name: /Credit\sCard\s*\(\$-150\.75\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Credit\sCard\s*\(-\$150\.75\)/ })).toBeInTheDocument()
       })
     })
 
@@ -263,7 +263,7 @@ describe('Account Selector in Add Expense Form', () => {
       
       await waitFor(() => {
         // Check that decimals are properly formatted to 2 places
-        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2500\.50\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ })).toBeInTheDocument()
         expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument() // .00 should be shown
       })
     })
@@ -408,7 +408,7 @@ describe('Account Selector in Add Expense Form', () => {
       
       // Fill form with account selection
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2500\.50\)/ }))
+      await user.click(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ }))
       await user.type(screen.getByPlaceholderText('Enter amount...'), '50')
       await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food'))
@@ -524,7 +524,7 @@ describe('Account Selector in Add Expense Form', () => {
       
       await waitFor(() => {
         // Check that large numbers are formatted with commas
-        expect(screen.getByRole('option', { name: /Savings\s*\(\$10000\.00\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Savings\s*\(\$10,000\.00\)/ })).toBeInTheDocument()
       })
     })
   })

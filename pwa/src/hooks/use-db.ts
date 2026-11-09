@@ -83,9 +83,15 @@ export function useTransactions() {
   };
 
   const useRecentTransactions = (limit: number = 10) => {
-    return useLiveQuery(() => 
-      db.transactions.orderBy('createdAt').reverse().limit(limit).toArray()
-    );
+    // Sorted by the transaction's own date, not when it was entered
+    // (U6 in the bug report — createdAt put a backfilled Nov 7 expense
+    // above same-day Nov 8 ones). createdAt breaks ties.
+    return useLiveQuery(async () => {
+      const all = await db.transactions.toArray();
+      return all
+        .sort((a, b) => b.date.getTime() - a.date.getTime() || b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limit);
+    });
   };
 
   return {

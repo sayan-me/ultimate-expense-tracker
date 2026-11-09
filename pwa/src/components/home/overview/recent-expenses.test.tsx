@@ -7,6 +7,7 @@ let mockRecent: unknown[] | undefined
 vi.mock('@/contexts/db-context', () => ({
   useDB: () => ({
     transactions: { useRecentTransactions: () => mockRecent },
+    categories: { categories: [{ id: 1, name: 'Food & Dining', color: '#3b82f6' }] },
   }),
 }))
 
@@ -52,6 +53,15 @@ describe('RecentExpenses', () => {
     expect(screen.getByText('-$42.50')).toBeInTheDocument()
     expect(screen.getByText('+$100.00')).toBeInTheDocument()
     expect(screen.getByText('Essential')).toBeInTheDocument()
+  })
+
+  it('colors the category dot from the category\'s own stored color, not the transaction type', () => {
+    // U5 (bug report): the dot used to be hardcoded red for every
+    // expense regardless of category.
+    mockRecent = transactions
+    const { container } = render(<RecentExpenses />)
+    const dot = container.querySelector('div.rounded-full.w-2.h-2') as HTMLElement
+    expect(dot.style.backgroundColor).toBe('rgb(59, 130, 246)') // #3b82f6
   })
 
   it('shows an empty state when there are no transactions', () => {

@@ -66,12 +66,16 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
 
     it('date input maintains proper structure without extra elements', () => {
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
-      
+
       const dateInput = getDateInput()
       const dateFieldContainer = dateInput.parentElement
-      
-      // Should not have any extra calendar icons or positioned elements
-      expect(dateFieldContainer?.children).toHaveLength(1) // Only the input
+
+      // The input is now FormControl's direct child (a label + the
+      // input itself, no wrapping div around just the input — that
+      // wrapper broke the label/input association, see A2 in the bug
+      // report) and carries no extra positioned icon elements.
+      expect(dateFieldContainer?.children).toHaveLength(2) // label + input
+      expect(dateInput.parentElement?.querySelector('span, svg')).toBeNull()
     })
 
     it('native calendar icon appears at end of input field', () => {

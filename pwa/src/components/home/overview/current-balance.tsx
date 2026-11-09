@@ -55,7 +55,8 @@ export function CurrentBalance() {
           variant="ghost"
           size="sm"
           onClick={() => setShowBalance(!showBalance)}
-          className="h-auto p-1 text-muted-foreground hover:text-foreground"
+          aria-label={showBalance ? "Hide balance" : "Show balance"}
+          className="h-11 w-11 p-1 text-muted-foreground hover:text-foreground"
         >
           {showBalance ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
         </Button>

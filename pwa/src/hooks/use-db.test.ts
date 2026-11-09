@@ -105,6 +105,37 @@ describe('useTransactions — atomic balance updates', () => {
     })
   })
 
+  it('sorts recent transactions by date, not createdAt (U6)', async () => {
+    // A Nov 7 transaction entered (createdAt) after a Nov 8 one must
+    // still sort below it — by the transaction's own date.
+    await db.transactions.add({
+      amount: 10,
+      type: 'expense',
+      category: 'Food',
+      description: 'Nov 8 expense',
+      accountId: cashId,
+      date: new Date('2026-11-08T10:00:00'),
+      createdAt: new Date('2026-11-08T10:00:00'),
+      updatedAt: new Date('2026-11-08T10:00:00'),
+    })
+    await db.transactions.add({
+      amount: 20,
+      type: 'expense',
+      category: 'Food',
+      description: 'Backfilled Nov 7 expense',
+      accountId: cashId,
+      date: new Date('2026-11-07T09:00:00'),
+      createdAt: new Date('2026-11-08T11:00:00'), // entered later
+      updatedAt: new Date('2026-11-08T11:00:00'),
+    })
+
+    const { result } = renderHook(() => useTransactions().useRecentTransactions(5))
+
+    await waitFor(() => expect(result.current).toBeDefined())
+    expect(result.current?.[0]?.description).toBe('Nov 8 expense')
+    expect(result.current?.[1]?.description).toBe('Backfilled Nov 7 expense')
+  })
+
   it('restores the balance when a transaction is deleted', async () => {
     const { result } = renderHook(() => useTransactions())
     let id!: number

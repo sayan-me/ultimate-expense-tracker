@@ -17,7 +17,11 @@ const geistMono = Geist_Mono({
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // maximumScale: 1 was removed (M8 in the bug report) — it blocked
+  // pinch-zoom everywhere just to suppress iOS's auto-zoom-on-focus for
+  // inputs under 16px. Inputs are now sized text-base (16px) below md
+  // instead (see components/ui/input.tsx), so the zoom isn't triggered
+  // in the first place and users keep the ability to pinch-zoom.
   themeColor: "#000000",
 }
 
