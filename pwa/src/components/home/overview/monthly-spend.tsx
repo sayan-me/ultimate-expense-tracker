@@ -1,13 +1,15 @@
 "use client"
 
 import { Progress } from "@/components/ui/progress"
-import { formatCurrency, cn } from "@/lib/utils"
+import { cn } from "@/lib/utils"
+import { formatCents } from "@/lib/money"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDB } from "@/contexts/db-context"
 
 // No budget model exists yet (see ROADMAP Phase 2: category/overall budgets).
 // Until then this is a fixed placeholder, not read from real data.
-const PLACEHOLDER_MONTHLY_BUDGET = 4000
+// In cents, like every other stored amount — see src/lib/money.ts.
+const PLACEHOLDER_MONTHLY_BUDGET = 400000
 
 export function MonthlySpend() {
   const { transactions } = useDB()
@@ -63,11 +65,11 @@ export function MonthlySpend() {
       <div className="mt-4 space-y-4">
         <div className="flex items-center justify-between gap-8">
           <div>
-            <p className="text-xl font-bold">{formatCurrency(spent)}</p>
+            <p className="text-xl font-bold">{formatCents(spent)}</p>
             <p className="text-sm text-muted-foreground">spent this month</p>
           </div>
           <div className="text-right">
-            <p className="text-xl font-bold">{formatCurrency(budget)}</p>
+            <p className="text-xl font-bold">{formatCents(budget)}</p>
             <p className="text-sm text-muted-foreground">monthly budget</p>
           </div>
         </div>

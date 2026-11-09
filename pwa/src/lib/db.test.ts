@@ -39,7 +39,7 @@ describe('ExpenseTrackerDB', () => {
     const account = {
       name: 'Cash',
       type: 'cash' as const,
-      balance: 1000,
+      openingBalance: 1000,
       isDefault: true,
       createdAt: now
     }
@@ -76,7 +76,7 @@ describe('ExpenseTrackerDB', () => {
   })
 
   it('initializes with correct schema version', () => {
-    expect(testDb.verno).toBe(2)
+    expect(testDb.verno).toBe(3)
   })
 
   it('has all required tables', () => {

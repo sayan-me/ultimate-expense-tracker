@@ -33,7 +33,9 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog"
 import { useDB } from "@/contexts/db-context"
-import { expenseSchema, formatAmount, type ExpenseFormData } from "@/lib/validations/expense"
+import { expenseSchema, type ExpenseFormData } from "@/lib/validations/expense"
+import { dollarsToCents, centsToDollars, formatCents } from "@/lib/money"
+import { computeAccountBalance } from "@/lib/account-balance"
 import type { Transaction } from "@/lib/db"
 import { CategorySelector } from "./category-selector"
 import { TagsInput } from "./tags-input"
@@ -75,7 +77,9 @@ export function AddExpenseForm({
         defaultValues: transaction
             ? {
                   type: transaction.type,
-                  amount: transaction.amount,
+                  // The form works in dollars (what a human types); the
+                  // stored transaction amount is cents — see lib/money.ts.
+                  amount: centsToDollars(transaction.amount),
                   category: transaction.category,
                   description: transaction.description,
                   accountId: transaction.accountId,
@@ -102,7 +106,8 @@ export function AddExpenseForm({
             // Ensure all required fields are properly typed for database insertion
             const transactionData = {
                 ...data,
-                amount: data.amount!, // Now guaranteed to be defined by validation
+                // The form validates dollars; the stored amount is cents.
+                amount: dollarsToCents(data.amount!), // Now guaranteed to be defined by validation
                 accountId: data.accountId!, // Now guaranteed to be defined by validation
                 category: data.category!.trim(), // Now guaranteed to be defined by validation
                 description: data.description?.trim() || "", // Optional field
@@ -271,8 +276,11 @@ export function AddExpenseForm({
                                                                 </span>
                                                                 <span className="text-sm text-muted-foreground">
                                                                     (
-                                                                    {formatAmount(
-                                                                        account.balance
+                                                                    {formatCents(
+                                                                        computeAccountBalance(
+                                                                            account,
+                                                                            transactions.transactions ?? []
+                                                                        )
                                                                     )}
                                                                     )
                                                                 </span>

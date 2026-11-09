@@ -11,7 +11,7 @@ const mockAccounts = {
       id: 1,
       name: 'Cash',
       type: 'cash',
-      balance: 500.00,
+      openingBalance: 50000, // $500.00, in cents
       isDefault: true,
       createdAt: new Date()
     }
@@ -411,7 +411,7 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
       await waitFor(() => {
         expect(mockTransactions.addTransaction).toHaveBeenCalledWith(
           expect.objectContaining({
-            amount: 50.25,
+            amount: 5025, // $50.25 in cents — the form submits cents, see lib/money.ts
             type: 'expense',
             accountId: 1,
             category: 'Food & Dining',
@@ -444,7 +444,7 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
 
       await waitFor(() => {
         expect(mockTransactions.addTransaction).toHaveBeenCalledWith(
-          expect.objectContaining({ accountId: 1, amount: 25, type: 'expense' })
+          expect.objectContaining({ accountId: 1, amount: 2500, type: 'expense' })
         )
       })
       expect(mockAccounts.updateAccount).not.toHaveBeenCalled()
@@ -491,7 +491,7 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
       await waitFor(() => {
         expect(mockTransactions.addTransaction).toHaveBeenCalledWith(
           expect.objectContaining({
-            amount: 1000,
+            amount: 100000, // $1000 in cents
             type: 'income',
             accountId: 1,
           })

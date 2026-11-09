@@ -1,6 +1,7 @@
 "use client"
 
-import { formatAmount } from "@/lib/validations/expense"
+import { formatCents } from "@/lib/money"
+import { computeTotalBalance } from "@/lib/account-balance"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDB } from "@/contexts/db-context"
 import { TrendingUp, TrendingDown, Eye, EyeOff } from "lucide-react"
@@ -23,8 +24,9 @@ export function CurrentBalance() {
     )
   }
 
-  // Calculate total balance from all accounts
-  const totalBalance = accounts.accounts.reduce((sum, account) => sum + account.balance, 0)
+  // Derived from openingBalance + each account's own transactions, not
+  // a stored field — see src/lib/account-balance.ts.
+  const totalBalance = computeTotalBalance(accounts.accounts, transactions.transactions)
   
   // Calculate this month's income and expenses
   const currentMonth = new Date().getMonth()
@@ -64,7 +66,7 @@ export function CurrentBalance() {
       
       <div className="mt-2">
         {showBalance ? (
-          <p className="text-3xl font-bold">{formatAmount(totalBalance)}</p>
+          <p className="text-3xl font-bold">{formatCents(totalBalance)}</p>
         ) : (
           <p className="text-3xl font-bold">••••••</p>
         )}
@@ -81,7 +83,7 @@ export function CurrentBalance() {
             )}
             <span className={`font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
               {showBalance ? (
-                `${isPositive ? '+' : ''}${formatAmount(netChange)}`
+                `${isPositive ? '+' : ''}${formatCents(netChange)}`
               ) : (
                 '••••'
               )}

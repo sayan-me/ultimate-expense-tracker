@@ -1,5 +1,6 @@
 import { toCsv, parseCsv } from "./csv"
 import { expenseSchema } from "./validations/expense"
+import { centsToDollars, dollarsToCents } from "./money"
 import type { Transaction, Account } from "./db"
 
 // CSV export/import for transactions — this is the only backup/restore
@@ -14,7 +15,9 @@ export function transactionsToCsv(transactions: Transaction[], accounts: Account
     t.type,
     t.category,
     t.description,
-    t.amount.toFixed(2),
+    // t.amount is cents (see lib/money.ts); the CSV is human-facing, so
+    // it's written back out in dollars, same as the add-expense form.
+    centsToDollars(t.amount).toFixed(2),
     accountName(t.accountId),
     (t.tags ?? []).join(";"),
   ])
@@ -140,7 +143,9 @@ export function parseTransactionsCsv(csvText: string, accounts: Account[]): Impo
     rows.push({
       rowNumber,
       data: {
-        amount: result.data.amount!,
+        // The CSV (like the form) is validated in dollars; the returned
+        // transaction data is cents, matching what addTransaction expects.
+        amount: dollarsToCents(result.data.amount!),
         type: result.data.type,
         category: result.data.category!.trim(),
         description: result.data.description ?? "",

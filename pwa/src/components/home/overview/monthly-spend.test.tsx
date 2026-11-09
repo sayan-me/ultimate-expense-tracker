@@ -16,12 +16,13 @@ describe('MonthlySpend', () => {
   const now = new Date()
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 15)
 
+  // Amounts are in cents.
   const loaded = (): MockDB => ({
     transactions: {
       transactions: [
-        { type: 'expense', amount: 1200, date: now },
-        { type: 'income', amount: 3000, date: now }, // income must not count as spend
-        { type: 'expense', amount: 500, date: lastMonth }, // previous month must not count
+        { type: 'expense', amount: 120000, date: now }, // $1,200.00
+        { type: 'income', amount: 300000, date: now }, // income must not count as spend
+        { type: 'expense', amount: 50000, date: lastMonth }, // previous month must not count
       ],
     },
   })
@@ -48,7 +49,7 @@ describe('MonthlySpend', () => {
   it('shows percentage used against the budget', () => {
     mockDB = loaded()
     render(<MonthlySpend />)
-    // 1200 / 4000 placeholder budget = 30%
+    // 120000 / 400000 placeholder budget (cents) = 30%
     expect(screen.getByText('30% used')).toBeInTheDocument()
   })
 
@@ -61,7 +62,7 @@ describe('MonthlySpend', () => {
       transactions: {
         transactions: [
           ...mockDB.transactions.transactions!,
-          { type: 'expense', amount: 12, date: now },
+          { type: 'expense', amount: 1200, date: now }, // +$12.00
         ],
       },
     }

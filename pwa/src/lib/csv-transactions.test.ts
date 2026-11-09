@@ -3,14 +3,14 @@ import { transactionsToCsv, parseTransactionsCsv, CSV_HEADER } from './csv-trans
 import type { Transaction, Account } from './db'
 
 const accounts: Account[] = [
-  { id: 1, name: 'Cash', type: 'cash', balance: 100, isDefault: true, createdAt: new Date() },
-  { id: 2, name: 'Bank Account', type: 'bank', balance: 2500, createdAt: new Date() },
+  { id: 1, name: 'Cash', type: 'cash', openingBalance: 100, isDefault: true, createdAt: new Date() },
+  { id: 2, name: 'Bank Account', type: 'bank', openingBalance: 2500, createdAt: new Date() },
 ]
 
 function tx(overrides: Partial<Transaction>): Transaction {
   return {
     id: 1,
-    amount: 42.5,
+    amount: 4250, // $42.50 in cents — the CSV text itself stays in dollars (see transactionsToCsv)
     type: 'expense',
     category: 'Food & Dining',
     description: 'Lunch',
@@ -86,7 +86,7 @@ describe('parseTransactionsCsv', () => {
     expect(errors).toEqual([])
     expect(rows).toHaveLength(1)
     expect(rows[0].data).toEqual({
-      amount: 42.5,
+      amount: 4250,
       type: 'expense',
       category: 'Food & Dining',
       description: 'Lunch',
@@ -193,6 +193,13 @@ describe('parseTransactionsCsv', () => {
     const csv = CSV_HEADER.join(',') + '\r\n2026-01-15T12:00:00.000Z,expense,Food,' + 'x'.repeat(201) + ',10.00,Cash,\r\n'
     const { errors } = parseTransactionsCsv(csv, accounts)
     expect(errors).toHaveLength(1)
+  })
+
+  it('converts the CSV dollar amount into integer cents for the returned transaction data', () => {
+    const csv = CSV_HEADER.join(',') + '\r\n2026-01-15T12:00:00.000Z,expense,Food,Lunch,10.50,Cash,\r\n'
+    const { rows, errors } = parseTransactionsCsv(csv, accounts)
+    expect(errors).toEqual([])
+    expect(rows[0].data.amount).toBe(1050)
   })
 
   it('accepts an empty description (optional field)', () => {

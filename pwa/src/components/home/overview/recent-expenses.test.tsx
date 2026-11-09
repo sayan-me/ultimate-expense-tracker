@@ -17,11 +17,12 @@ vi.mock('@/components/expense/add-expense-modal', () => ({
 }))
 
 describe('RecentExpenses', () => {
+  // Amounts are in cents.
   const transactions = [
     {
       id: 1,
       type: 'expense',
-      amount: 42.5,
+      amount: 4250, // $42.50
       category: 'Food & Dining',
       description: 'Lunch at Subway',
       date: new Date('2025-01-15T12:30:00'),
@@ -30,7 +31,7 @@ describe('RecentExpenses', () => {
     {
       id: 2,
       type: 'income',
-      amount: 100,
+      amount: 10000, // $100.00
       category: 'Salary',
       description: 'Bonus',
       date: new Date('2025-01-16T09:00:00'),

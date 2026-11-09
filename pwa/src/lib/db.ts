@@ -3,6 +3,7 @@ import Dexie, { Table } from 'dexie';
 // Define types for our database tables
 export interface Transaction {
   id?: number;
+  /** Integer cents, not dollars — see src/lib/money.ts. */
   amount: number;
   type: 'expense' | 'income';
   category: string;
@@ -18,7 +19,14 @@ export interface Account {
   id?: number;
   name: string;
   type: 'cash' | 'bank' | 'credit' | 'savings';
-  balance: number;
+  /**
+   * Integer cents, not dollars — see src/lib/money.ts. This is a fixed
+   * starting point set at account creation, not the account's current
+   * balance: the current balance is openingBalance plus the sum of the
+   * account's own transactions (src/lib/account-balance.ts), derived on
+   * read rather than stored and mutated on every transaction write.
+   */
+  openingBalance: number;
   isDefault?: boolean;
   createdAt: Date;
 }
@@ -38,9 +46,9 @@ export class ExpenseTrackerDB extends Dexie {
   accounts!: Table<Account>;
   categories!: Table<Category>;
 
-  constructor() {
-    super('ExpenseTrackerDB');
-    
+  constructor(name: string = 'ExpenseTrackerDB') {
+    super(name);
+
     // Version 1: Original schema
     this.version(1).stores({
       transactions: '++id, type, category, date, accountId',
@@ -61,6 +69,43 @@ export class ExpenseTrackerDB extends Dexie {
         return trans.table('accounts').toCollection().modify(account => {
           account.createdAt = new Date();
         });
+      });
+    });
+
+    // Version 3: money moves from float dollars to integer cents, and
+    // accounts.balance (a live, continuously-updated current balance)
+    // becomes accounts.openingBalance (a fixed starting point — the
+    // current balance is now derived on read, see account-balance.ts).
+    //
+    // openingBalance is NOT just the old balance converted to cents: a
+    // user's existing balance already reflects every transaction that
+    // led to it, so copying it straight over would double-count all of
+    // them once openingBalance + transactions is derived afterward.
+    // Instead it's reverse-derived as (old balance − net of the
+    // account's existing transactions), so that deriving the balance
+    // post-migration reproduces the exact same figure the user had
+    // the moment before this migration ran.
+    this.version(3).stores({
+      transactions: '++id, type, category, date, accountId, amount, createdAt',
+      accounts: '++id, name, type, openingBalance, isDefault',
+      categories: '++id, name, type, isDefault'
+    }).upgrade(async (trans) => {
+      await trans.table('transactions').toCollection().modify((t) => {
+        t.amount = Math.round(t.amount * 100);
+      });
+
+      const transactions = await trans.table('transactions').toArray();
+      const netCentsByAccount = new Map<number, number>();
+      for (const t of transactions) {
+        const signed = t.type === 'income' ? t.amount : -t.amount;
+        netCentsByAccount.set(t.accountId, (netCentsByAccount.get(t.accountId) ?? 0) + signed);
+      }
+
+      await trans.table('accounts').toCollection().modify((a) => {
+        const oldBalanceCents = Math.round(a.balance * 100);
+        const net = netCentsByAccount.get(a.id) ?? 0;
+        a.openingBalance = oldBalanceCents - net;
+        delete a.balance;
       });
     });
 

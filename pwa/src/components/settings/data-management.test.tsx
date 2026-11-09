@@ -5,7 +5,7 @@ import { DataManagement } from './data-management'
 
 const mockAccounts = {
   accounts: [
-    { id: 1, name: 'Cash', type: 'cash', balance: 100, isDefault: true, createdAt: new Date() },
+    { id: 1, name: 'Cash', type: 'cash', openingBalance: 100, isDefault: true, createdAt: new Date() },
   ],
 }
 
@@ -67,7 +67,7 @@ describe('DataManagement', () => {
       mockTransactionsList = [
         {
           id: 1,
-          amount: 10,
+          amount: 1000, // $10.00 in cents
           type: 'expense',
           category: 'Food',
           description: '',
@@ -132,7 +132,7 @@ describe('DataManagement', () => {
 
       await waitFor(() => expect(mockAddTransaction).toHaveBeenCalledTimes(1))
       expect(mockAddTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({ amount: 10, category: 'Food & Dining', accountId: 1 })
+        expect.objectContaining({ amount: 1000, category: 'Food & Dining', accountId: 1 }) // CSV said $10.00
       )
     })
 

@@ -11,7 +11,7 @@ const mockAccounts = {
       id: 1,
       name: 'Cash',
       type: 'cash',
-      balance: 500.00,
+      openingBalance: 50000, // in cents
       isDefault: true,
       createdAt: new Date()
     },
@@ -19,7 +19,7 @@ const mockAccounts = {
       id: 2,
       name: 'Bank Account',
       type: 'bank',
-      balance: 2500.50,
+      openingBalance: 250050, // in cents
       isDefault: false,
       createdAt: new Date()
     },
@@ -27,7 +27,7 @@ const mockAccounts = {
       id: 3,
       name: 'Credit Card',
       type: 'credit',
-      balance: -150.75,
+      openingBalance: -15075, // in cents
       isDefault: false,
       createdAt: new Date()
     },
@@ -35,7 +35,7 @@ const mockAccounts = {
       id: 4,
       name: 'Savings',
       type: 'savings',
-      balance: 10000.00,
+      openingBalance: 1000000, // in cents
       isDefault: false,
       createdAt: new Date()
     }
@@ -285,7 +285,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 1,
           name: 'Cash',
           type: 'cash',
-          balance: 500.00,
+          openingBalance: 50000, // in cents
           isDefault: true,
           createdAt: new Date()
         },
@@ -293,7 +293,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 2,
           name: 'Bank Account',
           type: 'bank',
-          balance: 2500.50,
+          openingBalance: 250050, // in cents
           isDefault: false,
           createdAt: new Date()
         },
@@ -301,7 +301,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 3,
           name: 'Credit Card',
           type: 'credit',
-          balance: -150.75,
+          openingBalance: -15075, // in cents
           isDefault: false,
           createdAt: new Date()
         },
@@ -309,7 +309,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 4,
           name: 'Savings',
           type: 'savings',
-          balance: 10000.00,
+          openingBalance: 1000000, // in cents
           isDefault: false,
           createdAt: new Date()
         }
@@ -333,7 +333,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 1,
           name: 'Cash',
           type: 'cash',
-          balance: 500.00,
+          openingBalance: 50000, // in cents
           isDefault: true,
           createdAt: new Date()
         },
@@ -341,7 +341,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 2,
           name: 'Bank Account',
           type: 'bank',
-          balance: 2500.50,
+          openingBalance: 250050, // in cents
           isDefault: false,
           createdAt: new Date()
         },
@@ -349,7 +349,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 3,
           name: 'Credit Card',
           type: 'credit',
-          balance: -150.75,
+          openingBalance: -15075, // in cents
           isDefault: false,
           createdAt: new Date()
         },
@@ -357,7 +357,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 4,
           name: 'Savings',
           type: 'savings',
-          balance: 10000.00,
+          openingBalance: 1000000, // in cents
           isDefault: false,
           createdAt: new Date()
         }
@@ -471,7 +471,7 @@ describe('Account Selector in Add Expense Form', () => {
         id: 5,
         name: 'This Is A Very Long Account Name That Should Be Handled Properly Without Breaking Layout',
         type: 'bank',
-        balance: 1000.00,
+        openingBalance: 100000, // in cents
         isDefault: false,
         createdAt: new Date()
       }
@@ -496,7 +496,7 @@ describe('Account Selector in Add Expense Form', () => {
         id: 6,
         name: 'Empty Account',
         type: 'bank',
-        balance: 0.00,
+        openingBalance: 0, // in cents
         isDefault: false,
         createdAt: new Date()
       }

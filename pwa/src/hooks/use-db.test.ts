@@ -2,27 +2,38 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { useTransactions } from './use-db'
 import { db } from '@/lib/db'
+import { computeAccountBalance } from '@/lib/account-balance'
 
-// F3 (bug report): editing/deleting a transaction must keep the account
-// balance correct via one atomic Dexie transaction, including when the
-// transaction moves to a different account.
-describe('useTransactions — atomic balance updates', () => {
+// Account balances are derived from openingBalance + the account's own
+// transactions, not stored and mutated by these write paths (see
+// src/lib/account-balance.ts). So these tests verify add/edit/delete
+// write the transaction row correctly and leave openingBalance
+// completely untouched; computeAccountBalance is what turns that into
+// a current balance, and its own correctness is covered separately in
+// account-balance.test.ts.
+describe('useTransactions — writes, with balance derived rather than stored', () => {
   let cashId: number
   let bankId: number
 
   beforeEach(async () => {
     await db.transactions.clear()
     await db.accounts.clear()
-    cashId = await db.accounts.add({ name: 'Cash', type: 'cash', balance: 100, createdAt: new Date() })
-    bankId = await db.accounts.add({ name: 'Bank', type: 'bank', balance: 200, createdAt: new Date() })
+    cashId = await db.accounts.add({ name: 'Cash', type: 'cash', openingBalance: 10000, createdAt: new Date() })
+    bankId = await db.accounts.add({ name: 'Bank', type: 'bank', openingBalance: 20000, createdAt: new Date() })
   })
 
-  it('subtracts an expense from its account balance on add', async () => {
+  const currentBalance = async (accountId: number) => {
+    const account = (await db.accounts.get(accountId))!
+    const transactions = await db.transactions.toArray()
+    return computeAccountBalance(account, transactions)
+  }
+
+  it('an added expense reduces the derived balance, without touching openingBalance', async () => {
     const { result } = renderHook(() => useTransactions())
     let id: number | undefined
     await act(async () => {
       id = await result.current.addTransaction({
-        amount: 30,
+        amount: 3000,
         type: 'expense',
         category: 'Food',
         description: '',
@@ -32,17 +43,15 @@ describe('useTransactions — atomic balance updates', () => {
     })
 
     expect(id).toBeDefined()
-    await waitFor(async () => {
-      const account = await db.accounts.get(cashId)
-      expect(account?.balance).toBe(70)
-    })
+    await waitFor(async () => expect(await currentBalance(cashId)).toBe(7000))
+    expect((await db.accounts.get(cashId))?.openingBalance).toBe(10000)
   })
 
-  it('adds income to its account balance on add', async () => {
+  it('an added income increases the derived balance', async () => {
     const { result } = renderHook(() => useTransactions())
     await act(async () => {
       await result.current.addTransaction({
-        amount: 50,
+        amount: 5000,
         type: 'income',
         category: 'Salary',
         description: '',
@@ -51,18 +60,15 @@ describe('useTransactions — atomic balance updates', () => {
       })
     })
 
-    await waitFor(async () => {
-      const account = await db.accounts.get(cashId)
-      expect(account?.balance).toBe(150)
-    })
+    await waitFor(async () => expect(await currentBalance(cashId)).toBe(15000))
   })
 
-  it('applies only the delta when the amount changes on the same account', async () => {
+  it('editing the amount changes the derived balance by the new amount, not a double adjustment', async () => {
     const { result } = renderHook(() => useTransactions())
     let id!: number
     await act(async () => {
       id = (await result.current.addTransaction({
-        amount: 30,
+        amount: 3000,
         type: 'expense',
         category: 'Food',
         description: '',
@@ -70,22 +76,22 @@ describe('useTransactions — atomic balance updates', () => {
         date: new Date(),
       })) as number
     })
-    await waitFor(async () => expect((await db.accounts.get(cashId))?.balance).toBe(70))
+    await waitFor(async () => expect(await currentBalance(cashId)).toBe(7000))
 
     await act(async () => {
-      await result.current.updateTransaction(id, { amount: 50 })
+      await result.current.updateTransaction(id, { amount: 5000 })
     })
 
-    // 100 - 50 = 50 (not 100 - 30 - 50)
-    await waitFor(async () => expect((await db.accounts.get(cashId))?.balance).toBe(50))
+    // 10000 (opening) - 5000 (the new amount) = 5000
+    await waitFor(async () => expect(await currentBalance(cashId)).toBe(5000))
   })
 
-  it('reverses the old account and applies to the new account when accountId changes', async () => {
+  it('moving a transaction to a different account moves its effect on the derived balance too', async () => {
     const { result } = renderHook(() => useTransactions())
     let id!: number
     await act(async () => {
       id = (await result.current.addTransaction({
-        amount: 30,
+        amount: 3000,
         type: 'expense',
         category: 'Food',
         description: '',
@@ -93,23 +99,48 @@ describe('useTransactions — atomic balance updates', () => {
         date: new Date(),
       })) as number
     })
-    await waitFor(async () => expect((await db.accounts.get(cashId))?.balance).toBe(70))
+    await waitFor(async () => expect(await currentBalance(cashId)).toBe(7000))
 
     await act(async () => {
       await result.current.updateTransaction(id, { accountId: bankId })
     })
 
     await waitFor(async () => {
-      expect((await db.accounts.get(cashId))?.balance).toBe(100) // reversed
-      expect((await db.accounts.get(bankId))?.balance).toBe(170) // applied
+      await expect(currentBalance(cashId)).resolves.toBe(10000) // back to opening, unaffected
     })
+    expect(await currentBalance(bankId)).toBe(17000) // 20000 - 3000
+  })
+
+  it('deleting a transaction restores the derived balance', async () => {
+    const { result } = renderHook(() => useTransactions())
+    let id!: number
+    await act(async () => {
+      id = (await result.current.addTransaction({
+        amount: 3000,
+        type: 'expense',
+        category: 'Food',
+        description: '',
+        accountId: cashId,
+        date: new Date(),
+      })) as number
+    })
+    await waitFor(async () => expect(await currentBalance(cashId)).toBe(7000))
+
+    await act(async () => {
+      await result.current.deleteTransaction(id)
+    })
+
+    await waitFor(async () => {
+      expect(await currentBalance(cashId)).toBe(10000)
+    })
+    expect(await db.transactions.get(id)).toBeUndefined()
   })
 
   it('sorts recent transactions by date, not createdAt (U6)', async () => {
     // A Nov 7 transaction entered (createdAt) after a Nov 8 one must
     // still sort below it — by the transaction's own date.
     await db.transactions.add({
-      amount: 10,
+      amount: 1000,
       type: 'expense',
       category: 'Food',
       description: 'Nov 8 expense',
@@ -119,7 +150,7 @@ describe('useTransactions — atomic balance updates', () => {
       updatedAt: new Date('2026-11-08T10:00:00'),
     })
     await db.transactions.add({
-      amount: 20,
+      amount: 2000,
       type: 'expense',
       category: 'Food',
       description: 'Backfilled Nov 7 expense',
@@ -135,31 +166,6 @@ describe('useTransactions — atomic balance updates', () => {
     expect(result.current?.[0]?.description).toBe('Nov 8 expense')
     expect(result.current?.[1]?.description).toBe('Backfilled Nov 7 expense')
   })
-
-  it('restores the balance when a transaction is deleted', async () => {
-    const { result } = renderHook(() => useTransactions())
-    let id!: number
-    await act(async () => {
-      id = (await result.current.addTransaction({
-        amount: 30,
-        type: 'expense',
-        category: 'Food',
-        description: '',
-        accountId: cashId,
-        date: new Date(),
-      })) as number
-    })
-    await waitFor(async () => expect((await db.accounts.get(cashId))?.balance).toBe(70))
-
-    await act(async () => {
-      await result.current.deleteTransaction(id)
-    })
-
-    await waitFor(async () => {
-      expect((await db.accounts.get(cashId))?.balance).toBe(100)
-      expect(await db.transactions.get(id)).toBeUndefined()
-    })
-  })
 })
 
 describe('ExpenseTrackerDB — defensive date normalization on read', () => {
@@ -173,12 +179,12 @@ describe('ExpenseTrackerDB — defensive date normalization on read', () => {
   })
 
   it('coerces a non-Date date field (e.g. from malformed/imported data) into a real Date', async () => {
-    const accountId = await db.accounts.add({ name: 'Cash', type: 'cash', balance: 0, createdAt: new Date() })
+    const accountId = await db.accounts.add({ name: 'Cash', type: 'cash', openingBalance: 0, createdAt: new Date() })
     // Bypass the app's own write path, which always stores real Dates —
     // this simulates data that didn't come from it (a future import
     // feature, or any other source).
     const id = await db.transactions.add({
-      amount: 10,
+      amount: 1000,
       type: 'expense',
       category: 'Food',
       description: '',

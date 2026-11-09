@@ -7,7 +7,7 @@ import { initializeDefaultCategories } from "./categories"
 const DEFAULT_ACCOUNT: Omit<Account, "id"> = {
     name: "Cash",
     type: "cash",
-    balance: 0,
+    openingBalance: 0,
     isDefault: true,
     createdAt: new Date(),
 }

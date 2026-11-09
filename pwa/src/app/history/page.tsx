@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { AddExpenseModal } from "@/components/expense/add-expense-modal"
-import { formatAmount } from "@/lib/validations/expense"
+import { formatCents } from "@/lib/money"
 import { format } from "date-fns"
 import { Search, Filter, ChevronDown } from "lucide-react"
 import { useState } from "react"
@@ -144,7 +144,7 @@ export default function HistoryPage() {
                           transaction.type === 'income' ? "text-green-600" : "text-red-600"
                         )}>
                           {transaction.type === 'income' ? '+' : '-'}
-                          {formatAmount(transaction.amount)}
+                          {formatCents(transaction.amount)}
                         </p>
                       </button>
                     ))}

@@ -1,70 +1,30 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, getDb, type Transaction, type Account, type Category } from "@/lib/db";
-
-// Signed effect of a transaction on its account's balance: expenses
-// subtract, income adds.
-function signedAmount(type: Transaction["type"], amount: number): number {
-  return type === "income" ? amount : -amount;
-}
-
-async function adjustAccountBalance(accountId: number, delta: number) {
-  if (delta === 0) return;
-  const account = await db.accounts.get(accountId);
-  if (!account) return;
-  await db.accounts.update(accountId, { balance: account.balance + delta });
-}
+import { db, type Transaction, type Account, type Category } from "@/lib/db";
 
 export function useTransactions() {
   const transactions = useLiveQuery(() => db.transactions.orderBy('createdAt').reverse().toArray());
 
-  // Writes the transaction and applies its effect on the account balance
-  // in one Dexie transaction, so the two can never drift apart.
+  // Account balances are derived from openingBalance + the account's own
+  // transactions (src/lib/account-balance.ts), not stored and mutated
+  // here — so, unlike before, these are now plain single-table writes
+  // with nothing else to keep in sync.
   const addTransaction = async (transaction: Omit<Transaction, "id" | "createdAt" | "updatedAt">) => {
     const now = new Date();
-    return await getDb().transaction('rw', db.transactions, db.accounts, async () => {
-      const id = await db.transactions.add({
-        ...transaction,
-        createdAt: now,
-        updatedAt: now
-      });
-      await adjustAccountBalance(transaction.accountId, signedAmount(transaction.type, transaction.amount));
-      return id;
+    return await db.transactions.add({
+      ...transaction,
+      createdAt: now,
+      updatedAt: now
     });
   };
 
-  // Reverses the transaction's effect on its account balance, then removes it.
   const deleteTransaction = async (id: number) => {
-    return await getDb().transaction('rw', db.transactions, db.accounts, async () => {
-      const existing = await db.transactions.get(id);
-      if (!existing) return;
-      await db.transactions.delete(id);
-      await adjustAccountBalance(existing.accountId, -signedAmount(existing.type, existing.amount));
-    });
+    return await db.transactions.delete(id);
   };
 
-  // Applies the balance delta between the old and new transaction state.
-  // If the account changed, the old account is reversed in full and the
-  // new account gets the new amount in full.
   const updateTransaction = async (id: number, changes: Partial<Transaction>) => {
-    return await getDb().transaction('rw', db.transactions, db.accounts, async () => {
-      const existing = await db.transactions.get(id);
-      if (!existing) return;
-
-      const updated: Transaction = { ...existing, ...changes };
-      await db.transactions.update(id, {
-        ...changes,
-        updatedAt: new Date()
-      });
-
-      const oldSigned = signedAmount(existing.type, existing.amount);
-      const newSigned = signedAmount(updated.type, updated.amount);
-
-      if (existing.accountId === updated.accountId) {
-        await adjustAccountBalance(updated.accountId, newSigned - oldSigned);
-      } else {
-        await adjustAccountBalance(existing.accountId, -oldSigned);
-        await adjustAccountBalance(updated.accountId, newSigned);
-      }
+    return await db.transactions.update(id, {
+      ...changes,
+      updatedAt: new Date()
     });
   };
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { formatAmount } from "@/lib/validations/expense"
+import { formatCents } from "@/lib/money"
 import { format } from "date-fns"
 import { ArrowRight, Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -135,7 +135,7 @@ export function RecentExpenses() {
                 transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
               }`}>
                 {transaction.type === 'expense' ? '-' : '+'}
-                {formatAmount(transaction.amount)}
+                {formatCents(transaction.amount)}
               </p>
               {transaction.tags && transaction.tags.length > 0 && (
                 <p className="text-xs text-muted-foreground truncate">

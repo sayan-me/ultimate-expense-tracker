@@ -10,7 +10,7 @@ import { renderWithProviders, getDateInput } from '@/tests/test-utils'
 const mockData = {
   accounts: {
     accounts: [
-      { id: 1, name: 'Cash', type: 'cash', balance: 500.00, isDefault: true, createdAt: new Date() }
+      { id: 1, name: 'Cash', type: 'cash', openingBalance: 50000, isDefault: true, createdAt: new Date() }
     ],
     addAccount: vi.fn(),
     deleteAccount: vi.fn(),
@@ -344,7 +344,7 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
       await waitFor(() => {
         expect(mockData.transactions.addTransaction).toHaveBeenCalledWith(
           expect.objectContaining({
-            amount: 25.5,
+            amount: 2550, // $25.50 in cents
             type: 'expense',
             accountId: 1,
             category: 'Food',
