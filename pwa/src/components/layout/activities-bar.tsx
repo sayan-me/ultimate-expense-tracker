@@ -46,7 +46,11 @@ function ActivitiesBarContent() {
             <Overlay isVisible={isActivitiesBarOpen} onClose={handleClose} />
             <div
                 className={cn(
-                    "fixed bottom-14 left-0 right-0 bg-background transition-transform duration-300 ease-in-out",
+                    // bottom-16 matches BottomNav's own h-16 exactly — a
+                    // bottom-14 (56px) offset against a 64px bar left an
+                    // 8px gap where this sheet ran under the mode bar
+                    // (M3 in the bug report).
+                    "fixed bottom-16 left-0 right-0 bg-background transition-transform duration-300 ease-in-out",
                     "border-t rounded-t-2xl shadow-lg",
                     isActivitiesBarOpen
                         ? "h-[50vh] transform translate-y-0 z-30"
