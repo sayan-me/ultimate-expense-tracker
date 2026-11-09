@@ -41,10 +41,21 @@ export interface Category {
   createdAt: Date;
 }
 
+export interface Budget {
+  id?: number;
+  /** null = the overall monthly budget across every category. */
+  category: string | null;
+  /** Integer cents, not dollars — see src/lib/money.ts. */
+  amount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export class ExpenseTrackerDB extends Dexie {
   transactions!: Table<Transaction>;
   accounts!: Table<Account>;
   categories!: Table<Category>;
+  budgets!: Table<Budget>;
 
   constructor(name: string = 'ExpenseTrackerDB') {
     super(name);
@@ -109,6 +120,15 @@ export class ExpenseTrackerDB extends Dexie {
       });
     });
 
+    // Version 4: adds budgets (ROADMAP Phase 2) — purely additive, no
+    // existing data to transform.
+    this.version(4).stores({
+      transactions: '++id, type, category, date, accountId, amount, createdAt',
+      accounts: '++id, name, type, openingBalance, isDefault',
+      categories: '++id, name, type, isDefault',
+      budgets: '++id, category',
+    });
+
     // Defensive read-side normalization: date fields are expected to be
     // real Date instances everywhere in this app (sort/format code calls
     // .getFullYear() etc. directly), but nothing guarantees that for
@@ -135,6 +155,12 @@ export class ExpenseTrackerDB extends Dexie {
     this.categories.hook('reading', (obj) => {
       if (!obj) return obj;
       if (obj.createdAt && !(obj.createdAt instanceof Date)) obj.createdAt = new Date(obj.createdAt);
+      return obj;
+    });
+    this.budgets.hook('reading', (obj) => {
+      if (!obj) return obj;
+      if (obj.createdAt && !(obj.createdAt instanceof Date)) obj.createdAt = new Date(obj.createdAt);
+      if (obj.updatedAt && !(obj.updatedAt instanceof Date)) obj.updatedAt = new Date(obj.updatedAt);
       return obj;
     });
   }

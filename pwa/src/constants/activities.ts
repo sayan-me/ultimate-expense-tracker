@@ -23,7 +23,16 @@ export const PERSONAL_ACTIVITIES: ActivityItem[] = [
     } 
   },
   { icon: BarChart3, label: "View Stats", onClick: () => {} },
-  { icon: PiggyBank, label: "Set Budget", onClick: () => {} },
+  {
+    icon: PiggyBank,
+    label: "Set Budget",
+    // This file isn't a component, so it can't use next/navigation's
+    // router — a full navigation is an acceptable tradeoff for a quick
+    // action that jumps to a whole different page/section.
+    onClick: () => {
+      window.location.href = "/budgets"
+    },
+  },
   { icon: Bell, label: "Notifications", onClick: () => {} },
   { icon: Wallet, label: "Manage Virtual Accounts", onClick: () => {} },
   { icon: FileText, label: "View Loan Accounts", onClick: () => {} },

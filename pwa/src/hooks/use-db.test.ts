@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
-import { useTransactions } from './use-db'
+import { useTransactions, useBudgets } from './use-db'
 import { db } from '@/lib/db'
 import { computeAccountBalance } from '@/lib/account-balance'
 
@@ -165,6 +165,84 @@ describe('useTransactions — writes, with balance derived rather than stored', 
     await waitFor(() => expect(result.current).toBeDefined())
     expect(result.current?.[0]?.description).toBe('Nov 8 expense')
     expect(result.current?.[1]?.description).toBe('Backfilled Nov 7 expense')
+  })
+})
+
+describe('useBudgets', () => {
+  beforeEach(async () => {
+    await db.budgets.clear()
+  })
+
+  it('setBudget creates a new overall budget when none exists', async () => {
+    const { result } = renderHook(() => useBudgets())
+    await act(async () => {
+      await result.current.setBudget(null, 400000)
+    })
+
+    await waitFor(async () => {
+      const all = await db.budgets.toArray()
+      expect(all).toHaveLength(1)
+      expect(all[0]).toMatchObject({ category: null, amount: 400000 })
+    })
+  })
+
+  it('setBudget creates a new per-category budget', async () => {
+    const { result } = renderHook(() => useBudgets())
+    await act(async () => {
+      await result.current.setBudget('Food', 50000)
+    })
+
+    await waitFor(async () => {
+      const all = await db.budgets.toArray()
+      expect(all).toHaveLength(1)
+      expect(all[0]).toMatchObject({ category: 'Food', amount: 50000 })
+    })
+  })
+
+  it('setBudget updates the existing row for that category instead of creating a duplicate', async () => {
+    const { result } = renderHook(() => useBudgets())
+    await act(async () => {
+      await result.current.setBudget('Food', 50000)
+    })
+    await waitFor(async () => expect(await db.budgets.count()).toBe(1))
+
+    await act(async () => {
+      await result.current.setBudget('Food', 75000)
+    })
+
+    await waitFor(async () => {
+      const all = await db.budgets.toArray()
+      expect(all).toHaveLength(1)
+      expect(all[0].amount).toBe(75000)
+    })
+  })
+
+  it('setBudget for a category does not affect the overall budget, and vice versa', async () => {
+    const { result } = renderHook(() => useBudgets())
+    await act(async () => {
+      await result.current.setBudget(null, 400000)
+      await result.current.setBudget('Food', 50000)
+    })
+
+    await waitFor(async () => {
+      const all = await db.budgets.toArray()
+      expect(all).toHaveLength(2)
+    })
+  })
+
+  it('deleteBudget removes the budget', async () => {
+    const { result } = renderHook(() => useBudgets())
+    let id!: number
+    await act(async () => {
+      id = (await result.current.setBudget('Food', 50000)) as number
+    })
+    await waitFor(async () => expect(await db.budgets.count()).toBe(1))
+
+    await act(async () => {
+      await result.current.deleteBudget(id)
+    })
+
+    await waitFor(async () => expect(await db.budgets.count()).toBe(0))
   })
 })
 

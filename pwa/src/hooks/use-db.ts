@@ -171,4 +171,48 @@ export function useCategories() {
     updateCategory,
     useCategoriesByType,
   };
-} 
+}
+
+export function useBudgets() {
+  const budgets = useLiveQuery(() => db.budgets.toArray());
+
+  // Upsert: a category (or the overall budget, category === null) has at
+  // most one budget row. Without this, repeatedly setting the same
+  // category's budget would pile up duplicate rows instead of replacing
+  // the old amount.
+  const setBudget = async (category: string | null, amount: number) => {
+    const existing = (await db.budgets.toArray()).find((b) => b.category === category);
+    const now = new Date();
+    if (existing?.id !== undefined) {
+      await db.budgets.update(existing.id, { amount, updatedAt: now });
+      return existing.id;
+    }
+    return await db.budgets.add({ category, amount, createdAt: now, updatedAt: now });
+  };
+
+  const deleteBudget = async (id: number) => {
+    return await db.budgets.delete(id);
+  };
+
+  const useOverallBudget = () => {
+    return useLiveQuery(async () => {
+      const all = await db.budgets.toArray();
+      return all.find((b) => b.category === null);
+    });
+  };
+
+  const useCategoryBudget = (category: string) => {
+    return useLiveQuery(async () => {
+      const all = await db.budgets.toArray();
+      return all.find((b) => b.category === category);
+    }, [category]);
+  };
+
+  return {
+    budgets,
+    setBudget,
+    deleteBudget,
+    useOverallBudget,
+    useCategoryBudget,
+  };
+}

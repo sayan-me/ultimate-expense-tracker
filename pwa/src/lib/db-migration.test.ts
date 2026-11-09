@@ -139,6 +139,24 @@ describe('Dexie v3 migration — dollars to cents, balance to openingBalance', (
     await db.close()
   })
 
+  it('v4 adds an empty budgets table without touching existing data', async () => {
+    dbName = uniqueDbName()
+    await seedV2Database(
+      dbName,
+      [{ name: 'Cash', type: 'cash', balance: 100, isDefault: true }],
+      [{ amount: 25, type: 'expense', category: 'Food', description: '', accountId: 1 }]
+    )
+
+    const db = new ExpenseTrackerDB(dbName)
+    await db.open()
+
+    expect(db.verno).toBe(4)
+    await expect(db.table('budgets').toArray()).resolves.toEqual([])
+    // v3's migration still ran correctly underneath v4.
+    expect((await db.transactions.toArray())[0].amount).toBe(2500)
+    await db.close()
+  })
+
   it('supports a negative stored balance (e.g. a credit card already in debt)', async () => {
     dbName = uniqueDbName()
     await seedV2Database(
