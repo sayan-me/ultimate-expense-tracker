@@ -361,13 +361,30 @@ export function AddExpenseForm({
                                                         : ""
                                                 }
                                                 onChange={(e) => {
-                                                    const date = e.target
-                                                        .value
-                                                        ? new Date(
-                                                              e.target.value
-                                                          )
-                                                        : new Date()
-                                                    field.onChange(date)
+                                                    // A native datetime-local
+                                                    // picker can fire onChange
+                                                    // with an empty value
+                                                    // mid-edit — e.g. while
+                                                    // only the day segment has
+                                                    // been changed and the
+                                                    // picker hasn't recomposed
+                                                    // the full string yet.
+                                                    // Falling back to
+                                                    // new Date() here replaced
+                                                    // the whole value
+                                                    // (including the time)
+                                                    // with the current moment
+                                                    // (U7 in the bug report).
+                                                    // Ignoring the empty,
+                                                    // incomplete event instead
+                                                    // keeps the prior value
+                                                    // until a real one arrives.
+                                                    if (!e.target.value) return
+                                                    field.onChange(
+                                                        new Date(
+                                                            e.target.value
+                                                        )
+                                                    )
                                                 }}
                                             />
                                         </FormControl>

@@ -63,6 +63,35 @@ export class ExpenseTrackerDB extends Dexie {
         });
       });
     });
+
+    // Defensive read-side normalization: date fields are expected to be
+    // real Date instances everywhere in this app (sort/format code calls
+    // .getFullYear() etc. directly), but nothing guarantees that for
+    // records that didn't come through this app's own write path — a
+    // future import feature, or malformed data from another source. A
+    // string/number date value crashed the whole dashboard with
+    // "t.date.getFullYear is not a function" when tested; this keeps a
+    // single bad record from taking down every other widget.
+    // The hook fires even for a lookup that found nothing (obj is
+    // undefined then) — db.transactions.get(missingId) relies on that
+    // undefined passing through unchanged.
+    this.transactions.hook('reading', (obj) => {
+      if (!obj) return obj;
+      if (obj.date && !(obj.date instanceof Date)) obj.date = new Date(obj.date);
+      if (obj.createdAt && !(obj.createdAt instanceof Date)) obj.createdAt = new Date(obj.createdAt);
+      if (obj.updatedAt && !(obj.updatedAt instanceof Date)) obj.updatedAt = new Date(obj.updatedAt);
+      return obj;
+    });
+    this.accounts.hook('reading', (obj) => {
+      if (!obj) return obj;
+      if (obj.createdAt && !(obj.createdAt instanceof Date)) obj.createdAt = new Date(obj.createdAt);
+      return obj;
+    });
+    this.categories.hook('reading', (obj) => {
+      if (!obj) return obj;
+      if (obj.createdAt && !(obj.createdAt instanceof Date)) obj.createdAt = new Date(obj.createdAt);
+      return obj;
+    });
   }
 }
 

@@ -174,6 +174,21 @@ describe('AddExpenseForm - Original UX Issues', () => {
       expect(dateInput.type).toBe('datetime-local')
     })
 
+    it('ignores an intermediate empty onChange event instead of resetting to the current time (U7)', () => {
+      // A native datetime-local picker can fire onChange with an empty
+      // value mid-edit (e.g. while only the day segment has been
+      // changed). The old handler fell back to `new Date()` for an
+      // empty value, silently replacing a saved time like 12:00 with
+      // whatever the clock read at that moment.
+      renderWithProviders(<AddExpenseForm {...defaultProps} />)
+      const dateInput = getDateInput()
+      const before = dateInput.value
+
+      fireEvent.change(dateInput, { target: { value: '' } })
+
+      expect(dateInput.value).toBe(before)
+    })
+
     it('allows current day entries (fixes "Date cannot be in the future" issue)', async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)

@@ -11,6 +11,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
 } from "@/components/ui/dialog"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { Label } from "@/components/ui/label"
@@ -285,6 +286,13 @@ export function CategorySelector({
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Create New Category</DialogTitle>
+                        {/* This dialog is separate from the main add-expense
+                            one (which gets its description via ModalHeader) —
+                            it needs its own, or Radix logs a missing-description
+                            warning on every open (C3 in the bug report). */}
+                        <DialogDescription className="sr-only">
+                            Create a new category to use on this and future transactions.
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">

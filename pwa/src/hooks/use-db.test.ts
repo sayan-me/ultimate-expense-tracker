@@ -161,3 +161,35 @@ describe('useTransactions — atomic balance updates', () => {
     })
   })
 })
+
+describe('ExpenseTrackerDB — defensive date normalization on read', () => {
+  beforeEach(async () => {
+    await db.transactions.clear()
+    await db.accounts.clear()
+  })
+
+  it('does not throw when reading a record that does not exist', async () => {
+    await expect(db.transactions.get(999999)).resolves.toBeUndefined()
+  })
+
+  it('coerces a non-Date date field (e.g. from malformed/imported data) into a real Date', async () => {
+    const accountId = await db.accounts.add({ name: 'Cash', type: 'cash', balance: 0, createdAt: new Date() })
+    // Bypass the app's own write path, which always stores real Dates —
+    // this simulates data that didn't come from it (a future import
+    // feature, or any other source).
+    const id = await db.transactions.add({
+      amount: 10,
+      type: 'expense',
+      category: 'Food',
+      description: '',
+      accountId,
+      date: '2026-11-01T00:00:00.000Z' as unknown as Date,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const read = await db.transactions.get(id)
+    expect(read?.date).toBeInstanceOf(Date)
+    expect(() => read?.date.getFullYear()).not.toThrow()
+  })
+})

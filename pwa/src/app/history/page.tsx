@@ -58,16 +58,21 @@ export default function HistoryPage() {
 
   return (
     <div className="py-6">
-      <div className="flex items-center justify-between mb-6 gap-2">
+      {/* flex-col below sm: the title, search input and filter button
+          competing for one row left the search placeholder clipped to
+          "Search tra…" and forced the title onto two lines (M4 in the
+          bug report). The title gets its own row; search gets the
+          full remaining width on the row below it. */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3 sm:gap-2">
         <h1 className="text-2xl font-bold">Transaction History</h1>
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search transactions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 w-full"
             />
           </div>
           <DropdownMenu>

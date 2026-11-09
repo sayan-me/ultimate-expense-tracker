@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { AccountProfileForm } from "./components/account-profile-form"
 import { ChangePasswordForm } from "./components/change-password-form"
@@ -7,6 +8,7 @@ import { LoginHistoryList } from "./components/login-history-list"
 import { DeleteAccountDialog } from "./components/delete-account-dialog"
 import { useAuth } from "@/contexts/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Shield, User, History, AlertTriangle } from "lucide-react"
 
@@ -28,8 +30,13 @@ export default function AccountSettingsPage() {
       <div className="py-6">
         <Alert>
           <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            You must be logged in to access account settings.
+          <AlertDescription className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>You must be logged in to access account settings.</span>
+            {/* U9 in the bug report: this page just said "you must be
+                logged in" with no way to actually do that. */}
+            <Button asChild size="sm">
+              <Link href="/auth/login?returnUrl=%2Fsettings%2Faccount">Sign In</Link>
+            </Button>
           </AlertDescription>
         </Alert>
       </div>

@@ -26,7 +26,13 @@ export default function SettingsPage() {
           if (section.href) {
             // Render as navigation link
             return (
-              <Link key={section.id} href={section.href}>
+              // block: next/link's <a> defaults to display: inline, which
+              // makes the parent's space-y-4 margin-top (a sibling
+              // selector that only affects block-level elements) a
+              // no-op — this card sat flush against the one above it
+              // while every plain <Card> sibling got the normal 16px
+              // gap (U10 in the bug report).
+              <Link key={section.id} href={section.href} className="block">
                 <Card className="transition-all duration-200 hover:bg-muted cursor-pointer">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">

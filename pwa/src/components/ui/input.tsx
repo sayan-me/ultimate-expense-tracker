@@ -18,7 +18,13 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           // existed (blocking pinch-zoom everywhere to paper over it —
           // see M8 in the bug report). 16px avoids the zoom trigger
           // instead, so that workaround could be removed.
-          "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          //
+          // block, not flex: nothing here needs flex alignment (no
+          // items-center/justify-*), but `display: flex` on the host
+          // <input> changes how Chrome lays out a datetime-local's
+          // native calendar icon — it renders right after the text
+          // instead of at the field's far edge (M7 in the bug report).
+          "block h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         ref={ref}
