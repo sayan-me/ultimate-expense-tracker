@@ -5,6 +5,7 @@ import { ChevronRight, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import Link from "next/link"
+import { DataManagement } from "@/components/settings/data-management"
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<string | null>(null)
@@ -73,7 +74,11 @@ export default function SettingsPage() {
               </button>
               {activeSection === section.id && (
                 <CardContent>
-                  <p className="text-muted-foreground">Coming soon...</p>
+                  {section.id === "data" ? (
+                    <DataManagement />
+                  ) : (
+                    <p className="text-muted-foreground">Coming soon...</p>
+                  )}
                 </CardContent>
               )}
             </Card>
