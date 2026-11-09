@@ -408,10 +408,14 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
       })
     })
 
-    it('updates account balance after submission', async () => {
+    it('hands off the account and amount so balance can be applied atomically', async () => {
+      // Balance math now lives in useTransactions().addTransaction itself
+      // (one Dexie transaction covering both the transaction row and the
+      // account balance — see F3 in the bug report), not in this form. The
+      // form's job is just to submit the right accountId/amount/type.
       const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
-      
+
       // Fill and submit form
       await user.type(screen.getByPlaceholderText('Enter amount...'), '25')
       await user.click(screen.getByText('Select account'))
@@ -420,14 +424,15 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
       await waitFor(() => screen.getByText('Food & Dining'))
       await user.click(screen.getByText('Food & Dining'))
       await user.type(screen.getByPlaceholderText('What was this expense for?'), 'Test')
-      
+
       await user.click(screen.getByText('Add expense'))
-      
+
       await waitFor(() => {
-        expect(mockAccounts.updateAccount).toHaveBeenCalledWith(1, {
-          balance: 475.00 // 500.00 - 25.00
-        })
+        expect(mockTransactions.addTransaction).toHaveBeenCalledWith(
+          expect.objectContaining({ accountId: 1, amount: 25, type: 'expense' })
+        )
       })
+      expect(mockAccounts.updateAccount).not.toHaveBeenCalled()
     })
 
     it('calls onSuccess callback after successful submission', async () => {
@@ -472,14 +477,10 @@ describe('AddExpenseForm - Complete Form Functionality', () => {
         expect(mockTransactions.addTransaction).toHaveBeenCalledWith(
           expect.objectContaining({
             amount: 1000,
-            type: 'income'
+            type: 'income',
+            accountId: 1,
           })
         )
-      })
-      
-      // Income should increase account balance
-      expect(mockAccounts.updateAccount).toHaveBeenCalledWith(1, {
-        balance: 1500.00 // 500.00 + 1000.00
       })
     })
   })

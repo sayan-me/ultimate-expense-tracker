@@ -7,12 +7,15 @@ import {
     ModalHeader
 } from "@/components/ui/modal"
 import { AddExpenseForm } from "./add-expense-form"
+import type { Transaction } from "@/lib/db"
 
 interface AddExpenseModalProps {
     defaultType?: "expense" | "income"
     trigger?: React.ReactNode
     open?: boolean
     onOpenChange?: (open: boolean) => void
+    /** When set, the modal edits this existing transaction instead of creating a new one. */
+    transaction?: Transaction
 }
 
 export function AddExpenseModal({
@@ -20,9 +23,11 @@ export function AddExpenseModal({
     trigger,
     open: externalOpen,
     onOpenChange: externalOnOpenChange,
+    transaction,
 }: AddExpenseModalProps) {
     const [internalOpen, setInternalOpen] = useState(false)
-    const [currentType, setCurrentType] = useState<"expense" | "income">(defaultType)
+    const [currentType, setCurrentType] = useState<"expense" | "income">(transaction?.type ?? defaultType)
+    const isEditing = !!transaction
 
     // Use external control if provided, otherwise use internal state
     const open = externalOpen !== undefined ? externalOpen : internalOpen
@@ -31,9 +36,9 @@ export function AddExpenseModal({
     // Reset type when modal opens
     useEffect(() => {
         if (open) {
-            setCurrentType(defaultType)
+            setCurrentType(transaction?.type ?? defaultType)
         }
-    }, [open, defaultType])
+    }, [open, defaultType, transaction])
 
 
     const handleSuccess = () => {
@@ -44,6 +49,10 @@ export function AddExpenseModal({
         setOpen(false)
     }
 
+    const title = isEditing
+        ? `Edit ${currentType === "expense" ? "Expense" : "Income"}`
+        : `Add New ${currentType === "expense" ? "Expense" : "Income"}`
+
     if (trigger) {
         return (
             <BaseModalWithTrigger
@@ -52,11 +61,10 @@ export function AddExpenseModal({
                 onOpenChange={setOpen}
                 size="md"
             >
-                <ModalHeader
-                    title={`Add New ${currentType === "expense" ? "Expense" : "Income"}`}
-                />
+                <ModalHeader title={title} />
                 <AddExpenseForm
                     defaultType={defaultType}
+                    transaction={transaction}
                     onSuccess={handleSuccess}
                     onCancel={handleCancel}
                     onTypeChange={setCurrentType}
@@ -68,11 +76,10 @@ export function AddExpenseModal({
 
     return (
         <BaseModal open={open} onOpenChange={setOpen} size="md">
-            <ModalHeader
-                title={`Add New ${currentType === "expense" ? "Expense" : "Income"}`}
-            />
+            <ModalHeader title={title} />
             <AddExpenseForm
                 defaultType={defaultType}
+                transaction={transaction}
                 onSuccess={handleSuccess}
                 onCancel={handleCancel}
                 onTypeChange={setCurrentType}

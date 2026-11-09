@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Tags } from "lucide-react"
+import { Tags, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
@@ -24,8 +24,17 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog"
 import { useDB } from "@/contexts/db-context"
 import { expenseSchema, type ExpenseFormData } from "@/lib/validations/expense"
+import type { Transaction } from "@/lib/db"
 import { CategorySelector } from "./category-selector"
 import { TagsInput } from "./tags-input"
 import {
@@ -41,6 +50,8 @@ interface AddExpenseFormProps {
     defaultType?: "expense" | "income"
     onTypeChange?: (type: "expense" | "income") => void
     className?: string
+    /** When set, the form edits this existing transaction instead of creating a new one. */
+    transaction?: Transaction
 }
 
 export function AddExpenseForm({
@@ -49,24 +60,38 @@ export function AddExpenseForm({
     defaultType = "expense",
     onTypeChange,
     className,
+    transaction,
 }: AddExpenseFormProps) {
     const { transactions, accounts } = useDB()
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const isEditing = !!transaction
 
     const form = useForm<ExpenseFormData>({
         resolver: zodResolver(expenseSchema),
         mode: "onSubmit", // Only validate on submit, not on change
         reValidateMode: "onChange", // Re-validate after first submit attempt
-        defaultValues: {
-            type: defaultType,
-            date: new Date(),
-            tags: [],
-            // Remove pre-filled values that interfere with UX
-            // amount: undefined, // Let user start fresh
-            // category: "", // Let placeholder show through
-            // description: "", // Let placeholder show through
-            // accountId: undefined, // Will be set by user selection
-        },
+        defaultValues: transaction
+            ? {
+                  type: transaction.type,
+                  amount: transaction.amount,
+                  category: transaction.category,
+                  description: transaction.description,
+                  accountId: transaction.accountId,
+                  date: transaction.date,
+                  tags: transaction.tags || [],
+              }
+            : {
+                  type: defaultType,
+                  date: new Date(),
+                  tags: [],
+                  // Remove pre-filled values that interfere with UX
+                  // amount: undefined, // Let user start fresh
+                  // category: "", // Let placeholder show through
+                  // description: "", // Let placeholder show through
+                  // accountId: undefined, // Will be set by user selection
+              },
     })
 
     const watchedType = form.watch("type")
@@ -83,29 +108,34 @@ export function AddExpenseForm({
                 description: data.description?.trim() || "", // Optional field
             }
 
-            await transactions.addTransaction(transactionData)
-
-            // Update account balance
-            const account = await accounts.accounts?.find(
-                (acc) => acc.id === transactionData.accountId
-            )
-            if (account) {
-                const balanceChange =
-                    transactionData.type === "income"
-                        ? transactionData.amount
-                        : -transactionData.amount
-                await accounts.updateAccount(transactionData.accountId, {
-                    balance: account.balance + balanceChange,
-                })
+            if (isEditing && transaction?.id !== undefined) {
+                await transactions.updateTransaction(transaction.id, transactionData)
+            } else {
+                await transactions.addTransaction(transactionData)
             }
 
             form.reset()
             onSuccess?.()
         } catch (error) {
-            console.error("Failed to add transaction:", error)
+            console.error("Failed to save transaction:", error)
             // TODO: Add toast notification for error
         } finally {
             setIsSubmitting(false)
+        }
+    }
+
+    const handleDelete = async () => {
+        if (transaction?.id === undefined) return
+        setIsDeleting(true)
+        try {
+            await transactions.deleteTransaction(transaction.id)
+            setShowDeleteConfirm(false)
+            onSuccess?.()
+        } catch (error) {
+            console.error("Failed to delete transaction:", error)
+            // TODO: Add toast notification for error
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -365,8 +395,12 @@ export function AddExpenseForm({
                                 }`}
                             >
                                 {isSubmitting
-                                    ? "Adding..."
-                                    : `Add ${watchedType}`}
+                                    ? isEditing
+                                        ? "Saving..."
+                                        : "Adding..."
+                                    : isEditing
+                                      ? "Save changes"
+                                      : `Add ${watchedType}`}
                             </Button>
                             {onCancel && (
                                 <Button
@@ -377,10 +411,50 @@ export function AddExpenseForm({
                                     Cancel
                                 </Button>
                             )}
+                            {isEditing && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    aria-label="Delete transaction"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            )}
                         </div>
                     </ModalFooter>
                 </form>
             </Form>
+
+            <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete transaction?</DialogTitle>
+                        <DialogDescription>
+                            This can&apos;t be undone. The account balance will be
+                            updated to reflect the removal.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowDeleteConfirm(false)}
+                            disabled={isDeleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? "Deleting..." : "Delete"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

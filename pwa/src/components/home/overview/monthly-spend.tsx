@@ -3,41 +3,17 @@
 import { Progress } from "@/components/ui/progress"
 import { formatCurrency, cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getMonthlySpendData } from "@/lib/data"
-import { useEffect, useState } from "react"
-import { Alert } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+import { useDB } from "@/contexts/db-context"
+
+// No budget model exists yet (see ROADMAP Phase 2: category/overall budgets).
+// Until then this is a fixed placeholder, not read from real data.
+const PLACEHOLDER_MONTHLY_BUDGET = 4000
 
 export function MonthlySpend() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [data, setData] = useState<{
-    monthlySpend: number
-    monthlyBudget: number
-  } | null>(null)
+  const { transactions } = useDB()
+  const allTransactions = transactions.transactions
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const result = await getMonthlySpendData()
-        setData(result)
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to load data'))
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
-
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <span>Failed to load monthly spend data: {error.message}</span>
-      </Alert>
-    )
-  }
+  const isLoading = allTransactions === undefined
 
   if (isLoading) {
     return (
@@ -63,8 +39,16 @@ export function MonthlySpend() {
     )
   }
 
-  const spent = data?.monthlySpend ?? 0
-  const budget = data?.monthlyBudget ?? 0
+  const now = new Date()
+  const spent = (allTransactions ?? [])
+    .filter(
+      (t) =>
+        t.type === "expense" &&
+        t.date.getFullYear() === now.getFullYear() &&
+        t.date.getMonth() === now.getMonth()
+    )
+    .reduce((sum, t) => sum + t.amount, 0)
+  const budget = PLACEHOLDER_MONTHLY_BUDGET
   const percentage = (spent / budget) * 100
 
   const getProgressColor = (percent: number) => {

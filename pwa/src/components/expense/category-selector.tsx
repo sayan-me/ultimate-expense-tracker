@@ -12,6 +12,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { Label } from "@/components/ui/label"
 import { useDB } from "@/contexts/db-context"
 
@@ -34,7 +35,8 @@ export function CategorySelector({
     const [showCreateDialog, setShowCreateDialog] = useState(false)
     const [newCategoryName, setNewCategoryName] = useState("")
     const inputRef = useRef<HTMLInputElement>(null)
-    const dropdownRef = useRef<HTMLDivElement>(null)
+    const anchorRef = useRef<HTMLDivElement>(null)
+    const [contentWidth, setContentWidth] = useState<number>()
 
     // Check if categories are loading
     const isLoading = categories.categories === undefined
@@ -55,10 +57,17 @@ export function CategorySelector({
     useEffect(() => {
         if (isOpen) {
             setSearchQuery(value || "")
-            // Focus input after dropdown is rendered
+            setContentWidth(anchorRef.current?.getBoundingClientRect().width)
+            // Focus input after dropdown is rendered. Only pre-select text
+            // when there's an existing value to replace — selecting an
+            // empty field is a no-op for a real user, but in fast typing
+            // (or userEvent.type) this timer can land mid-keystroke and
+            // the select() would wipe out characters already typed.
             const focusTimer = setTimeout(() => {
                 inputRef.current?.focus()
-                inputRef.current?.select()
+                if (value) {
+                    inputRef.current?.select()
+                }
             }, 50)
             // Cancel on close/select so focus isn't stolen from the next field
             return () => clearTimeout(focusTimer)
@@ -66,24 +75,6 @@ export function CategorySelector({
             setSearchQuery("")
         }
     }, [isOpen, value])
-
-    // Handle click outside to close dropdown
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (
-                dropdownRef.current &&
-                !dropdownRef.current.contains(event.target as Node) &&
-                !inputRef.current?.contains(event.target as Node)
-            ) {
-                setIsOpen(false)
-            }
-        }
-
-        if (isOpen) {
-            document.addEventListener("mousedown", handleClickOutside)
-            return () => document.removeEventListener("mousedown", handleClickOutside)
-        }
-    }, [isOpen])
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value
@@ -149,141 +140,145 @@ export function CategorySelector({
 
     return (
         <>
-            <div className="relative">
-                <div className="relative">
-                    <Input
-                        ref={inputRef}
-                        value={isOpen ? searchQuery : value}
-                        onChange={handleInputChange}
-                        onClick={handleInputClick}
-                        onKeyDown={handleKeyDown}
-                        placeholder={placeholder}
-                        className="pr-16"
-                        autoComplete="off"
-                    />
-                    <div className="absolute right-1 top-1 flex items-center gap-1">
-                        {value && (
+            <Popover open={isOpen} onOpenChange={setIsOpen}>
+                <PopoverAnchor asChild>
+                    <div ref={anchorRef} className="relative">
+                        <Input
+                            ref={inputRef}
+                            value={isOpen ? searchQuery : value}
+                            onChange={handleInputChange}
+                            onClick={handleInputClick}
+                            onKeyDown={handleKeyDown}
+                            placeholder={placeholder}
+                            className="pr-16"
+                            autoComplete="off"
+                        />
+                        <div className="absolute right-1 top-1 flex items-center gap-1">
+                            {value && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={clearSelection}
+                                    className="h-8 w-8 p-0 hover:bg-muted"
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            )}
                             <Button
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={clearSelection}
+                                onClick={() => setIsOpen(!isOpen)}
                                 className="h-8 w-8 p-0 hover:bg-muted"
                             >
-                                <X className="h-4 w-4" />
-                            </Button>
-                        )}
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setIsOpen(!isOpen)}
-                            className="h-8 w-8 p-0 hover:bg-muted"
-                        >
-                            <ChevronDown
-                                className={cn(
-                                    "h-4 w-4 transition-transform",
-                                    isOpen && "rotate-180"
-                                )}
-                            />
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Dropdown */}
-                {isOpen && (
-                    <div
-                        ref={dropdownRef}
-                        className="absolute top-full left-0 right-0 mt-1 z-[60] max-h-64 overflow-hidden rounded-md border bg-popover shadow-lg"
-                    >
-                        <div className="max-h-64 overflow-y-auto scrollbar-thin p-1">
-                            {isLoading ? (
-                                <div className="flex items-center justify-center py-4">
-                                    <p className="text-sm text-muted-foreground">
-                                        Loading categories...
-                                    </p>
-                                </div>
-                            ) : matchingCategories.length === 0 ? (
-                                <div className="p-2">
-                                    <p className="text-sm text-muted-foreground mb-2">
-                                        No categories found.
-                                    </p>
-                                    {searchQuery.trim() && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                                setNewCategoryName(searchQuery.trim())
-                                                setShowCreateDialog(true)
-                                                setIsOpen(false)
-                                            }}
-                                            className="w-full justify-start gap-2"
-                                        >
-                                            <Plus className="h-4 w-4" />
-                                            Create &quot;{searchQuery.trim()}&quot;
-                                        </Button>
+                                <ChevronDown
+                                    className={cn(
+                                        "h-4 w-4 transition-transform",
+                                        isOpen && "rotate-180"
                                     )}
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                            setShowCreateDialog(true)
-                                            setIsOpen(false)
-                                        }}
-                                        className="w-full justify-start gap-2 mt-1"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                        Create new category
-                                    </Button>
-                                </div>
-                            ) : (
-                                <>
-                                    {matchingCategories.map((category) => (
-                                        <button
-                                            key={category.id}
-                                            type="button"
-                                            onClick={() => handleCategorySelect(category.name)}
-                                            className="flex w-full items-center gap-2 p-2 text-left hover:bg-accent rounded-sm transition-colors"
-                                        >
-                                            <div
-                                                className="w-3 h-3 rounded-full flex-shrink-0"
-                                                style={{
-                                                    backgroundColor: category.color,
-                                                }}
-                                            />
-                                            <span className="flex-1 text-sm">
-                                                {category.name}
-                                            </span>
-                                            {category.isDefault && (
-                                                <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                                    Default
-                                                </span>
-                                            )}
-                                            {value === category.name && (
-                                                <Check className="h-4 w-4 text-primary" />
-                                            )}
-                                        </button>
-                                    ))}
-                                    <div className="border-t mt-1 pt-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                                setShowCreateDialog(true)
-                                                setIsOpen(false)
-                                            }}
-                                            className="w-full justify-start gap-2 text-primary"
-                                        >
-                                            <Plus className="h-4 w-4" />
-                                            Create new category
-                                        </Button>
-                                    </div>
-                                </>
-                            )}
+                                />
+                            </Button>
                         </div>
                     </div>
-                )}
-            </div>
+                </PopoverAnchor>
+
+                {/* Rendered in a portal (avoidCollisions on by default) so a
+                    scrollable ancestor like the add-expense dialog can never
+                    clip it, on mobile or otherwise. */}
+                <PopoverContent
+                    align="start"
+                    sideOffset={4}
+                    style={contentWidth ? { width: contentWidth } : undefined}
+                    className="z-[60] max-h-64 overflow-y-auto scrollbar-thin p-1"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    onCloseAutoFocus={(e) => e.preventDefault()}
+                >
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                            <p className="text-sm text-muted-foreground">
+                                Loading categories...
+                            </p>
+                        </div>
+                    ) : matchingCategories.length === 0 ? (
+                        <div className="p-2">
+                            <p className="text-sm text-muted-foreground mb-2">
+                                No categories found.
+                            </p>
+                            {searchQuery.trim() && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setNewCategoryName(searchQuery.trim())
+                                        setShowCreateDialog(true)
+                                        setIsOpen(false)
+                                    }}
+                                    className="w-full justify-start gap-2"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Create &quot;{searchQuery.trim()}&quot;
+                                </Button>
+                            )}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    setShowCreateDialog(true)
+                                    setIsOpen(false)
+                                }}
+                                className="w-full justify-start gap-2 mt-1"
+                            >
+                                <Plus className="h-4 w-4" />
+                                Create new category
+                            </Button>
+                        </div>
+                    ) : (
+                        <>
+                            {matchingCategories.map((category) => (
+                                <button
+                                    key={category.id}
+                                    type="button"
+                                    onClick={() => handleCategorySelect(category.name)}
+                                    className="flex w-full items-center gap-2 p-2 text-left hover:bg-accent rounded-sm transition-colors"
+                                >
+                                    <div
+                                        className="w-3 h-3 rounded-full flex-shrink-0"
+                                        style={{
+                                            backgroundColor: category.color,
+                                        }}
+                                    />
+                                    <span className="flex-1 text-sm">
+                                        {category.name}
+                                    </span>
+                                    {category.isDefault && (
+                                        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                            Default
+                                        </span>
+                                    )}
+                                    {value === category.name && (
+                                        <Check className="h-4 w-4 text-primary" />
+                                    )}
+                                </button>
+                            ))}
+                            <div className="border-t mt-1 pt-1">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setShowCreateDialog(true)
+                                        setIsOpen(false)
+                                    }}
+                                    className="w-full justify-start gap-2 text-primary"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Create new category
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </PopoverContent>
+            </Popover>
 
             {/* Create Category Dialog */}
             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>

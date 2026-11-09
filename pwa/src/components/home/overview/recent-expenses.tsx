@@ -1,17 +1,24 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { formatAmount } from "@/lib/validations/expense"
 import { format } from "date-fns"
 import { ArrowRight, Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDB } from "@/contexts/db-context"
 import { AddExpenseModal } from "@/components/expense/add-expense-modal"
+import type { Transaction } from "@/lib/db"
 
 export function RecentExpenses() {
   const { transactions } = useDB()
-  
+  const router = useRouter()
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+
   // Get recent transactions (limit to 5)
   const recentTransactions = transactions.useRecentTransactions(5)
+
+  const goToHistory = () => router.push("/history")
 
   if (!recentTransactions) {
     return (
@@ -45,7 +52,7 @@ export function RecentExpenses() {
         <div className="flex items-center justify-between p-6 pb-4">
           <h3 className="text-sm font-medium text-muted-foreground">Recent Transactions</h3>
           <button
-            onClick={() => {/* To be implemented in routing phase */}}
+            onClick={goToHistory}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
             aria-label="View all transactions"
           >
@@ -79,7 +86,7 @@ export function RecentExpenses() {
       <div className="flex items-center justify-between p-6 pb-4">
         <h3 className="text-sm font-medium text-muted-foreground">Recent Transactions</h3>
         <button
-          onClick={() => {/* To be implemented in routing phase */}}
+          onClick={goToHistory}
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           aria-label="View all transactions"
         >
@@ -89,15 +96,21 @@ export function RecentExpenses() {
       </div>
       <div className="divide-y">
         {recentTransactions.map((transaction) => (
-          <div key={transaction.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+          <button
+            key={transaction.id}
+            type="button"
+            onClick={() => setEditingTransaction(transaction)}
+            className="flex w-full items-center justify-between p-4 text-left hover:bg-muted/50 transition-colors"
+            aria-label={`Edit ${transaction.description || transaction.category}`}
+          >
             <div className="space-y-1">
-              <p className="font-medium">{transaction.description}</p>
+              <p className="font-medium">{transaction.description || transaction.category}</p>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <div 
-                    className="w-2 h-2 rounded-full" 
-                    style={{ 
-                      backgroundColor: transaction.type === 'expense' ? '#ef4444' : '#10b981' 
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{
+                      backgroundColor: transaction.type === 'expense' ? '#ef4444' : '#10b981'
                     }}
                   />
                   {transaction.category}
@@ -121,9 +134,16 @@ export function RecentExpenses() {
                 </p>
               )}
             </div>
-          </div>
+          </button>
         ))}
       </div>
+      {editingTransaction && (
+        <AddExpenseModal
+          transaction={editingTransaction}
+          open={!!editingTransaction}
+          onOpenChange={(open) => !open && setEditingTransaction(null)}
+        />
+      )}
     </div>
   )
 } 

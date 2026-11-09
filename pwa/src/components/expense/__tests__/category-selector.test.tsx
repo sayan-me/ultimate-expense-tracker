@@ -216,20 +216,22 @@ describe('CategorySelector Component', () => {
 
     it('shows a check mark next to the selected category', async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 })
-      const { container } = render(<CategorySelector {...defaultProps} value="Transportation" />)
+      render(<CategorySelector {...defaultProps} value="Transportation" />)
       await user.click(screen.getByDisplayValue('Transportation'))
 
-      expect(container.querySelectorAll('svg.lucide-check')).toHaveLength(1)
+      // The dropdown renders in a portal (outside the render container) so
+      // the clipping fix (M1) doesn't break it inside a scrollable dialog.
+      expect(document.body.querySelectorAll('svg.lucide-check')).toHaveLength(1)
     })
   })
 
   describe('Visual Indicators', () => {
     it('shows a color dot for each category', async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 })
-      const { container } = render(<CategorySelector {...defaultProps} />)
+      render(<CategorySelector {...defaultProps} />)
       await openDropdown(user)
 
-      const dots = container.querySelectorAll('div.rounded-full')
+      const dots = document.body.querySelectorAll('div.rounded-full')
       // 3 expense/both categories
       expect(dots).toHaveLength(3)
       expect((dots[0] as HTMLElement).style.backgroundColor).toBe('rgb(239, 68, 68)')

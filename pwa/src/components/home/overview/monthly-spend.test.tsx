@@ -1,43 +1,71 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MonthlySpend } from './monthly-spend'
-import { getMonthlySpendData } from '@/lib/data'
 
-// Component still runs on mock data (lib/data); stub it for deterministic tests
-vi.mock('@/lib/data', () => ({
-  getMonthlySpendData: vi.fn(),
+type MockDB = {
+  transactions: { transactions?: Array<{ type: 'income' | 'expense'; amount: number; date: Date }> }
+}
+
+let mockDB: MockDB
+
+vi.mock('@/contexts/db-context', () => ({
+  useDB: () => mockDB,
 }))
 
 describe('MonthlySpend', () => {
-  beforeEach(() => {
-    vi.mocked(getMonthlySpendData).mockResolvedValue({ monthlySpend: 1200, monthlyBudget: 2000 })
+  const now = new Date()
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 15)
+
+  const loaded = (): MockDB => ({
+    transactions: {
+      transactions: [
+        { type: 'expense', amount: 1200, date: now },
+        { type: 'income', amount: 3000, date: now }, // income must not count as spend
+        { type: 'expense', amount: 500, date: lastMonth }, // previous month must not count
+      ],
+    },
   })
 
-  it('shows loading skeletons before data resolves', () => {
+  it('shows loading skeletons while data is undefined', () => {
+    mockDB = { transactions: { transactions: undefined } }
     render(<MonthlySpend />)
     expect(screen.getByTestId('skeleton-title')).toBeInTheDocument()
     expect(screen.queryByText('Monthly Spend vs Budget')).not.toBeInTheDocument()
   })
 
-  it('renders monthly spend section once loaded', async () => {
+  it('renders monthly spend section once loaded', () => {
+    mockDB = loaded()
     render(<MonthlySpend />)
-    expect(await screen.findByText('Monthly Spend vs Budget')).toBeInTheDocument()
+    expect(screen.getByText('Monthly Spend vs Budget')).toBeInTheDocument()
   })
 
-  it('displays spent and budget amounts', async () => {
+  it('sums only this month\'s expenses, ignoring income and other months', () => {
+    mockDB = loaded()
     render(<MonthlySpend />)
-    expect(await screen.findByText('$1,200.00')).toBeInTheDocument()
-    expect(screen.getByText('$2,000.00')).toBeInTheDocument()
+    expect(screen.getByText('$1,200.00')).toBeInTheDocument()
   })
 
-  it('shows percentage used', async () => {
+  it('shows percentage used against the budget', () => {
+    mockDB = loaded()
     render(<MonthlySpend />)
-    expect(await screen.findByText('60% used')).toBeInTheDocument()
+    // 1200 / 4000 placeholder budget = 30%
+    expect(screen.getByText('30% used')).toBeInTheDocument()
   })
 
-  it('shows an error alert when loading fails', async () => {
-    vi.mocked(getMonthlySpendData).mockRejectedValue(new Error('boom'))
-    render(<MonthlySpend />)
-    expect(await screen.findByText(/Failed to load monthly spend data: boom/)).toBeInTheDocument()
+  it('updates live as transactions change, without a reload', () => {
+    mockDB = loaded()
+    const { rerender } = render(<MonthlySpend />)
+    expect(screen.getByText('$1,200.00')).toBeInTheDocument()
+
+    mockDB = {
+      transactions: {
+        transactions: [
+          ...mockDB.transactions.transactions!,
+          { type: 'expense', amount: 12, date: now },
+        ],
+      },
+    }
+    rerender(<MonthlySpend />)
+    expect(screen.getByText('$1,212.00')).toBeInTheDocument()
   })
 })

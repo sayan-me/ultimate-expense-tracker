@@ -76,4 +76,15 @@ export const db = new Proxy({} as ExpenseTrackerDB, {
     }
     return _db ? _db[prop] : undefined;
   }
-}); 
+});
+
+// Methods like `transaction()` run with `this` bound to the Dexie instance
+// internally, so they must be called on the real instance, not through the
+// Proxy above (a method call through the Proxy would bind `this` to the
+// Proxy itself). Use this for anything beyond simple table access.
+export function getDb(): ExpenseTrackerDB {
+  if (!_db) {
+    _db = new ExpenseTrackerDB();
+  }
+  return _db;
+}

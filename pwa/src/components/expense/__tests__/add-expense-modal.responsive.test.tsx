@@ -152,16 +152,22 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
   })
 
   describe('Category Dropdown Positioning', () => {
-    it('category dropdown is positioned directly under the input and above other content', async () => {
+    it('category dropdown renders in a portal so a clipping ancestor can never cut it off', async () => {
+      // M1 fix: the dropdown is a Radix Popover, portaled straight to
+      // document.body and positioned by floating-ui, instead of an
+      // absolutely-positioned child of the input's own scrollable
+      // ancestor (which was clipped inside the add-expense dialog on
+      // mobile — see the bug report).
       const user = userEvent.setup({ pointerEventsCheck: 0 })
-      renderWithProviders(<CategorySelector type="expense" value="" onChange={vi.fn()} />)
-      
+      const { container } = renderWithProviders(
+        <CategorySelector type="expense" value="" onChange={vi.fn()} />
+      )
+
       await user.click(screen.getByPlaceholderText('Select or type category...'))
-      
+
       const item = await screen.findByText('Food')
-      const dropdown = item.closest('[class*="absolute"]')
-      expect(dropdown).toBeInTheDocument()
-      expect(dropdown).toHaveClass('top-full', 'left-0', 'right-0', 'z-[60]')
+      expect(document.body.contains(item)).toBe(true)
+      expect(container.contains(item)).toBe(false)
     })
 
     it('category dropdown has proper height constraints for scrolling', async () => {
