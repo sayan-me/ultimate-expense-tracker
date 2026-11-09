@@ -65,6 +65,36 @@ describe('RecentExpenses', () => {
     expect(dot.style.backgroundColor).toBe('rgb(59, 130, 246)') // #3b82f6
   })
 
+  it('shows a transfer_out as an outflow and a transfer_in as an inflow, and does not make either editable', () => {
+    mockRecent = [
+      {
+        id: 3,
+        type: 'transfer_out',
+        amount: 5000,
+        category: 'Transfer',
+        description: 'Move to savings',
+        date: new Date('2025-01-17T10:00:00'),
+        transferId: 't1',
+        tags: [],
+      },
+      {
+        id: 4,
+        type: 'transfer_in',
+        amount: 5000,
+        category: 'Transfer',
+        description: 'Move to savings',
+        date: new Date('2025-01-17T10:00:00'),
+        transferId: 't1',
+        tags: [],
+      },
+    ]
+    render(<RecentExpenses />)
+    expect(screen.getByText('-$50.00')).toBeInTheDocument()
+    expect(screen.getByText('+$50.00')).toBeInTheDocument()
+    // Neither transfer leg is editable through the ordinary expense form.
+    expect(screen.queryByRole('button', { name: /edit move to savings/i })).not.toBeInTheDocument()
+  })
+
   it('shows an empty state when there are no transactions', () => {
     mockRecent = []
     render(<RecentExpenses />)

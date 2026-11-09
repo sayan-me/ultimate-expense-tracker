@@ -150,9 +150,27 @@ describe('Dexie v3 migration — dollars to cents, balance to openingBalance', (
     const db = new ExpenseTrackerDB(dbName)
     await db.open()
 
-    expect(db.verno).toBe(4)
+    expect(db.verno).toBe(5)
     await expect(db.table('budgets').toArray()).resolves.toEqual([])
     // v3's migration still ran correctly underneath v4.
+    expect((await db.transactions.toArray())[0].amount).toBe(2500)
+    await db.close()
+  })
+
+  it('v5 adds an empty recurringTransactions table without touching existing data', async () => {
+    dbName = uniqueDbName()
+    await seedV2Database(
+      dbName,
+      [{ name: 'Cash', type: 'cash', balance: 100, isDefault: true }],
+      [{ amount: 25, type: 'expense', category: 'Food', description: '', accountId: 1 }]
+    )
+
+    const db = new ExpenseTrackerDB(dbName)
+    await db.open()
+
+    expect(db.verno).toBe(5)
+    await expect(db.table('recurringTransactions').toArray()).resolves.toEqual([])
+    // v3's migration still ran correctly underneath v5.
     expect((await db.transactions.toArray())[0].amount).toBe(2500)
     await db.close()
   })

@@ -8,12 +8,13 @@ import { ArrowRight, Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDB } from "@/contexts/db-context"
 import { AddExpenseModal } from "@/components/expense/add-expense-modal"
-import type { Transaction } from "@/lib/db"
+import { isExpenseOrIncomeTransaction, type Transaction } from "@/lib/db"
+import { isOutflow } from "@/lib/account-balance"
 
 export function RecentExpenses() {
   const { transactions, categories } = useDB()
   const router = useRouter()
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  const [editingTransaction, setEditingTransaction] = useState<(Transaction & { type: "expense" | "income" }) | null>(null)
 
   // Get recent transactions (limit to 5)
   const recentTransactions = transactions.useRecentTransactions(5)
@@ -101,50 +102,68 @@ export function RecentExpenses() {
         </button>
       </div>
       <div className="divide-y">
-        {recentTransactions.map((transaction) => (
-          <button
-            key={transaction.id}
-            type="button"
-            onClick={() => setEditingTransaction(transaction)}
-            className="flex w-full items-center gap-3 justify-between p-4 text-left hover:bg-muted/50 transition-colors"
-            aria-label={`Edit ${transaction.description || transaction.category}`}
-          >
-            <div className="space-y-1 min-w-0">
-              <p className="font-medium truncate">{transaction.description || transaction.category}</p>
-              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1 whitespace-nowrap">
-                  <div
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{
-                      backgroundColor: categoryColor(
-                        transaction.category,
-                        transaction.type === 'expense' ? '#ef4444' : '#10b981'
-                      )
-                    }}
-                  />
-                  {transaction.category}
-                </span>
-                <span className="whitespace-nowrap">•</span>
-                <time dateTime={transaction.date.toISOString()} className="whitespace-nowrap">
-                  {format(transaction.date, "MMM d, h:mm a")}
-                </time>
+        {recentTransactions.map((transaction) => {
+          const editable = isExpenseOrIncomeTransaction(transaction)
+          const outflow = isOutflow(transaction.type)
+          const content = (
+            <>
+              <div className="space-y-1 min-w-0">
+                <p className="font-medium truncate">{transaction.description || transaction.category}</p>
+                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1 whitespace-nowrap">
+                    <div
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: categoryColor(transaction.category, outflow ? '#ef4444' : '#10b981')
+                      }}
+                    />
+                    {transaction.category}
+                  </span>
+                  <span className="whitespace-nowrap">•</span>
+                  <time dateTime={transaction.date.toISOString()} className="whitespace-nowrap">
+                    {format(transaction.date, "MMM d, h:mm a")}
+                  </time>
+                </div>
               </div>
-            </div>
-            <div className="text-right shrink-0">
-              <p className={`font-medium whitespace-nowrap ${
-                transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
-              }`}>
-                {transaction.type === 'expense' ? '-' : '+'}
-                {formatCents(transaction.amount)}
-              </p>
-              {transaction.tags && transaction.tags.length > 0 && (
-                <p className="text-xs text-muted-foreground truncate">
-                  {transaction.tags.join(', ')}
+              <div className="text-right shrink-0">
+                <p className={`font-medium whitespace-nowrap ${outflow ? 'text-red-600' : 'text-green-600'}`}>
+                  {outflow ? '-' : '+'}
+                  {formatCents(transaction.amount)}
                 </p>
-              )}
-            </div>
-          </button>
-        ))}
+                {transaction.tags && transaction.tags.length > 0 && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    {transaction.tags.join(', ')}
+                  </p>
+                )}
+              </div>
+            </>
+          )
+
+          // A transfer leg isn't edited through the ordinary expense form
+          // (see AddExpenseForm) — it's a linked pair, not a standalone row.
+          if (!editable) {
+            return (
+              <div
+                key={transaction.id}
+                className="flex w-full items-center gap-3 justify-between p-4"
+              >
+                {content}
+              </div>
+            )
+          }
+
+          return (
+            <button
+              key={transaction.id}
+              type="button"
+              onClick={() => setEditingTransaction(transaction)}
+              className="flex w-full items-center gap-3 justify-between p-4 text-left hover:bg-muted/50 transition-colors"
+              aria-label={`Edit ${transaction.description || transaction.category}`}
+            >
+              {content}
+            </button>
+          )
+        })}
       </div>
       {editingTransaction && (
         <AddExpenseModal

@@ -5,14 +5,30 @@ export interface Transaction {
   id?: number;
   /** Integer cents, not dollars — see src/lib/money.ts. */
   amount: number;
-  type: 'expense' | 'income';
+  /**
+   * transfer_out/transfer_in are a linked pair (same transferId) moving
+   * money between two of the user's own accounts — they behave like an
+   * expense/income for balance purposes (src/lib/account-balance.ts) but
+   * are excluded from spend/budget tracking (src/lib/budget.ts), since
+   * moving money to savings isn't "spending" it.
+   */
+  type: 'expense' | 'income' | 'transfer_out' | 'transfer_in';
   category: string;
   description: string;
   date: Date;
   accountId: number;
+  /** Links a transfer's two legs together. Unset for ordinary expense/income. */
+  transferId?: string;
   tags?: string[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** A transfer leg is never edited through the ordinary expense/income form (AddExpenseForm/AddExpenseModal) — this narrows for that boundary. */
+export function isExpenseOrIncomeTransaction(
+  t: Transaction
+): t is Transaction & { type: 'expense' | 'income' } {
+  return t.type === 'expense' || t.type === 'income';
 }
 
 export interface Account {
@@ -28,7 +44,33 @@ export interface Account {
    */
   openingBalance: number;
   isDefault?: boolean;
+  /**
+   * Savings goals (ROADMAP Phase 3) are a 'savings' account with a
+   * target: progress is just this account's derived balance against
+   * targetAmount, contributed to via ordinary transfers — no separate
+   * goal ledger. Both are undefined for a regular (non-goal) account.
+   */
+  targetAmount?: number;
+  targetDate?: Date;
   createdAt: Date;
+}
+
+export interface RecurringTransaction {
+  id?: number;
+  accountId: number;
+  type: 'expense' | 'income';
+  category: string;
+  description: string;
+  /** Integer cents, not dollars — see src/lib/money.ts. */
+  amount: number;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  /** The first occurrence; never changes after creation. */
+  startDate: Date;
+  /** The next occurrence still to be materialized into a real transaction. */
+  nextRunDate: Date;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Category {
@@ -56,6 +98,7 @@ export class ExpenseTrackerDB extends Dexie {
   accounts!: Table<Account>;
   categories!: Table<Category>;
   budgets!: Table<Budget>;
+  recurringTransactions!: Table<RecurringTransaction>;
 
   constructor(name: string = 'ExpenseTrackerDB') {
     super(name);
@@ -129,6 +172,19 @@ export class ExpenseTrackerDB extends Dexie {
       budgets: '++id, category',
     });
 
+    // Version 5: adds recurringTransactions (ROADMAP Phase 3) — purely
+    // additive. Transfers (also Phase 3) and savings goals reuse the
+    // existing transactions/accounts tables via new, non-indexed fields
+    // (transferId, targetAmount, targetDate), which Dexie doesn't need a
+    // schema bump for.
+    this.version(5).stores({
+      transactions: '++id, type, category, date, accountId, amount, createdAt',
+      accounts: '++id, name, type, openingBalance, isDefault',
+      categories: '++id, name, type, isDefault',
+      budgets: '++id, category',
+      recurringTransactions: '++id, accountId, nextRunDate, isActive',
+    });
+
     // Defensive read-side normalization: date fields are expected to be
     // real Date instances everywhere in this app (sort/format code calls
     // .getFullYear() etc. directly), but nothing guarantees that for
@@ -150,6 +206,7 @@ export class ExpenseTrackerDB extends Dexie {
     this.accounts.hook('reading', (obj) => {
       if (!obj) return obj;
       if (obj.createdAt && !(obj.createdAt instanceof Date)) obj.createdAt = new Date(obj.createdAt);
+      if (obj.targetDate && !(obj.targetDate instanceof Date)) obj.targetDate = new Date(obj.targetDate);
       return obj;
     });
     this.categories.hook('reading', (obj) => {
@@ -159,6 +216,14 @@ export class ExpenseTrackerDB extends Dexie {
     });
     this.budgets.hook('reading', (obj) => {
       if (!obj) return obj;
+      if (obj.createdAt && !(obj.createdAt instanceof Date)) obj.createdAt = new Date(obj.createdAt);
+      if (obj.updatedAt && !(obj.updatedAt instanceof Date)) obj.updatedAt = new Date(obj.updatedAt);
+      return obj;
+    });
+    this.recurringTransactions.hook('reading', (obj) => {
+      if (!obj) return obj;
+      if (obj.startDate && !(obj.startDate instanceof Date)) obj.startDate = new Date(obj.startDate);
+      if (obj.nextRunDate && !(obj.nextRunDate instanceof Date)) obj.nextRunDate = new Date(obj.nextRunDate);
       if (obj.createdAt && !(obj.createdAt instanceof Date)) obj.createdAt = new Date(obj.createdAt);
       if (obj.updatedAt && !(obj.updatedAt instanceof Date)) obj.updatedAt = new Date(obj.updatedAt);
       return obj;

@@ -14,8 +14,11 @@ interface AddExpenseModalProps {
     trigger?: React.ReactNode
     open?: boolean
     onOpenChange?: (open: boolean) => void
-    /** When set, the modal edits this existing transaction instead of creating a new one. */
-    transaction?: Transaction
+    /**
+     * When set, the modal edits this existing transaction instead of
+     * creating a new one. Never a transfer leg — see AddExpenseForm.
+     */
+    transaction?: Transaction & { type: "expense" | "income" }
 }
 
 export function AddExpenseModal({

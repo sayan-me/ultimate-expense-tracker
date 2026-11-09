@@ -74,6 +74,30 @@ describe('computeAccountBalance', () => {
     const txs = [tx({ accountId: 1, type: 'expense', amount: 500 })]
     expect(computeAccountBalance(acc, txs)).toBe(2000)
   })
+
+  it('adds a transfer_in the same way as income (money arriving from another account)', () => {
+    const acc = account({ openingBalance: 10000 })
+    const txs = [tx({ accountId: 1, type: 'transfer_in', amount: 2500 })]
+    expect(computeAccountBalance(acc, txs)).toBe(12500)
+  })
+
+  it('subtracts a transfer_out the same way as an expense (money leaving to another account)', () => {
+    const acc = account({ openingBalance: 10000 })
+    const txs = [tx({ accountId: 1, type: 'transfer_out', amount: 2500 })]
+    expect(computeAccountBalance(acc, txs)).toBe(7500)
+  })
+
+  it('nets a transfer pair across two accounts to zero overall', () => {
+    const from = account({ id: 1, openingBalance: 10000 })
+    const to = account({ id: 2, name: 'Savings', openingBalance: 5000 })
+    const txs = [
+      tx({ accountId: 1, type: 'transfer_out', amount: 3000, transferId: 't1' }),
+      tx({ accountId: 2, type: 'transfer_in', amount: 3000, transferId: 't1' }),
+    ]
+    expect(computeAccountBalance(from, txs)).toBe(7000)
+    expect(computeAccountBalance(to, txs)).toBe(8000)
+    expect(computeTotalBalance([from, to], txs)).toBe(15000)
+  })
 })
 
 describe('computeTotalBalance', () => {

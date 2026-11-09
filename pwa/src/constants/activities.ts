@@ -34,7 +34,13 @@ export const PERSONAL_ACTIVITIES: ActivityItem[] = [
     },
   },
   { icon: Bell, label: "Notifications", onClick: () => {} },
-  { icon: Wallet, label: "Manage Virtual Accounts", onClick: () => {} },
+  {
+    icon: Wallet,
+    label: "Manage Virtual Accounts",
+    onClick: () => {
+      window.location.href = "/accounts"
+    },
+  },
   { icon: FileText, label: "View Loan Accounts", onClick: () => {} },
   { icon: FileUp, label: "Analyze Bank Statement", onClick: () => {} },
   { icon: Award, label: "View Awards & Achievements", onClick: () => {} },

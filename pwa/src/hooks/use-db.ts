@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, type Transaction, type Account, type Category } from "@/lib/db";
+import { db, getDb, type Transaction, type Account, type Category } from "@/lib/db";
 
 export function useTransactions() {
   const transactions = useLiveQuery(() => db.transactions.orderBy('createdAt').reverse().toArray());
@@ -27,6 +27,36 @@ export function useTransactions() {
       updatedAt: new Date()
     });
   };
+
+  // A transfer is two ordinary transactions (transfer_out on the source
+  // account, transfer_in on the destination) sharing one transferId, written
+  // in a single Dexie transaction so they can never exist as a lone,
+  // unbalanced leg. Dexie's own transaction() must run on the real instance
+  // (getDb()), not the lazy-init Proxy exported as `db` — see lib/db.ts.
+  const createTransfer = async (transfer: {
+    fromAccountId: number
+    toAccountId: number
+    amount: number
+    date: Date
+    description: string
+  }) => {
+    const { fromAccountId, toAccountId, amount, date, description } = transfer
+    if (fromAccountId === toAccountId) {
+      throw new Error("Cannot transfer to the same account")
+    }
+    if (amount <= 0) {
+      throw new Error("Transfer amount must be positive")
+    }
+
+    const transferId = crypto.randomUUID()
+    const now = new Date()
+    const base = { category: "Transfer", description, date, transferId, createdAt: now, updatedAt: now }
+
+    return getDb().transaction("rw", "transactions", async () => {
+      await db.transactions.add({ ...base, type: "transfer_out", amount, accountId: fromAccountId })
+      await db.transactions.add({ ...base, type: "transfer_in", amount, accountId: toAccountId })
+    })
+  }
 
   const useTransactionsByAccount = (accountId: number) => {
     return useLiveQuery(async () => {
@@ -59,6 +89,7 @@ export function useTransactions() {
     addTransaction,
     deleteTransaction,
     updateTransaction,
+    createTransfer,
     useTransactionsByAccount,
     useTransactionsByCategory,
     useRecentTransactions,

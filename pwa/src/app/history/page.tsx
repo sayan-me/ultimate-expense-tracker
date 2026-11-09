@@ -17,7 +17,8 @@ import { Search, Filter, ChevronDown } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { useDB } from "@/contexts/db-context"
-import type { Transaction } from "@/lib/db"
+import { isExpenseOrIncomeTransaction, type Transaction } from "@/lib/db"
+import { isOutflow } from "@/lib/account-balance"
 
 type TypeFilter = "all" | "expense" | "income"
 
@@ -26,7 +27,7 @@ export default function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
   const [expandedDate, setExpandedDate] = useState<string | null>(null)
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  const [editingTransaction, setEditingTransaction] = useState<(Transaction & { type: "expense" | "income" }) | null>(null)
 
   const allTransactions = transactions.transactions
   const isLoading = allTransactions === undefined
@@ -126,28 +127,48 @@ export default function HistoryPage() {
               {expandedDate === date && (
                 <CardContent>
                   <div className="space-y-4">
-                    {groupedTransactions[date].map((transaction) => (
-                      <button
-                        key={transaction.id}
-                        type="button"
-                        onClick={() => setEditingTransaction(transaction)}
-                        className="flex w-full items-center justify-between py-2 border-b last:border-0 text-left hover:bg-muted/50 transition-colors rounded-sm px-1 -mx-1"
-                      >
-                        <div>
-                          <p className="font-medium">
-                            {transaction.description || transaction.category}
+                    {groupedTransactions[date].map((transaction) => {
+                      const outflow = isOutflow(transaction.type)
+                      const content = (
+                        <>
+                          <div>
+                            <p className="font-medium">
+                              {transaction.description || transaction.category}
+                            </p>
+                            <p className="text-sm text-muted-foreground">{transaction.category}</p>
+                          </div>
+                          <p className={cn("font-medium", outflow ? "text-red-600" : "text-green-600")}>
+                            {outflow ? '-' : '+'}
+                            {formatCents(transaction.amount)}
                           </p>
-                          <p className="text-sm text-muted-foreground">{transaction.category}</p>
-                        </div>
-                        <p className={cn(
-                          "font-medium",
-                          transaction.type === 'income' ? "text-green-600" : "text-red-600"
-                        )}>
-                          {transaction.type === 'income' ? '+' : '-'}
-                          {formatCents(transaction.amount)}
-                        </p>
-                      </button>
-                    ))}
+                        </>
+                      )
+
+                      // A transfer leg isn't edited through the ordinary
+                      // expense form (see AddExpenseForm) — it's a linked
+                      // pair, not a standalone row.
+                      if (!isExpenseOrIncomeTransaction(transaction)) {
+                        return (
+                          <div
+                            key={transaction.id}
+                            className="flex w-full items-center justify-between py-2 border-b last:border-0 px-1 -mx-1"
+                          >
+                            {content}
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <button
+                          key={transaction.id}
+                          type="button"
+                          onClick={() => setEditingTransaction(transaction)}
+                          className="flex w-full items-center justify-between py-2 border-b last:border-0 text-left hover:bg-muted/50 transition-colors rounded-sm px-1 -mx-1"
+                        >
+                          {content}
+                        </button>
+                      )
+                    })}
                   </div>
                 </CardContent>
               )}

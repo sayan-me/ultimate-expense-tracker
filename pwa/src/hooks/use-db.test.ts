@@ -136,6 +136,65 @@ describe('useTransactions — writes, with balance derived rather than stored', 
     expect(await db.transactions.get(id)).toBeUndefined()
   })
 
+  it('createTransfer moves money between two accounts via a linked transfer_out/transfer_in pair', async () => {
+    const { result } = renderHook(() => useTransactions())
+
+    await act(async () => {
+      await result.current.createTransfer({
+        fromAccountId: cashId,
+        toAccountId: bankId,
+        amount: 4000,
+        date: new Date(),
+        description: 'Move to bank',
+      })
+    })
+
+    await waitFor(async () => expect(await currentBalance(cashId)).toBe(6000)) // 10000 - 4000
+    expect(await currentBalance(bankId)).toBe(24000) // 20000 + 4000
+
+    const all = await db.transactions.toArray()
+    const out = all.find((t) => t.type === 'transfer_out')!
+    const inn = all.find((t) => t.type === 'transfer_in')!
+    expect(out.accountId).toBe(cashId)
+    expect(inn.accountId).toBe(bankId)
+    expect(out.amount).toBe(4000)
+    expect(inn.amount).toBe(4000)
+    expect(out.transferId).toBeDefined()
+    expect(out.transferId).toBe(inn.transferId)
+  })
+
+  it('createTransfer rejects transferring an account to itself', async () => {
+    const { result } = renderHook(() => useTransactions())
+
+    await expect(
+      result.current.createTransfer({
+        fromAccountId: cashId,
+        toAccountId: cashId,
+        amount: 1000,
+        date: new Date(),
+        description: '',
+      })
+    ).rejects.toThrow(/same account/i)
+
+    expect(await db.transactions.count()).toBe(0)
+  })
+
+  it('createTransfer rejects a non-positive amount', async () => {
+    const { result } = renderHook(() => useTransactions())
+
+    await expect(
+      result.current.createTransfer({
+        fromAccountId: cashId,
+        toAccountId: bankId,
+        amount: 0,
+        date: new Date(),
+        description: '',
+      })
+    ).rejects.toThrow(/positive/i)
+
+    expect(await db.transactions.count()).toBe(0)
+  })
+
   it('sorts recent transactions by date, not createdAt (U6)', async () => {
     // A Nov 7 transaction entered (createdAt) after a Nov 8 one must
     // still sort below it — by the transaction's own date.

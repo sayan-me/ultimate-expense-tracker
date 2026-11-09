@@ -1,7 +1,12 @@
 import type { Account, Transaction } from "./db"
 
+/** expense and transfer_out reduce a balance; income and transfer_in increase it. */
+export function isOutflow(type: Transaction["type"]): boolean {
+  return type === "expense" || type === "transfer_out"
+}
+
 function signedAmount(type: Transaction["type"], amount: number): number {
-  return type === "income" ? amount : -amount
+  return isOutflow(type) ? -amount : amount
 }
 
 /**

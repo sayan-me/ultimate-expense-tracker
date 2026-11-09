@@ -48,6 +48,14 @@ describe('computeSpend', () => {
     expect(computeSpend(txs, { month, year })).toBe(0)
   })
 
+  it('excludes transfers (moving money between own accounts is not spending)', () => {
+    const txs = [
+      tx({ amount: 5000, type: 'transfer_out' }),
+      tx({ amount: 5000, type: 'transfer_in' }),
+    ]
+    expect(computeSpend(txs, { month, year })).toBe(0)
+  })
+
   it('filters by category when given, excluding other categories', () => {
     const txs = [
       tx({ amount: 1000, category: 'Food' }),

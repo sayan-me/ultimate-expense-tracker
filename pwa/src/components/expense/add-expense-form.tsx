@@ -16,13 +16,6 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
     Dialog,
@@ -34,10 +27,10 @@ import {
 } from "@/components/ui/dialog"
 import { useDB } from "@/contexts/db-context"
 import { expenseSchema, type ExpenseFormData } from "@/lib/validations/expense"
-import { dollarsToCents, centsToDollars, formatCents } from "@/lib/money"
-import { computeAccountBalance } from "@/lib/account-balance"
+import { dollarsToCents, centsToDollars } from "@/lib/money"
 import type { Transaction } from "@/lib/db"
 import { CategorySelector } from "./category-selector"
+import { AccountSelector } from "./account-selector"
 import { TagsInput } from "./tags-input"
 import {
     ModalFixedSection,
@@ -52,8 +45,13 @@ interface AddExpenseFormProps {
     defaultType?: "expense" | "income"
     onTypeChange?: (type: "expense" | "income") => void
     className?: string
-    /** When set, the form edits this existing transaction instead of creating a new one. */
-    transaction?: Transaction
+    /**
+     * When set, the form edits this existing transaction instead of
+     * creating a new one. Transfer legs (transfer_out/transfer_in) are
+     * never edited through this form — they're a linked pair created and
+     * removed as a unit (see useTransactions().createTransfer).
+     */
+    transaction?: Transaction & { type: "expense" | "income" }
 }
 
 export function AddExpenseForm({
@@ -233,63 +231,30 @@ export function AddExpenseForm({
                             />
 
                             {/* Account */}
-                            {/* TODO: Account selector should be a separate component just like Category selector and should be imported here */}
                             <FormField
                                 control={form.control}
                                 name="accountId"
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Account *</FormLabel>
-                                        <Select
-                                            onValueChange={(value) => {
-                                                field.onChange(parseInt(value))
-                                                // The zod resolver only
-                                                // re-validates a field once
-                                                // it has already errored;
-                                                // trigger it explicitly so
-                                                // the label clears as soon
-                                                // as a value is picked
-                                                // (U3 in the bug report).
-                                                form.trigger("accountId")
-                                            }}
-                                            value={
-                                                field.value?.toString() || ""
-                                            }
-                                        >
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select account" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {accounts.accounts?.map(
-                                                    (account) => (
-                                                        <SelectItem
-                                                            key={account.id}
-                                                            value={account.id!.toString()}
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                <span>
-                                                                    {
-                                                                        account.name
-                                                                    }
-                                                                </span>
-                                                                <span className="text-sm text-muted-foreground">
-                                                                    (
-                                                                    {formatCents(
-                                                                        computeAccountBalance(
-                                                                            account,
-                                                                            transactions.transactions ?? []
-                                                                        )
-                                                                    )}
-                                                                    )
-                                                                </span>
-                                                            </div>
-                                                        </SelectItem>
-                                                    )
-                                                )}
-                                            </SelectContent>
-                                        </Select>
+                                        <FormControl>
+                                            <AccountSelector
+                                                value={field.value}
+                                                onChange={(id) => {
+                                                    field.onChange(id)
+                                                    // The zod resolver only
+                                                    // re-validates a field once
+                                                    // it has already errored;
+                                                    // trigger it explicitly so
+                                                    // the label clears as soon
+                                                    // as a value is picked
+                                                    // (U3 in the bug report).
+                                                    form.trigger("accountId")
+                                                }}
+                                                accounts={accounts.accounts ?? []}
+                                                transactions={transactions.transactions ?? []}
+                                            />
+                                        </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
