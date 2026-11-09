@@ -2,6 +2,7 @@
 
 import { UserNav } from "@/components/layout/user-nav"
 import { ModeToggle } from "@/components/layout/mode-toggle"
+import { BackButton } from "@/components/layout/back-button"
 import { useAuth } from "@/contexts/auth-context"
 import { format } from "date-fns"
 
@@ -26,9 +27,12 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center justify-between">
-        <div className="flex flex-col">
-          <h1 className="text-lg font-semibold">{getPersonalizedGreeting()}</h1>
-          <p className="text-sm text-muted-foreground">{today}</p>
+        <div className="flex items-center gap-1">
+          <BackButton />
+          <div className="flex flex-col">
+            <h1 className="text-lg font-semibold">{getPersonalizedGreeting()}</h1>
+            <p className="text-sm text-muted-foreground">{today}</p>
+          </div>
         </div>
         <div className="flex items-center space-x-2">
           <ModeToggle />
