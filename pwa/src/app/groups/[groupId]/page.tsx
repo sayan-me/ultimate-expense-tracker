@@ -125,8 +125,20 @@ export default function GroupDetailPage() {
     const currentUserId = user ? Number(user.id) : NaN
 
     const { group, members, loading: groupLoading, error: groupError, addMember, removeMember } = useGroup(groupId)
-    const { expenses, loading: expensesLoading, error: expensesError, addExpense } = useGroupExpenses(groupId)
-    const { balances, loading: balancesLoading, error: balancesError, settleShare } = useGroupBalances(groupId)
+    const {
+        expenses,
+        loading: expensesLoading,
+        error: expensesError,
+        addExpense,
+        refetch: refetchExpenses,
+    } = useGroupExpenses(groupId)
+    const {
+        balances,
+        loading: balancesLoading,
+        error: balancesError,
+        settleShare,
+        refetch: refetchBalances,
+    } = useGroupBalances(groupId)
 
     const [memberError, setMemberError] = useState<string | null>(null)
     const [expenseError, setExpenseError] = useState<string | null>(null)
@@ -164,6 +176,10 @@ export default function GroupDetailPage() {
         setExpenseError(null)
         try {
             await addExpense(data)
+            // addExpense only refreshes useGroupExpenses's own state — a new
+            // expense changes net balances too, and nothing else would
+            // refresh that separate hook's (stale) data otherwise.
+            await refetchBalances()
         } catch (err) {
             setExpenseError(err instanceof Error ? err.message : "Failed to add expense")
         }
@@ -173,6 +189,11 @@ export default function GroupDetailPage() {
         setSettleError(null)
         try {
             await settleShare(expenseId, currentUserId)
+            // settleShare only refreshes useGroupBalances's own state — the
+            // "You owe for" list above reads share.isSettled off
+            // useGroupExpenses's separate state, which needs its own refresh
+            // or a just-settled share keeps showing as unsettled.
+            await refetchExpenses()
         } catch (err) {
             setSettleError(err instanceof Error ? err.message : "Failed to mark share as settled")
         }
@@ -188,9 +209,11 @@ export default function GroupDetailPage() {
     const myUnsettledShares =
         myBalance && myBalance.netBalance < 0
             ? allExpenses.flatMap((expense) =>
-                  expense.shares
-                      .filter((share) => share.userId === currentUserId && !share.isSettled)
-                      .map((share) => ({ expense, share }))
+                  expense.paidBy === currentUserId
+                      ? []
+                      : expense.shares
+                            .filter((share) => share.userId === currentUserId && !share.isSettled)
+                            .map((share) => ({ expense, share }))
               )
             : []
 

@@ -9,7 +9,9 @@ const mockAddMember = vi.fn()
 const mockRemoveMember = vi.fn()
 const mockAddExpense = vi.fn()
 const mockSettleShare = vi.fn()
-const mockRefetch = vi.fn()
+const mockGroupRefetch = vi.fn()
+const mockExpensesRefetch = vi.fn()
+const mockBalancesRefetch = vi.fn()
 
 let mockGroup: GroupSummary | undefined
 let mockMembers: GroupMember[]
@@ -42,21 +44,21 @@ vi.mock('@/hooks/use-groups', () => ({
     error: mockGroupError,
     addMember: mockAddMember,
     removeMember: mockRemoveMember,
-    refetch: mockRefetch,
+    refetch: mockGroupRefetch,
   }),
   useGroupExpenses: () => ({
     expenses: mockExpenses,
     loading: mockExpensesLoading,
     error: mockExpensesError,
     addExpense: mockAddExpense,
-    refetch: mockRefetch,
+    refetch: mockExpensesRefetch,
   }),
   useGroupBalances: () => ({
     balances: mockBalances,
     loading: mockBalancesLoading,
     error: mockBalancesError,
     settleShare: mockSettleShare,
-    refetch: mockRefetch,
+    refetch: mockBalancesRefetch,
   }),
 }))
 
@@ -100,7 +102,9 @@ describe('GroupDetailPage', () => {
     mockAddExpense.mockResolvedValue(undefined)
     mockSettleShare.mockReset()
     mockSettleShare.mockResolvedValue(undefined)
-    mockRefetch.mockReset()
+    mockGroupRefetch.mockReset()
+    mockExpensesRefetch.mockReset()
+    mockBalancesRefetch.mockReset()
 
     mockGroup = group()
     mockMembers = [member({ userId: 1, role: 'owner' }), member({ userId: 2, name: 'Bob', email: 'bob@example.com', role: 'member' })]
@@ -245,7 +249,7 @@ describe('GroupDetailPage', () => {
     const u = user()
     mockBalances = [balance({ userId: 1, name: 'Alice', netBalance: -500 })]
     mockExpenses = [
-      expense({ id: 'e1', description: 'Dinner', shares: [{ userId: 1, shareAmount: 500, isSettled: false }] }),
+      expense({ id: 'e1', description: 'Dinner', paidBy: 2, shares: [{ userId: 1, shareAmount: 500, isSettled: false }] }),
     ]
     render(<GroupDetailPage />)
 
@@ -256,12 +260,45 @@ describe('GroupDetailPage', () => {
     await waitFor(() => expect(mockSettleShare).toHaveBeenCalledWith('e1', 1))
   })
 
+  // Reported in live UAT (S2): useGroupBalances.settleShare refreshes
+  // balances itself, but the "You owe for" sub-list reads isSettled off
+  // useGroupExpenses's own (separate) state, which nothing told to
+  // refresh — so a just-settled share kept showing as unsettled.
+  it('refreshes expenses after settling a share', async () => {
+    const u = user()
+    mockBalances = [balance({ userId: 1, name: 'Alice', netBalance: -500 })]
+    mockExpenses = [expense({ id: 'e1', description: 'Dinner', paidBy: 2, shares: [{ userId: 1, shareAmount: 500, isSettled: false }] })]
+    render(<GroupDetailPage />)
+
+    await u.click(screen.getByRole('button', { name: /mark as settled/i }))
+
+    await waitFor(() => expect(mockExpensesRefetch).toHaveBeenCalled())
+  })
+
   it('does not show unsettled shares when the current user is not owed negatively', () => {
     mockBalances = [balance({ userId: 1, name: 'Alice', netBalance: 500 })]
-    mockExpenses = [expense({ id: 'e1', description: 'Dinner', shares: [{ userId: 1, shareAmount: 500, isSettled: false }] })]
+    mockExpenses = [expense({ id: 'e1', description: 'Dinner', paidBy: 2, shares: [{ userId: 1, shareAmount: 500, isSettled: false }] })]
     render(<GroupDetailPage />)
     const balanceList = within(screen.getByTestId('balance-list'))
     expect(balanceList.queryByText('Dinner')).not.toBeInTheDocument()
+  })
+
+  // Reported in live UAT (S1): "You owe for" listed bills the current
+  // user paid themselves, not just what they owe others. Every expense
+  // has a share row for every member including the payer (their own
+  // portion of the bill), so a filter that only checks
+  // `share.userId === currentUserId` wrongly includes the payer's own
+  // share of their own expense.
+  it('does not list the current user\'s own paid-for expenses in "You owe for"', () => {
+    mockBalances = [balance({ userId: 1, name: 'Alice', netBalance: -500 })]
+    mockExpenses = [
+      expense({ id: 'e1', description: 'Dinner', paidBy: 2, shares: [{ userId: 1, shareAmount: 500, isSettled: false }] }),
+      expense({ id: 'e2', description: 'Groceries', paidBy: 1, shares: [{ userId: 1, shareAmount: 1000, isSettled: false }, { userId: 2, shareAmount: 1000, isSettled: false }] }),
+    ]
+    render(<GroupDetailPage />)
+    const balanceList = within(screen.getByTestId('balance-list'))
+    expect(balanceList.getByText('Dinner')).toBeInTheDocument()
+    expect(balanceList.queryByText('Groceries')).not.toBeInTheDocument()
   })
 
   it('lists expenses with description, amount, payer, and date', () => {
@@ -289,6 +326,22 @@ describe('GroupDetailPage', () => {
     )
   })
 
+  // Reported in live UAT (S2): adding an expense updated the Expenses
+  // list (useGroupExpenses already refetches itself) but Balances kept
+  // showing the stale pre-expense numbers until a full page reload,
+  // since useGroupBalances is a separate hook with its own fetch that
+  // nothing told to refresh.
+  it('refreshes balances after adding an expense', async () => {
+    const u = user()
+    render(<GroupDetailPage />)
+
+    await u.type(screen.getByLabelText(/description/i), 'Taxi')
+    await u.type(screen.getByLabelText(/amount/i), '12.50')
+    await u.click(screen.getByRole('button', { name: /^add expense$/i }))
+
+    await waitFor(() => expect(mockBalancesRefetch).toHaveBeenCalled())
+  })
+
   it('shows an inline error when adding an expense fails', async () => {
     const u = user()
     mockAddExpense.mockRejectedValue(new Error('Expense failed'))
@@ -305,7 +358,7 @@ describe('GroupDetailPage', () => {
     const u = user()
     mockSettleShare.mockRejectedValue(new Error('Settle failed'))
     mockBalances = [balance({ userId: 1, name: 'Alice', netBalance: -500 })]
-    mockExpenses = [expense({ id: 'e1', description: 'Dinner', shares: [{ userId: 1, shareAmount: 500, isSettled: false }] })]
+    mockExpenses = [expense({ id: 'e1', description: 'Dinner', paidBy: 2, shares: [{ userId: 1, shareAmount: 500, isSettled: false }] })]
     render(<GroupDetailPage />)
 
     await u.click(screen.getByRole('button', { name: /mark as settled/i }))
