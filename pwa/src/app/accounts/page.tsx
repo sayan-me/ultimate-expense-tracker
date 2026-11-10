@@ -12,6 +12,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog"
 import { X } from "lucide-react"
 import { formatCents, dollarsToCents } from "@/lib/money"
 import { computeAccountBalance } from "@/lib/account-balance"
@@ -90,13 +98,38 @@ function TransferForm({
     const [toAccountId, setToAccountId] = useState<number | undefined>(undefined)
     const [amount, setAmount] = useState("")
     const [description, setDescription] = useState("")
+    const [resultingBalance, setResultingBalance] = useState<number | null>(null)
+
+    const runTransfer = (fromId: number, toId: number, cents: number) => {
+        onTransfer({ fromAccountId: fromId, toAccountId: toId, amount: cents, description })
+        setAmount("")
+        setDescription("")
+        setResultingBalance(null)
+    }
 
     const handleSubmit = () => {
         const dollars = parseFloat(amount)
         if (fromAccountId === undefined || toAccountId === undefined || isNaN(dollars) || dollars <= 0) return
-        onTransfer({ fromAccountId, toAccountId, amount: dollarsToCents(dollars), description })
-        setAmount("")
-        setDescription("")
+        const cents = dollarsToCents(dollars)
+
+        // A2 in the real-user test report: a transfer that overdraws the
+        // source account went through instantly with no warning. Only
+        // interrupt the ones that actually would — a normal transfer stays
+        // a single click.
+        const fromAccount = accounts.find((a) => a.id === fromAccountId)
+        const currentBalance = fromAccount ? computeAccountBalance(fromAccount, transactions ?? []) : 0
+        const balanceAfter = currentBalance - cents
+        if (balanceAfter < 0) {
+            setResultingBalance(balanceAfter)
+            return
+        }
+
+        runTransfer(fromAccountId, toAccountId, cents)
+    }
+
+    const handleConfirmOverdraft = () => {
+        if (fromAccountId === undefined || toAccountId === undefined) return
+        runTransfer(fromAccountId, toAccountId, dollarsToCents(parseFloat(amount)))
     }
 
     return (
@@ -151,6 +184,26 @@ function TransferForm({
             <Button type="button" onClick={handleSubmit}>
                 Transfer
             </Button>
+
+            <Dialog open={resultingBalance !== null} onOpenChange={(open) => !open && setResultingBalance(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>This will overdraw the account</DialogTitle>
+                        <DialogDescription>
+                            This leaves the source account at {resultingBalance !== null && formatCents(resultingBalance)}.
+                            Continue anyway?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setResultingBalance(null)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={handleConfirmOverdraft}>
+                            Transfer Anyway
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

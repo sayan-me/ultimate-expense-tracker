@@ -121,4 +121,58 @@ describe('AccountsPage', () => {
       )
     )
   })
+
+  // A2 in the real-user test report: a transfer that would overdraft the
+  // source account went through instantly with no warning at all.
+  it('asks for confirmation before a transfer that would overdraft the source account, showing the resulting balance', async () => {
+    const u = user()
+    mockAccounts = [account({ id: 1, name: 'Cash', openingBalance: 10000 }), account({ id: 2, name: 'Bank', isDefault: false })]
+    render(<AccountsPage />)
+
+    await u.click(screen.getByText('From account'))
+    await u.click(screen.getByRole('option', { name: /Cash/ }))
+    await u.click(screen.getByText('To account'))
+    await u.click(screen.getByRole('option', { name: /Bank/ }))
+    await u.type(screen.getByLabelText(/transfer amount/i), '150')
+    await u.click(screen.getByRole('button', { name: /^transfer$/i }))
+
+    expect(mockCreateTransfer).not.toHaveBeenCalled()
+    expect(screen.getByText(/-\$50\.00/)).toBeInTheDocument()
+  })
+
+  it('proceeds with the transfer after confirming the overdraft warning', async () => {
+    const u = user()
+    mockAccounts = [account({ id: 1, name: 'Cash', openingBalance: 10000 }), account({ id: 2, name: 'Bank', isDefault: false })]
+    render(<AccountsPage />)
+
+    await u.click(screen.getByText('From account'))
+    await u.click(screen.getByRole('option', { name: /Cash/ }))
+    await u.click(screen.getByText('To account'))
+    await u.click(screen.getByRole('option', { name: /Bank/ }))
+    await u.type(screen.getByLabelText(/transfer amount/i), '150')
+    await u.click(screen.getByRole('button', { name: /^transfer$/i }))
+    await u.click(screen.getByRole('button', { name: /transfer anyway/i }))
+
+    await waitFor(() =>
+      expect(mockCreateTransfer).toHaveBeenCalledWith(
+        expect.objectContaining({ fromAccountId: 1, toAccountId: 2, amount: 15000 })
+      )
+    )
+  })
+
+  it('can cancel out of the overdraft warning without transferring', async () => {
+    const u = user()
+    mockAccounts = [account({ id: 1, name: 'Cash', openingBalance: 10000 }), account({ id: 2, name: 'Bank', isDefault: false })]
+    render(<AccountsPage />)
+
+    await u.click(screen.getByText('From account'))
+    await u.click(screen.getByRole('option', { name: /Cash/ }))
+    await u.click(screen.getByText('To account'))
+    await u.click(screen.getByRole('option', { name: /Bank/ }))
+    await u.type(screen.getByLabelText(/transfer amount/i), '150')
+    await u.click(screen.getByRole('button', { name: /^transfer$/i }))
+    await u.click(screen.getByRole('button', { name: /^cancel$/i }))
+
+    expect(mockCreateTransfer).not.toHaveBeenCalled()
+  })
 })

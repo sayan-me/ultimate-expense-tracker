@@ -324,6 +324,7 @@ export function AddExpenseForm({
                                                 already clears it. */}
                                             <Input
                                                 type="datetime-local"
+                                                min="1900-01-01T00:00"
                                                 {...field}
                                                 value={
                                                     field.value
