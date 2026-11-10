@@ -76,7 +76,7 @@ describe('ExpenseTrackerDB', () => {
   })
 
   it('initializes with correct schema version', () => {
-    expect(testDb.verno).toBe(5)
+    expect(testDb.verno).toBe(6)
   })
 
   it('has all required tables', () => {

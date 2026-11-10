@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
-import { useTransactions, useBudgets, useRecurringTransactions } from './use-db'
+import { useTransactions, useBudgets, useRecurringTransactions, useAccounts, useCategories } from './use-db'
 import { db } from '@/lib/db'
 import { computeAccountBalance } from '@/lib/account-balance'
 
@@ -225,6 +225,130 @@ describe('useTransactions — writes, with balance derived rather than stored', 
     expect(result.current?.[0]?.description).toBe('Nov 8 expense')
     expect(result.current?.[1]?.description).toBe('Backfilled Nov 7 expense')
   })
+
+  // Cloud sync (ROADMAP Phase 4) bridges a local row to its cloud
+  // counterpart via a syncId the local auto-increment id never carries —
+  // every write path that creates a row must assign one.
+  it('addTransaction assigns a unique syncId', async () => {
+    const { result } = renderHook(() => useTransactions())
+    let id!: number
+    await act(async () => {
+      id = (await result.current.addTransaction({
+        amount: 1000,
+        type: 'expense',
+        category: 'Food',
+        description: '',
+        accountId: cashId,
+        date: new Date(),
+      })) as number
+    })
+
+    const stored = await db.transactions.get(id)
+    expect(stored?.syncId).toBeTruthy()
+  })
+
+  it("createTransfer assigns each leg its own distinct syncId", async () => {
+    const { result } = renderHook(() => useTransactions())
+    await act(async () => {
+      await result.current.createTransfer({
+        fromAccountId: cashId,
+        toAccountId: bankId,
+        amount: 1000,
+        date: new Date(),
+        description: '',
+      })
+    })
+
+    const [out, inn] = await db.transactions.toArray()
+    expect(out.syncId).toBeTruthy()
+    expect(inn.syncId).toBeTruthy()
+    expect(out.syncId).not.toBe(inn.syncId)
+  })
+})
+
+describe('useAccounts', () => {
+  beforeEach(async () => {
+    await db.accounts.clear()
+  })
+
+  it('addAccount assigns a unique syncId', async () => {
+    const { result } = renderHook(() => useAccounts())
+    let id!: number
+    await act(async () => {
+      id = (await result.current.addAccount({
+        name: 'Cash',
+        type: 'cash',
+        openingBalance: 0,
+      })) as number
+    })
+
+    const stored = await db.accounts.get(id)
+    expect(stored?.syncId).toBeTruthy()
+  })
+
+  it('updateAccount bumps updatedAt so cloud sync can tell this row changed', async () => {
+    const { result } = renderHook(() => useAccounts())
+    let id!: number
+    await act(async () => {
+      id = (await result.current.addAccount({ name: 'Cash', type: 'cash', openingBalance: 0 })) as number
+    })
+    const before = (await db.accounts.get(id))!.updatedAt
+
+    await new Promise((r) => setTimeout(r, 5))
+    await act(async () => {
+      await result.current.updateAccount(id, { name: 'Checking' })
+    })
+
+    const after = (await db.accounts.get(id))!.updatedAt
+    expect(after!.getTime()).toBeGreaterThan(before!.getTime())
+  })
+})
+
+describe('useCategories', () => {
+  beforeEach(async () => {
+    await db.categories.clear()
+    await db.transactions.clear()
+  })
+
+  it('addCategory assigns a unique syncId', async () => {
+    const { result } = renderHook(() => useCategories())
+    let id!: number
+    await act(async () => {
+      id = (await result.current.addCategory({
+        name: 'Food',
+        icon: 'utensils',
+        color: '#ef4444',
+        isDefault: false,
+        type: 'expense',
+      })) as number
+    })
+
+    const stored = await db.categories.get(id)
+    expect(stored?.syncId).toBeTruthy()
+  })
+
+  it('updateCategory bumps updatedAt so cloud sync can tell this row changed', async () => {
+    const { result } = renderHook(() => useCategories())
+    let id!: number
+    await act(async () => {
+      id = (await result.current.addCategory({
+        name: 'Food',
+        icon: 'utensils',
+        color: '#ef4444',
+        isDefault: false,
+        type: 'expense',
+      })) as number
+    })
+    const before = (await db.categories.get(id))!.updatedAt
+
+    await new Promise((r) => setTimeout(r, 5))
+    await act(async () => {
+      await result.current.updateCategory(id, { color: '#10b981' })
+    })
+
+    const after = (await db.categories.get(id))!.updatedAt
+    expect(after!.getTime()).toBeGreaterThan(before!.getTime())
+  })
 })
 
 describe('useBudgets', () => {
@@ -302,6 +426,17 @@ describe('useBudgets', () => {
     })
 
     await waitFor(async () => expect(await db.budgets.count()).toBe(0))
+  })
+
+  it('setBudget assigns a unique syncId when creating a new budget', async () => {
+    const { result } = renderHook(() => useBudgets())
+    let id!: number
+    await act(async () => {
+      id = (await result.current.setBudget('Food', 50000)) as number
+    })
+
+    const stored = await db.budgets.get(id)
+    expect(stored?.syncId).toBeTruthy()
   })
 })
 
@@ -461,6 +596,27 @@ describe('useRecurringTransactions', () => {
     expect(await db.transactions.count()).toBe(0)
     const [unchanged] = await db.recurringTransactions.toArray()
     expect(unchanged.nextRunDate).toEqual(new Date('2026-12-01T00:00:00'))
+  })
+
+  it('addRecurring assigns a unique syncId', async () => {
+    const { result } = renderHook(() => useRecurringTransactions())
+    let id!: number
+    await act(async () => {
+      id = (await result.current.addRecurring({
+        accountId,
+        type: 'expense',
+        category: 'Subscriptions',
+        description: 'Streaming',
+        amount: 1500,
+        frequency: 'monthly',
+        startDate: new Date('2026-11-01T00:00:00'),
+        nextRunDate: new Date('2026-11-01T00:00:00'),
+        isActive: true,
+      })) as number
+    })
+
+    const stored = await db.recurringTransactions.get(id)
+    expect(stored?.syncId).toBeTruthy()
   })
 })
 

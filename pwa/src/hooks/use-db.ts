@@ -9,12 +9,13 @@ export function useTransactions() {
   // transactions (src/lib/account-balance.ts), not stored and mutated
   // here — so, unlike before, these are now plain single-table writes
   // with nothing else to keep in sync.
-  const addTransaction = async (transaction: Omit<Transaction, "id" | "createdAt" | "updatedAt">) => {
+  const addTransaction = async (transaction: Omit<Transaction, "id" | "createdAt" | "updatedAt" | "syncId">) => {
     const now = new Date();
     return await db.transactions.add({
       ...transaction,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      syncId: crypto.randomUUID(),
     });
   };
 
@@ -54,8 +55,8 @@ export function useTransactions() {
     const base = { category: "Transfer", description, date, transferId, createdAt: now, updatedAt: now }
 
     return getDb().transaction("rw", "transactions", async () => {
-      await db.transactions.add({ ...base, type: "transfer_out", amount, accountId: fromAccountId })
-      await db.transactions.add({ ...base, type: "transfer_in", amount, accountId: toAccountId })
+      await db.transactions.add({ ...base, type: "transfer_out", amount, accountId: fromAccountId, syncId: crypto.randomUUID() })
+      await db.transactions.add({ ...base, type: "transfer_in", amount, accountId: toAccountId, syncId: crypto.randomUUID() })
     })
   }
 
@@ -100,10 +101,13 @@ export function useTransactions() {
 export function useAccounts() {
   const accounts = useLiveQuery(() => db.accounts.toArray());
   
-  const addAccount = async (account: Omit<Account, "id" | "createdAt">) => {
+  const addAccount = async (account: Omit<Account, "id" | "createdAt" | "updatedAt" | "syncId">) => {
+    const now = new Date();
     return await db.accounts.add({
       ...account,
-      createdAt: new Date()
+      createdAt: now,
+      updatedAt: now,
+      syncId: crypto.randomUUID(),
     });
   };
 
@@ -124,7 +128,7 @@ export function useAccounts() {
   };
 
   const updateAccount = async (id: number, changes: Partial<Account>) => {
-    return await db.accounts.update(id, changes);
+    return await db.accounts.update(id, { ...changes, updatedAt: new Date() });
   };
 
   const useDefaultAccount = () => {
@@ -146,10 +150,13 @@ export function useAccounts() {
 export function useCategories() {
   const categories = useLiveQuery(() => db.categories.toArray());
   
-  const addCategory = async (category: Omit<Category, "id" | "createdAt">) => {
+  const addCategory = async (category: Omit<Category, "id" | "createdAt" | "updatedAt" | "syncId">) => {
+    const now = new Date();
     return await db.categories.add({
       ...category,
-      createdAt: new Date()
+      createdAt: now,
+      updatedAt: now,
+      syncId: crypto.randomUUID(),
     });
   };
 
@@ -184,7 +191,7 @@ export function useCategories() {
       throw new Error('Cannot update default categories');
     }
     
-    return await db.categories.update(id, changes);
+    return await db.categories.update(id, { ...changes, updatedAt: new Date() });
   };
 
   const useCategoriesByType = (type: 'expense' | 'income' | 'both') => {
@@ -219,7 +226,7 @@ export function useBudgets() {
       await db.budgets.update(existing.id, { amount, updatedAt: now });
       return existing.id;
     }
-    return await db.budgets.add({ category, amount, createdAt: now, updatedAt: now });
+    return await db.budgets.add({ category, amount, createdAt: now, updatedAt: now, syncId: crypto.randomUUID() });
   };
 
   const deleteBudget = async (id: number) => {
@@ -252,9 +259,9 @@ export function useBudgets() {
 export function useRecurringTransactions() {
   const recurringTransactions = useLiveQuery(() => db.recurringTransactions.toArray());
 
-  const addRecurring = async (recurring: Omit<RecurringTransaction, "id" | "createdAt" | "updatedAt">) => {
+  const addRecurring = async (recurring: Omit<RecurringTransaction, "id" | "createdAt" | "updatedAt" | "syncId">) => {
     const now = new Date();
-    return await db.recurringTransactions.add({ ...recurring, createdAt: now, updatedAt: now });
+    return await db.recurringTransactions.add({ ...recurring, createdAt: now, updatedAt: now, syncId: crypto.randomUUID() });
   };
 
   const updateRecurring = async (id: number, changes: Partial<RecurringTransaction>) => {

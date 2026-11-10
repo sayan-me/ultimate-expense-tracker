@@ -54,6 +54,74 @@ async function seedV2Database(
   seedDb.close()
 }
 
+// Seeds a database using the pre-v6 (v5) schema and data shape — accounts,
+// categories, budgets, and recurringTransactions all exist already but
+// have no syncId yet (and accounts/categories have no updatedAt yet
+// either, since those fields are new in v6), matching a real user's data
+// the moment before this migration runs.
+async function seedV5Database(
+  name: string,
+  accounts: Array<{ name: string; type: string; openingBalance: number; isDefault?: boolean }>,
+  categories: Array<{ name: string; icon: string; color: string; isDefault: boolean; type: string }>,
+  budgets: Array<{ category: string | null; amount: number }>,
+  recurring: Array<{ accountId: number; type: string; category: string; description: string; amount: number; frequency: string; isActive: boolean }>,
+  transactions: Array<{ amount: number; type: string; category: string; description: string; accountId: number }> = []
+) {
+  const seedDb = new Dexie(name)
+  seedDb.version(1).stores({
+    transactions: '++id, type, category, date, accountId',
+    accounts: '++id, name, type',
+  })
+  seedDb.version(2).stores({
+    transactions: '++id, type, category, date, accountId, amount, createdAt',
+    accounts: '++id, name, type, balance, isDefault',
+    categories: '++id, name, type, isDefault',
+  })
+  seedDb.version(3).stores({
+    transactions: '++id, type, category, date, accountId, amount, createdAt',
+    accounts: '++id, name, type, openingBalance, isDefault',
+    categories: '++id, name, type, isDefault',
+  })
+  seedDb.version(4).stores({
+    transactions: '++id, type, category, date, accountId, amount, createdAt',
+    accounts: '++id, name, type, openingBalance, isDefault',
+    categories: '++id, name, type, isDefault',
+    budgets: '++id, category',
+  })
+  seedDb.version(5).stores({
+    transactions: '++id, type, category, date, accountId, amount, createdAt',
+    accounts: '++id, name, type, openingBalance, isDefault',
+    categories: '++id, name, type, isDefault',
+    budgets: '++id, category',
+    recurringTransactions: '++id, accountId, nextRunDate, isActive',
+  })
+  await seedDb.open()
+
+  const now = new Date()
+  for (const a of accounts) {
+    await seedDb.table('accounts').add({ ...a, createdAt: now })
+  }
+  for (const c of categories) {
+    await seedDb.table('categories').add({ ...c, createdAt: now })
+  }
+  for (const b of budgets) {
+    await seedDb.table('budgets').add({ ...b, createdAt: now, updatedAt: now })
+  }
+  for (const r of recurring) {
+    await seedDb.table('recurringTransactions').add({
+      ...r,
+      startDate: now,
+      nextRunDate: now,
+      createdAt: now,
+      updatedAt: now,
+    })
+  }
+  for (const t of transactions) {
+    await seedDb.table('transactions').add({ ...t, date: now, createdAt: now, updatedAt: now })
+  }
+  seedDb.close()
+}
+
 describe('Dexie v3 migration — dollars to cents, balance to openingBalance', () => {
   it('converts transaction amounts from float dollars to integer cents', async () => {
     dbName = uniqueDbName()
@@ -150,7 +218,7 @@ describe('Dexie v3 migration — dollars to cents, balance to openingBalance', (
     const db = new ExpenseTrackerDB(dbName)
     await db.open()
 
-    expect(db.verno).toBe(5)
+    expect(db.verno).toBe(6)
     await expect(db.table('budgets').toArray()).resolves.toEqual([])
     // v3's migration still ran correctly underneath v4.
     expect((await db.transactions.toArray())[0].amount).toBe(2500)
@@ -168,7 +236,7 @@ describe('Dexie v3 migration — dollars to cents, balance to openingBalance', (
     const db = new ExpenseTrackerDB(dbName)
     await db.open()
 
-    expect(db.verno).toBe(5)
+    expect(db.verno).toBe(6)
     await expect(db.table('recurringTransactions').toArray()).resolves.toEqual([])
     // v3's migration still ran correctly underneath v5.
     expect((await db.transactions.toArray())[0].amount).toBe(2500)
@@ -189,6 +257,79 @@ describe('Dexie v3 migration — dollars to cents, balance to openingBalance', (
     const transactions = await db.transactions.toArray()
 
     expect(computeAccountBalance(account, transactions)).toBe(-15075)
+    await db.close()
+  })
+})
+
+describe('Dexie v6 migration — backfills syncId (and accounts/categories updatedAt) for cloud sync', () => {
+  it('backfills a syncId on every existing account, category, transaction, budget, and recurring transaction', async () => {
+    dbName = uniqueDbName()
+    await seedV5Database(
+      dbName,
+      [{ name: 'Cash', type: 'cash', openingBalance: 10000, isDefault: true }],
+      [{ name: 'Food', icon: 'utensils', color: '#ef4444', isDefault: true, type: 'expense' }],
+      [{ category: null, amount: 50000 }],
+      [{ accountId: 1, type: 'expense', category: 'Subscriptions', description: '', amount: 1500, frequency: 'monthly', isActive: true }],
+      [{ amount: 2500, type: 'expense', category: 'Food', description: 'Lunch', accountId: 1 }]
+    )
+
+    const db = new ExpenseTrackerDB(dbName)
+    await db.open()
+
+    expect(db.verno).toBe(6)
+    const uuidLike = /^[0-9a-f-]{36}$/i
+    const [account] = await db.accounts.toArray()
+    const [category] = await db.categories.toArray()
+    const [transaction] = await db.transactions.toArray()
+    const [budget] = await db.budgets.toArray()
+    const [recurring] = await db.recurringTransactions.toArray()
+
+    expect(account.syncId).toMatch(uuidLike)
+    expect(category.syncId).toMatch(uuidLike)
+    expect(transaction.syncId).toMatch(uuidLike)
+    expect(budget.syncId).toMatch(uuidLike)
+    expect(recurring.syncId).toMatch(uuidLike)
+    await db.close()
+  })
+
+  it('backfills updatedAt on existing accounts and categories, equal to their createdAt', async () => {
+    dbName = uniqueDbName()
+    await seedV5Database(
+      dbName,
+      [{ name: 'Cash', type: 'cash', openingBalance: 10000, isDefault: true }],
+      [{ name: 'Food', icon: 'utensils', color: '#ef4444', isDefault: true, type: 'expense' }],
+      [],
+      []
+    )
+
+    const db = new ExpenseTrackerDB(dbName)
+    await db.open()
+    const [account] = await db.accounts.toArray()
+    const [category] = await db.categories.toArray()
+
+    expect(account.updatedAt).toEqual(account.createdAt)
+    expect(category.updatedAt).toEqual(category.createdAt)
+    await db.close()
+  })
+
+  it('every backfilled syncId is unique, not the same value copied onto every row', async () => {
+    dbName = uniqueDbName()
+    await seedV5Database(
+      dbName,
+      [
+        { name: 'Cash', type: 'cash', openingBalance: 10000, isDefault: true },
+        { name: 'Bank', type: 'bank', openingBalance: 20000 },
+      ],
+      [],
+      [],
+      []
+    )
+
+    const db = new ExpenseTrackerDB(dbName)
+    await db.open()
+    const accounts = await db.accounts.toArray()
+
+    expect(accounts[0].syncId).not.toBe(accounts[1].syncId)
     await db.close()
   })
 })

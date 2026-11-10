@@ -22,6 +22,14 @@ export interface Transaction {
   tags?: string[];
   createdAt: Date;
   updatedAt: Date;
+  /**
+   * Cloud-sync identity (ROADMAP Phase 4) — a UUID bridging this row to its
+   * cloud counterpart; the local auto-increment `id` never leaves the
+   * device. Optional on the TS type (backfilled for existing rows by the
+   * v6 migration, set by the write-path hooks for new ones) so this stays
+   * additive rather than forcing every existing test fixture to supply it.
+   */
+  syncId?: string;
 }
 
 /** A transfer leg is never edited through the ordinary expense/income form (AddExpenseForm/AddExpenseModal) — this narrows for that boundary. */
@@ -53,6 +61,10 @@ export interface Account {
   targetAmount?: number;
   targetDate?: Date;
   createdAt: Date;
+  /** Added in v6 for cloud sync's last-write-wins comparison — see Transaction.updatedAt above for why it's optional on new rows but always backfilled. */
+  updatedAt?: Date;
+  /** See Transaction.syncId. */
+  syncId?: string;
 }
 
 export interface RecurringTransaction {
@@ -71,6 +83,8 @@ export interface RecurringTransaction {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  /** See Transaction.syncId. */
+  syncId?: string;
 }
 
 export interface Category {
@@ -81,6 +95,10 @@ export interface Category {
   isDefault: boolean;
   type: 'expense' | 'income' | 'both';
   createdAt: Date;
+  /** See Account.updatedAt. */
+  updatedAt?: Date;
+  /** See Transaction.syncId. */
+  syncId?: string;
 }
 
 export interface Budget {
@@ -91,6 +109,8 @@ export interface Budget {
   amount: number;
   createdAt: Date;
   updatedAt: Date;
+  /** See Transaction.syncId. */
+  syncId?: string;
 }
 
 export class ExpenseTrackerDB extends Dexie {
@@ -185,6 +205,34 @@ export class ExpenseTrackerDB extends Dexie {
       recurringTransactions: '++id, accountId, nextRunDate, isActive',
     });
 
+    // Version 6: adds syncId (ROADMAP Phase 4 cloud sync) to every synced
+    // table, plus updatedAt on accounts/categories (new there — needed so
+    // every synced table has a last-write-wins timestamp to compare, not
+    // just the ones that already tracked it). Every existing row is
+    // backfilled: a fresh syncId per row (never share one across rows —
+    // each is a distinct cloud identity), and updatedAt defaulting to the
+    // row's own createdAt where it didn't exist yet. New rows get their
+    // syncId from the write-path hooks (use-db.ts), not this backfill.
+    this.version(6).stores({
+      transactions: '++id, type, category, date, accountId, amount, createdAt, syncId',
+      accounts: '++id, name, type, openingBalance, isDefault, syncId',
+      categories: '++id, name, type, isDefault, syncId',
+      budgets: '++id, category, syncId',
+      recurringTransactions: '++id, accountId, nextRunDate, isActive, syncId',
+    }).upgrade(async (trans) => {
+      for (const tableName of ['transactions', 'accounts', 'categories', 'budgets', 'recurringTransactions']) {
+        await trans.table(tableName).toCollection().modify((row) => {
+          if (!row.syncId) row.syncId = crypto.randomUUID();
+        });
+      }
+      await trans.table('accounts').toCollection().modify((a) => {
+        if (!a.updatedAt) a.updatedAt = a.createdAt;
+      });
+      await trans.table('categories').toCollection().modify((c) => {
+        if (!c.updatedAt) c.updatedAt = c.createdAt;
+      });
+    });
+
     // Defensive read-side normalization: date fields are expected to be
     // real Date instances everywhere in this app (sort/format code calls
     // .getFullYear() etc. directly), but nothing guarantees that for
@@ -206,12 +254,14 @@ export class ExpenseTrackerDB extends Dexie {
     this.accounts.hook('reading', (obj) => {
       if (!obj) return obj;
       if (obj.createdAt && !(obj.createdAt instanceof Date)) obj.createdAt = new Date(obj.createdAt);
+      if (obj.updatedAt && !(obj.updatedAt instanceof Date)) obj.updatedAt = new Date(obj.updatedAt);
       if (obj.targetDate && !(obj.targetDate instanceof Date)) obj.targetDate = new Date(obj.targetDate);
       return obj;
     });
     this.categories.hook('reading', (obj) => {
       if (!obj) return obj;
       if (obj.createdAt && !(obj.createdAt instanceof Date)) obj.createdAt = new Date(obj.createdAt);
+      if (obj.updatedAt && !(obj.updatedAt instanceof Date)) obj.updatedAt = new Date(obj.updatedAt);
       return obj;
     });
     this.budgets.hook('reading', (obj) => {
