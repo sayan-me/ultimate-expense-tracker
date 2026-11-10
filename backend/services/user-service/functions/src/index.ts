@@ -3,6 +3,7 @@ import * as admin from "firebase-admin";
 import {Request, Response} from "firebase-functions/v1";
 import {getSupabaseClient} from "./supabase-client";
 import {handleSyncPush, handleSyncPull} from "./sync";
+import {handleGroups} from "./groups";
 
 admin.initializeApp({
   serviceAccountId: process.env.FIREBASE_SERVICE_ACCOUNT_ID || 'uet-stg@appspot.gserviceaccount.com'
@@ -669,6 +670,9 @@ export const auth = functions.https.onRequest((req: Request, res: Response) => {
     } else {
       res.status(404).json({error: "Not found"});
     }
+    return;
+  case "groups":
+    handleGroups(req, res, path.slice(1));
     return;
   default:
     res.status(404).json({error: "Not found"});

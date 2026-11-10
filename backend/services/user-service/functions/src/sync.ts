@@ -98,7 +98,7 @@ function fromRow(row: Record<string, unknown>, fields: Array<[string, string]>):
   return record as unknown as SyncRecord;
 }
 
-async function getAuthenticatedUserId(req: Request): Promise<number | null> {
+export async function getAuthenticatedUserId(req: Request): Promise<number | null> {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) return null;
 

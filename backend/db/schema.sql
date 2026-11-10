@@ -636,4 +636,75 @@ CREATE POLICY "Service role can manage user_budgets" ON user_budgets
     FOR ALL USING (auth.role() = 'service_role');
 CREATE POLICY "Service role can manage user_recurring_transactions" ON user_recurring_transactions
     FOR ALL USING (auth.role() = 'service_role');
+
+-- Group expense splitting tables (Phase 5: Groups & Splitting).
+--
+-- Named splitting_groups / splitting_group_members, not groups /
+-- group_members, because those names are already taken above (line ~154)
+-- by an older, never-wired-up design with a different column set. See
+-- supabase/migrations/20261110040000_group_splitting_tables.sql for the
+-- full rationale. group_expenses and group_expense_shares don't collide
+-- with anything existing and keep the names used in the feature spec.
+-- Same trust model as the user_* tables above: only the service-role
+-- Cloud Function ever touches these rows.
+CREATE TABLE splitting_groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE splitting_group_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id UUID NOT NULL REFERENCES splitting_groups(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('owner','member')) DEFAULT 'member',
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    removed_at TIMESTAMPTZ,
+    UNIQUE (group_id, user_id)
+);
+
+CREATE TABLE group_expenses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id UUID NOT NULL REFERENCES splitting_groups(id) ON DELETE CASCADE,
+    paid_by INTEGER NOT NULL REFERENCES users(id),
+    amount INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    category TEXT,
+    date TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE group_expense_shares (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_expense_id UUID NOT NULL REFERENCES group_expenses(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    share_amount INTEGER NOT NULL,
+    is_settled BOOLEAN NOT NULL DEFAULT false,
+    settled_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_splitting_group_members_user ON splitting_group_members (user_id);
+CREATE INDEX idx_splitting_group_members_group ON splitting_group_members (group_id);
+CREATE INDEX idx_group_expenses_group ON group_expenses (group_id);
+CREATE INDEX idx_group_expense_shares_expense ON group_expense_shares (group_expense_id);
+CREATE INDEX idx_group_expense_shares_user ON group_expense_shares (user_id);
+
+ALTER TABLE splitting_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE splitting_group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_expense_shares ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role can manage splitting_groups" ON splitting_groups
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage splitting_group_members" ON splitting_group_members
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage group_expenses" ON group_expenses
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage group_expense_shares" ON group_expense_shares
+    FOR ALL USING (auth.role() = 'service_role');
 CREATE INDEX idx_user_activity_entity ON user_activity_logs(entity_type, entity_id);
