@@ -256,6 +256,27 @@ describe("handleGroups", () => {
       expect(res.jsonBody).toEqual({ error: "Already a member" });
     });
 
+    // Reported in live UAT (S7): "Roommate@Example.test" (capitals) got
+    // "No account found", even though the account was registered as
+    // "roommate@example.test" (lowercase) — the lookup only trimmed
+    // whitespace, never normalized case.
+    it("normalizes email case and whitespace before looking it up", async () => {
+      supa.builder.maybeSingle
+        .mockResolvedValueOnce({ data: { id: 7 }, error: null }) // auth lookup
+        .mockResolvedValueOnce({ data: { role: "owner" }, error: null }) // membership check
+        .mockResolvedValueOnce({ data: { id: 8, name: "Bob", email: "bob@example.com" }, error: null }) // user-by-email
+        .mockResolvedValueOnce({ data: null, error: null }); // no existing membership row
+      supa.queueThen({ data: null, error: null }); // insert
+
+      const req = mockReq({ method: "POST", body: { email: "  Bob@Example.COM  " } });
+      const res = mockRes();
+
+      await handleGroups(req, res, ["g1", "members"]);
+
+      const emailLookupCall = supa.calls.find((c) => c.method === "eq" && c.args[0] === "email");
+      expect(emailLookupCall?.args[1]).toBe("bob@example.com");
+    });
+
     it("adds a new member on success", async () => {
       supa.builder.maybeSingle
         .mockResolvedValueOnce({ data: { id: 7 }, error: null }) // auth lookup

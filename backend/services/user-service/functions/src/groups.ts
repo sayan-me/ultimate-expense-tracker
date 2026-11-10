@@ -245,11 +245,16 @@ async function addMember(req: Request, res: Response, userId: number, groupId: s
     res.status(400).json({error: "Email is required"});
     return;
   }
+  // Normalize case/whitespace before lookup — stored emails are
+  // lowercase, but a human typing an email address won't reliably match
+  // that casing (reported in live UAT: "Bob@Example.COM" found nothing
+  // even though "bob@example.com" was the registered account).
+  const normalizedEmail = email.trim().toLowerCase();
 
   const {data: targetUser, error: userError} = await getSupabaseClient()
     .from("users")
     .select("id, name, email")
-    .eq("email", email.trim())
+    .eq("email", normalizedEmail)
     .maybeSingle();
 
   if (userError) throw userError;
