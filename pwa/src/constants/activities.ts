@@ -22,7 +22,13 @@ export const PERSONAL_ACTIVITIES: ActivityItem[] = [
       window.dispatchEvent(event)
     } 
   },
-  { icon: BarChart3, label: "View Stats", onClick: () => {} },
+  {
+    icon: BarChart3,
+    label: "View Stats",
+    onClick: () => {
+      window.location.href = "/stats"
+    },
+  },
   {
     icon: PiggyBank,
     label: "Set Budget",
