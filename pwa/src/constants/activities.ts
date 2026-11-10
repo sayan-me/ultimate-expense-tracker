@@ -59,7 +59,13 @@ export const PERSONAL_ACTIVITIES: ActivityItem[] = [
     },
   },
   { icon: Tags, label: "Create/Edit Categories", onClick: () => {} },
-  { icon: FileDown, label: "Export/Import Data", onClick: () => {} },
+  {
+    icon: FileDown,
+    label: "Export/Import Data",
+    onClick: () => {
+      window.location.href = "/settings?section=data"
+    },
+  },
   { icon: History, label: "View Budget History", onClick: () => {} },
 ]
 

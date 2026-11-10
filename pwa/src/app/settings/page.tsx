@@ -5,10 +5,15 @@ import { ChevronRight, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { DataManagement } from "@/components/settings/data-management"
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  // The dashboard's "Export/Import Data" quick action links here with
+  // ?section=data so it lands directly on the right section, instead of
+  // just the settings page requiring another click to find it.
+  const [activeSection, setActiveSection] = useState<string | null>(() => searchParams.get("section"))
 
   const sections = [
     { id: 'notifications', title: 'Notification Preferences', expandable: true },
