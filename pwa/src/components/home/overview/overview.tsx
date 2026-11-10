@@ -1,9 +1,7 @@
 "use client"
 
 import dynamic from 'next/dynamic'
-import { GroupStats } from "./group-stats"
-import { OutstandingBalances } from "./outstanding-balances"
-import { GroupActivityFeed } from "./group-activity-feed"
+import { GroupsOverview } from "./groups-overview"
 import { useActivities } from "@/contexts/activities-context"
 import { useState, useEffect } from "react"
 import { FeatureGate } from "@/components/auth/feature-gate"
@@ -59,39 +57,13 @@ export function Overview() {
           fallback={
             <Card className="bg-muted">
               <CardHeader>
-                <CardTitle>Group Stats</CardTitle>
+                <CardTitle>Your Groups</CardTitle>
               </CardHeader>
               <AuthFallbackContent type="registered" />
             </Card>
           }
         >
-            <GroupStats />
-        </FeatureGate>
-        <FeatureGate
-          level="registered"
-          fallback={
-            <Card className="bg-muted">
-              <CardHeader>
-                <CardTitle>Outstanding Balances</CardTitle>
-              </CardHeader>
-              <AuthFallbackContent type="registered" />
-            </Card>
-          }
-        >
-            <OutstandingBalances />
-        </FeatureGate>
-        <FeatureGate
-          level="registered"
-          fallback={
-            <Card className="bg-muted">
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <AuthFallbackContent type="registered" />
-            </Card>
-          }
-        >
-            <GroupActivityFeed />
+            <GroupsOverview />
         </FeatureGate>
         </>
       ) : (

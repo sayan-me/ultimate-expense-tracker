@@ -14,9 +14,7 @@ vi.mock('@/contexts/activities-context', async () => {
 vi.mock('./current-balance', () => ({ CurrentBalance: () => <div>Total Balance</div> }))
 vi.mock('./monthly-spend', () => ({ MonthlySpend: () => <div>Monthly Spend vs Budget</div> }))
 vi.mock('./recent-expenses', () => ({ RecentExpenses: () => <div>Recent Transactions</div> }))
-vi.mock('./group-stats', () => ({ GroupStats: () => <div>Group Stats Widget</div> }))
-vi.mock('./outstanding-balances', () => ({ OutstandingBalances: () => <div>Outstanding Balances Widget</div> }))
-vi.mock('./group-activity-feed', () => ({ GroupActivityFeed: () => <div>Group Activity Widget</div> }))
+vi.mock('./groups-overview', () => ({ GroupsOverview: () => <div>Groups Overview Widget</div> }))
 
 describe('Overview', () => {
   beforeEach(() => {
@@ -38,17 +36,14 @@ describe('Overview', () => {
   it('does not render group mode components in personal mode', async () => {
     renderWithProviders(<Overview />)
     await screen.findByText('Total Balance')
-    expect(screen.queryByText('Group Stats Widget')).not.toBeInTheDocument()
-    expect(screen.queryByText('Outstanding Balances Widget')).not.toBeInTheDocument()
+    expect(screen.queryByText('Groups Overview Widget')).not.toBeInTheDocument()
   })
 
-  it('shows sign-in fallbacks instead of group widgets when signed out', () => {
+  it('shows a sign-in fallback instead of the groups widget when signed out', () => {
     mockGroupMode = true
     renderWithProviders(<Overview />)
-    expect(screen.getByText('Group Stats')).toBeInTheDocument()
-    expect(screen.getByText('Outstanding Balances')).toBeInTheDocument()
-    expect(screen.getByText('Recent Activity')).toBeInTheDocument()
-    expect(screen.queryByText('Group Stats Widget')).not.toBeInTheDocument()
+    expect(screen.getByText('Your Groups')).toBeInTheDocument()
+    expect(screen.queryByText('Groups Overview Widget')).not.toBeInTheDocument()
     expect(screen.queryByText('Total Balance')).not.toBeInTheDocument()
   })
 })
