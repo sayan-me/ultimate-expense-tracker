@@ -58,7 +58,13 @@ export const PERSONAL_ACTIVITIES: ActivityItem[] = [
       window.location.href = "/recurring"
     },
   },
-  { icon: Tags, label: "Create/Edit Categories", onClick: () => {} },
+  {
+    icon: Tags,
+    label: "Create/Edit Categories",
+    onClick: () => {
+      window.location.href = "/categories"
+    },
+  },
   {
     icon: FileDown,
     label: "Export/Import Data",
