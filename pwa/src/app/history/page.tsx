@@ -2,6 +2,7 @@
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,10 +11,18 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { AddExpenseModal } from "@/components/expense/add-expense-modal"
 import { formatCents } from "@/lib/money"
 import { format } from "date-fns"
-import { Search, Filter, ChevronDown } from "lucide-react"
+import { Search, Filter, ChevronDown, X } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { useDB } from "@/contexts/db-context"
@@ -28,6 +37,7 @@ export default function HistoryPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
   const [expandedDate, setExpandedDate] = useState<string | null>(null)
   const [editingTransaction, setEditingTransaction] = useState<(Transaction & { type: "expense" | "income" }) | null>(null)
+  const [pendingDeleteTransferId, setPendingDeleteTransferId] = useState<string | null>(null)
 
   const allTransactions = transactions.transactions
   const isLoading = allTransactions === undefined
@@ -146,7 +156,8 @@ export default function HistoryPage() {
 
                       // A transfer leg isn't edited through the ordinary
                       // expense form (see AddExpenseForm) — it's a linked
-                      // pair, not a standalone row.
+                      // pair, not a standalone row. It can still be deleted
+                      // (both legs together, see deleteTransfer).
                       if (!isExpenseOrIncomeTransaction(transaction)) {
                         return (
                           <div
@@ -154,6 +165,16 @@ export default function HistoryPage() {
                             className="flex w-full items-center justify-between py-2 border-b last:border-0 px-1 -mx-1"
                           >
                             {content}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0"
+                              aria-label="Delete transfer"
+                              onClick={() => setPendingDeleteTransferId(transaction.transferId!)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           </div>
                         )
                       }
@@ -184,6 +205,33 @@ export default function HistoryPage() {
           onOpenChange={(open) => !open && setEditingTransaction(null)}
         />
       )}
+      <Dialog
+        open={pendingDeleteTransferId !== null}
+        onOpenChange={(open) => !open && setPendingDeleteTransferId(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete transfer?</DialogTitle>
+            <DialogDescription>
+              This removes both sides of the transfer. This can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDeleteTransferId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (pendingDeleteTransferId) await transactions.deleteTransfer(pendingDeleteTransferId)
+                setPendingDeleteTransferId(null)
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

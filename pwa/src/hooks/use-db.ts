@@ -60,6 +60,16 @@ export function useTransactions() {
     })
   }
 
+  // Deletes both legs of a transfer together — a lone leg would leave one
+  // account's balance permanently off, and would leave the other account
+  // undeletable forever (deleteAccount blocks while it still has
+  // transactions) with no way to clear it (B1 in the real-user test report).
+  const deleteTransfer = async (transferId: string) => {
+    return getDb().transaction("rw", "transactions", async () => {
+      await db.transactions.where("transferId").equals(transferId).delete()
+    })
+  }
+
   const useTransactionsByAccount = (accountId: number) => {
     return useLiveQuery(async () => {
       const results = await db.transactions.where('accountId').equals(accountId).toArray();
@@ -92,6 +102,7 @@ export function useTransactions() {
     deleteTransaction,
     updateTransaction,
     createTransfer,
+    deleteTransfer,
     useTransactionsByAccount,
     useTransactionsByCategory,
     useRecentTransactions,

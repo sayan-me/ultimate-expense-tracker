@@ -233,6 +233,19 @@ export class ExpenseTrackerDB extends Dexie {
       });
     });
 
+    // Version 7: indexes transferId so a transfer's two legs can be found
+    // and deleted together by `.where('transferId').equals(...)` — needed
+    // to fix B1 (transfers couldn't be edited or deleted at all, which
+    // also meant an account that ever received one could never be
+    // removed). Purely an index addition; no data to transform.
+    this.version(7).stores({
+      transactions: '++id, type, category, date, accountId, amount, createdAt, syncId, transferId',
+      accounts: '++id, name, type, openingBalance, isDefault, syncId',
+      categories: '++id, name, type, isDefault, syncId',
+      budgets: '++id, category, syncId',
+      recurringTransactions: '++id, accountId, nextRunDate, isActive, syncId',
+    });
+
     // Defensive read-side normalization: date fields are expected to be
     // real Date instances everywhere in this app (sort/format code calls
     // .getFullYear() etc. directly), but nothing guarantees that for

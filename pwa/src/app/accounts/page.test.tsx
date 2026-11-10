@@ -72,14 +72,30 @@ describe('AccountsPage', () => {
     )
   })
 
-  it('deletes a non-default account', async () => {
+  // B2 in the real-user test report: deleting an account/goal happened
+  // instantly on one click, with no confirmation — inconsistent with the
+  // transaction-delete flow, which does confirm.
+  it('deletes a non-default account after confirming', async () => {
     const u = user()
     mockAccounts = [account({ id: 1 }), account({ id: 2, name: 'Bank', isDefault: false })]
     render(<AccountsPage />)
 
     await u.click(screen.getByRole('button', { name: /delete bank/i }))
+    expect(mockDeleteAccount).not.toHaveBeenCalled()
+    await u.click(screen.getByRole('button', { name: /^delete$/i }))
 
     await waitFor(() => expect(mockDeleteAccount).toHaveBeenCalledWith(2))
+  })
+
+  it('does not delete the account if the confirmation is cancelled', async () => {
+    const u = user()
+    mockAccounts = [account({ id: 1 }), account({ id: 2, name: 'Bank', isDefault: false })]
+    render(<AccountsPage />)
+
+    await u.click(screen.getByRole('button', { name: /delete bank/i }))
+    await u.click(screen.getByRole('button', { name: /^cancel$/i }))
+
+    expect(mockDeleteAccount).not.toHaveBeenCalled()
   })
 
   it('does not show a delete button for the default account', () => {
@@ -94,6 +110,7 @@ describe('AccountsPage', () => {
     render(<AccountsPage />)
 
     await u.click(screen.getByRole('button', { name: /delete bank/i }))
+    await u.click(screen.getByRole('button', { name: /^delete$/i }))
 
     await waitFor(() => expect(screen.getByText(/cannot delete account - it has 2 transaction\(s\)/i)).toBeInTheDocument())
   })

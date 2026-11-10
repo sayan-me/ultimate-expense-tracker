@@ -218,7 +218,7 @@ describe('Dexie v3 migration — dollars to cents, balance to openingBalance', (
     const db = new ExpenseTrackerDB(dbName)
     await db.open()
 
-    expect(db.verno).toBe(6)
+    expect(db.verno).toBe(7)
     await expect(db.table('budgets').toArray()).resolves.toEqual([])
     // v3's migration still ran correctly underneath v4.
     expect((await db.transactions.toArray())[0].amount).toBe(2500)
@@ -236,7 +236,7 @@ describe('Dexie v3 migration — dollars to cents, balance to openingBalance', (
     const db = new ExpenseTrackerDB(dbName)
     await db.open()
 
-    expect(db.verno).toBe(6)
+    expect(db.verno).toBe(7)
     await expect(db.table('recurringTransactions').toArray()).resolves.toEqual([])
     // v3's migration still ran correctly underneath v5.
     expect((await db.transactions.toArray())[0].amount).toBe(2500)
@@ -276,7 +276,7 @@ describe('Dexie v6 migration — backfills syncId (and accounts/categories updat
     const db = new ExpenseTrackerDB(dbName)
     await db.open()
 
-    expect(db.verno).toBe(6)
+    expect(db.verno).toBe(7)
     const uuidLike = /^[0-9a-f-]{36}$/i
     const [account] = await db.accounts.toArray()
     const [category] = await db.categories.toArray()

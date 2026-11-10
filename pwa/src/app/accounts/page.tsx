@@ -211,6 +211,7 @@ function TransferForm({
 export default function AccountsPage() {
     const { accounts, transactions } = useDB()
     const [deleteError, setDeleteError] = useState<string | null>(null)
+    const [pendingDelete, setPendingDelete] = useState<Account | null>(null)
     const allAccounts = accounts.accounts ?? []
     const allTransactions = transactions.transactions ?? []
 
@@ -218,12 +219,15 @@ export default function AccountsPage() {
         await accounts.addAccount({ ...data, isDefault: false })
     }
 
-    const handleDelete = async (id: number) => {
+    const handleConfirmDelete = async () => {
+        if (!pendingDelete) return
         setDeleteError(null)
         try {
-            await accounts.deleteAccount(id)
+            await accounts.deleteAccount(pendingDelete.id!)
+            setPendingDelete(null)
         } catch (error) {
             setDeleteError(error instanceof Error ? error.message : "Failed to delete account")
+            setPendingDelete(null)
         }
     }
 
@@ -255,7 +259,7 @@ export default function AccountsPage() {
                                         variant="outline"
                                         size="icon"
                                         aria-label={`Delete ${account.name}`}
-                                        onClick={() => handleDelete(account.id!)}
+                                        onClick={() => setPendingDelete(account)}
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
@@ -265,6 +269,23 @@ export default function AccountsPage() {
                     ))}
                 </CardContent>
             </Card>
+
+            <Dialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete {pendingDelete?.name}?</DialogTitle>
+                        <DialogDescription>This can&apos;t be undone.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setPendingDelete(null)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={handleConfirmDelete}>
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Card>
                 <CardHeader>

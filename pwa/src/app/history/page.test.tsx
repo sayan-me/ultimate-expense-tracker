@@ -1,14 +1,15 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import HistoryPage from './page'
 import type { Transaction } from '@/lib/db'
 
 let mockTransactions: Transaction[] | undefined
+const mockDeleteTransfer = vi.fn()
 
 vi.mock('@/contexts/db-context', () => ({
   useDB: () => ({
-    transactions: { transactions: mockTransactions },
+    transactions: { transactions: mockTransactions, deleteTransfer: mockDeleteTransfer },
   }),
 }))
 
@@ -32,6 +33,11 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
 }
 
 describe('HistoryPage', () => {
+  beforeEach(() => {
+    mockDeleteTransfer.mockReset()
+    mockDeleteTransfer.mockResolvedValue(undefined)
+  })
+
   it('renders the page title', () => {
     mockTransactions = [tx()]
     render(<HistoryPage />)
@@ -83,6 +89,19 @@ describe('HistoryPage', () => {
     // An editable row is a <button>; a transfer row must not be one.
     expect(screen.queryByRole('button', { name: /to savings/i })).not.toBeInTheDocument()
     expect(screen.getByText('To savings')).toBeInTheDocument()
+  })
+
+  // B1 in the real-user test report: transfers couldn't be deleted at all.
+  it('deletes a transfer (both legs) after confirming, via its delete button', async () => {
+    const user = userEvent.setup()
+    mockTransactions = [tx({ type: 'transfer_out', category: 'Transfer', description: 'To savings', transferId: 't1' })]
+    render(<HistoryPage />)
+    await user.click(screen.getByText('November 5, 2026'))
+
+    await user.click(screen.getByRole('button', { name: /delete transfer/i }))
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
+
+    expect(mockDeleteTransfer).toHaveBeenCalledWith('t1')
   })
 
   it('filters by search query across description and category', async () => {

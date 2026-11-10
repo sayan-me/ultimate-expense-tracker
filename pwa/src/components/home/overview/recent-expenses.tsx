@@ -4,8 +4,17 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { formatCents } from "@/lib/money"
 import { format } from "date-fns"
-import { ArrowRight, Plus } from "lucide-react"
+import { ArrowRight, Plus, X } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { useDB } from "@/contexts/db-context"
 import { AddExpenseModal } from "@/components/expense/add-expense-modal"
 import { isExpenseOrIncomeTransaction, type Transaction } from "@/lib/db"
@@ -15,6 +24,7 @@ export function RecentExpenses() {
   const { transactions, categories } = useDB()
   const router = useRouter()
   const [editingTransaction, setEditingTransaction] = useState<(Transaction & { type: "expense" | "income" }) | null>(null)
+  const [pendingDeleteTransferId, setPendingDeleteTransferId] = useState<string | null>(null)
 
   // Get recent transactions (limit to 5)
   const recentTransactions = transactions.useRecentTransactions(5)
@@ -141,6 +151,7 @@ export function RecentExpenses() {
 
           // A transfer leg isn't edited through the ordinary expense form
           // (see AddExpenseForm) — it's a linked pair, not a standalone row.
+          // It can still be deleted (both legs together, see deleteTransfer).
           if (!editable) {
             return (
               <div
@@ -148,6 +159,16 @@ export function RecentExpenses() {
                 className="flex w-full items-center gap-3 justify-between p-4"
               >
                 {content}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0"
+                  aria-label="Delete transfer"
+                  onClick={() => setPendingDeleteTransferId(transaction.transferId!)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             )
           }
@@ -172,6 +193,33 @@ export function RecentExpenses() {
           onOpenChange={(open) => !open && setEditingTransaction(null)}
         />
       )}
+      <Dialog
+        open={pendingDeleteTransferId !== null}
+        onOpenChange={(open) => !open && setPendingDeleteTransferId(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete transfer?</DialogTitle>
+            <DialogDescription>
+              This removes both sides of the transfer. This can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDeleteTransferId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (pendingDeleteTransferId) await transactions.deleteTransfer(pendingDeleteTransferId)
+                setPendingDeleteTransferId(null)
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
-} 
+}

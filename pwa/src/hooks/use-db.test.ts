@@ -264,6 +264,82 @@ describe('useTransactions — writes, with balance derived rather than stored', 
     expect(inn.syncId).toBeTruthy()
     expect(out.syncId).not.toBe(inn.syncId)
   })
+
+  // B1 in the real-user test report: transfers couldn't be deleted at
+  // all, which also meant an account that ever received one could never
+  // be removed (deleteAccount blocks while it still has transactions).
+  it('deleteTransfer removes both legs of a transfer', async () => {
+    const { result } = renderHook(() => useTransactions())
+    await act(async () => {
+      await result.current.createTransfer({
+        fromAccountId: cashId,
+        toAccountId: bankId,
+        amount: 1000,
+        date: new Date(),
+        description: '',
+      })
+    })
+    const [out] = await db.transactions.toArray()
+    expect(await db.transactions.count()).toBe(2)
+
+    await act(async () => {
+      await result.current.deleteTransfer(out.transferId!)
+    })
+
+    expect(await db.transactions.count()).toBe(0)
+  })
+
+  it('deleteTransfer restores both accounts\' derived balances', async () => {
+    const { result } = renderHook(() => useTransactions())
+    await act(async () => {
+      await result.current.createTransfer({
+        fromAccountId: cashId,
+        toAccountId: bankId,
+        amount: 1000,
+        date: new Date(),
+        description: '',
+      })
+    })
+    const [out] = await db.transactions.toArray()
+    await waitFor(async () => expect(await currentBalance(cashId)).toBe(9000))
+
+    await act(async () => {
+      await result.current.deleteTransfer(out.transferId!)
+    })
+
+    expect(await currentBalance(cashId)).toBe(10000)
+    expect(await currentBalance(bankId)).toBe(20000)
+  })
+
+  it('deleteTransfer only removes the matching pair, leaving other transactions untouched', async () => {
+    const { result } = renderHook(() => useTransactions())
+    await act(async () => {
+      await result.current.addTransaction({
+        amount: 500,
+        type: 'expense',
+        category: 'Food',
+        description: 'unrelated',
+        accountId: cashId,
+        date: new Date(),
+      })
+      await result.current.createTransfer({
+        fromAccountId: cashId,
+        toAccountId: bankId,
+        amount: 1000,
+        date: new Date(),
+        description: '',
+      })
+    })
+    const [, out] = await db.transactions.toArray()
+
+    await act(async () => {
+      await result.current.deleteTransfer(out.transferId!)
+    })
+
+    const remaining = await db.transactions.toArray()
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0].description).toBe('unrelated')
+  })
 })
 
 describe('useAccounts', () => {

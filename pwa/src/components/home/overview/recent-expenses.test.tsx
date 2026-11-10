@@ -1,12 +1,14 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { RecentExpenses } from './recent-expenses'
 
 let mockRecent: unknown[] | undefined
+const mockDeleteTransfer = vi.fn()
 
 vi.mock('@/contexts/db-context', () => ({
   useDB: () => ({
-    transactions: { useRecentTransactions: () => mockRecent },
+    transactions: { useRecentTransactions: () => mockRecent, deleteTransfer: mockDeleteTransfer },
     categories: { categories: [{ id: 1, name: 'Food & Dining', color: '#3b82f6' }] },
   }),
 }))
@@ -17,6 +19,11 @@ vi.mock('@/components/expense/add-expense-modal', () => ({
 }))
 
 describe('RecentExpenses', () => {
+  beforeEach(() => {
+    mockDeleteTransfer.mockReset()
+    mockDeleteTransfer.mockResolvedValue(undefined)
+  })
+
   // Amounts are in cents.
   const transactions = [
     {
@@ -93,6 +100,29 @@ describe('RecentExpenses', () => {
     expect(screen.getByText('+$50.00')).toBeInTheDocument()
     // Neither transfer leg is editable through the ordinary expense form.
     expect(screen.queryByRole('button', { name: /edit move to savings/i })).not.toBeInTheDocument()
+  })
+
+  // B1 in the real-user test report: transfers couldn't be deleted at all.
+  it('deletes a transfer (both legs) after confirming, via its delete button', async () => {
+    const user = userEvent.setup()
+    mockRecent = [
+      {
+        id: 3,
+        type: 'transfer_out',
+        amount: 5000,
+        category: 'Transfer',
+        description: 'Move to savings',
+        date: new Date('2025-01-17T10:00:00'),
+        transferId: 't1',
+        tags: [],
+      },
+    ]
+    render(<RecentExpenses />)
+
+    await user.click(screen.getByRole('button', { name: /delete transfer/i }))
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
+
+    expect(mockDeleteTransfer).toHaveBeenCalledWith('t1')
   })
 
   it('shows an empty state when there are no transactions', () => {
