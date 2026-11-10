@@ -1,7 +1,7 @@
 "use client"
 
 import { ActivitiesProvider } from "@/contexts/activities-context"
-import { DBProvider } from "@/contexts/db-context"
+import { DbIdentityGate } from "@/contexts/db-identity-gate"
 import { AuthProvider } from "@/contexts/auth-context"
 import { AppLayout } from "@/components/layout/root-layout"
 import { ThemeProvider } from "next-themes"
@@ -25,11 +25,11 @@ export function Providers({ children }: { children: ReactNode }) {
     >
       <AuthProvider>
         <AuthSyncProvider>
-          <DBProvider>
+          <DbIdentityGate>
             <ActivitiesProvider>
               <AppLayout>{children}</AppLayout>
             </ActivitiesProvider>
-          </DBProvider>
+          </DbIdentityGate>
         </AuthSyncProvider>
       </AuthProvider>
     </ThemeProvider>
