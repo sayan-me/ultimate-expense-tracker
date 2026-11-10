@@ -1,4 +1,4 @@
-import { db, type Account } from "./db"
+import { db, getDb, type Account } from "./db"
 import { initializeDefaultCategories } from "./categories"
 
 /**
@@ -38,18 +38,25 @@ export const initializeDefaultData = async (): Promise<void> => {
  */
 const initializeDefaultAccount = async (): Promise<void> => {
     try {
-        const accountCount = await db.accounts.count()
+        // Wrapped in a transaction so the count-then-add is atomic — this
+        // runs from a mount effect that can fire more than once (React
+        // StrictMode in dev, or a remount from DbIdentityGate), and two
+        // concurrent un-transacted calls could both see count === 0 before
+        // either had written its row, creating two "Cash" accounts.
+        await getDb().transaction("rw", "accounts", async () => {
+            const accountCount = await db.accounts.count()
 
-        if (accountCount === 0) {
-            const accountId = await db.accounts.add(DEFAULT_ACCOUNT)
-            console.log(
-                `✅ Created default account "Cash" with ID: ${accountId}`
-            )
-        } else {
-            console.log(
-                "ℹ️ Accounts already exist, skipping default account creation"
-            )
-        }
+            if (accountCount === 0) {
+                const accountId = await db.accounts.add(DEFAULT_ACCOUNT)
+                console.log(
+                    `✅ Created default account "Cash" with ID: ${accountId}`
+                )
+            } else {
+                console.log(
+                    "ℹ️ Accounts already exist, skipping default account creation"
+                )
+            }
+        })
     } catch (error) {
         console.error("❌ Failed to initialize default account:", error)
         throw error
