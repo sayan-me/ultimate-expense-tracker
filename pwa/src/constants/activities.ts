@@ -72,7 +72,13 @@ export const PERSONAL_ACTIVITIES: ActivityItem[] = [
       window.location.href = "/settings?section=data"
     },
   },
-  { icon: History, label: "View Budget History", onClick: () => {} },
+  {
+    icon: History,
+    label: "View Budget History",
+    onClick: () => {
+      window.location.href = "/budgets/history"
+    },
+  },
 ]
 
 export const GROUP_ACTIVITIES: ActivityItem[] = [
