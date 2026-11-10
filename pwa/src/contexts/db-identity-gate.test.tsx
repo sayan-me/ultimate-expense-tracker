@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DbIdentityGate } from './db-identity-gate'
 
@@ -96,5 +96,48 @@ describe('DbIdentityGate', () => {
     await waitFor(() => expect(screen.getByTestId('db-provider')).toBeInTheDocument())
     expect(mockMerge).not.toHaveBeenCalled()
     expect(mockSetActiveDbUser).toHaveBeenCalledWith('uid-123')
+  })
+
+  // Found live: if opening the local database hangs (e.g. a stuck
+  // connection from another tab/debugger), resolveDbIdentity's promise
+  // can simply never settle — without a timeout, that blanked the whole
+  // app forever with zero feedback, no error, nothing to retry.
+  it('shows an error with a retry option if identity resolution does not settle within a reasonable time', async () => {
+    vi.useFakeTimers()
+    try {
+      mockResolveDbIdentity.mockReturnValue(new Promise(() => {})) // never resolves
+      mockAuth = { firebaseUser: null, loading: false }
+      render(<DbIdentityGate>children</DbIdentityGate>)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000)
+      })
+
+      expect(screen.getByText(/taking longer than expected|couldn't load|something went wrong/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /retry|try again/i })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('retries resolution when the retry button is clicked after a timeout', async () => {
+    vi.useFakeTimers()
+    try {
+      mockResolveDbIdentity.mockReturnValue(new Promise(() => {}))
+      mockAuth = { firebaseUser: null, loading: false }
+      render(<DbIdentityGate>children</DbIdentityGate>)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000)
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+
+    mockResolveDbIdentity.mockReset()
+    mockResolveDbIdentity.mockResolvedValue({ action: 'use', key: 'anonymous' })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /retry|try again/i }))
+
+    await waitFor(() => expect(screen.getByTestId('db-provider')).toBeInTheDocument())
   })
 })

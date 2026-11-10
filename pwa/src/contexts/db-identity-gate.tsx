@@ -25,11 +25,20 @@ import { mergeAnonymousDataIntoUserDb } from "@/lib/db-merge"
  * useLiveQuery hooks re-subscribe against the newly active database
  * instead of continuing to show the previous identity's data.
  */
+// Found live: a stuck IndexedDB connection (e.g. another tab or a
+// debugger still attached from earlier testing) can make opening the
+// local database hang indefinitely — resolveDbIdentity's promise then
+// simply never settles. Without a timeout, that blanked the whole app
+// forever with no error and nothing to retry.
+const RESOLUTION_TIMEOUT_MS = 10_000
+
 export function DbIdentityGate({ children }: { children: ReactNode }) {
   const { firebaseUser, loading: authLoading } = useAuth()
   const [resolvedKey, setResolvedKey] = useState<string | null>(null)
   const [mergePrompt, setMergePrompt] = useState<{ key: string } | null>(null)
   const [isMerging, setIsMerging] = useState(false)
+  const [timedOut, setTimedOut] = useState(false)
+  const [retryToken, setRetryToken] = useState(0)
   // undefined = "haven't resolved anything yet" (distinct from null, which
   // means "resolved, and the resolved identity was anonymous").
   const lastHandledUid = useRef<string | null | undefined>(undefined)
@@ -38,12 +47,20 @@ export function DbIdentityGate({ children }: { children: ReactNode }) {
     if (authLoading) return
 
     const targetUid = firebaseUser?.uid ?? null
-    if (lastHandledUid.current === targetUid) return
+    if (retryToken === 0 && lastHandledUid.current === targetUid) return
     lastHandledUid.current = targetUid
 
     const targetKey = targetUid ?? ANONYMOUS_DB_KEY
 
+    let settled = false
+    const timer = setTimeout(() => {
+      if (!settled) setTimedOut(true)
+    }, RESOLUTION_TIMEOUT_MS)
+
     resolveDbIdentity(targetKey).then((decision) => {
+      settled = true
+      clearTimeout(timer)
+      setTimedOut(false)
       if (decision.action === "prompt-merge") {
         setMergePrompt({ key: decision.key })
       } else {
@@ -51,7 +68,9 @@ export function DbIdentityGate({ children }: { children: ReactNode }) {
         setResolvedKey(decision.key)
       }
     })
-  }, [authLoading, firebaseUser])
+
+    return () => clearTimeout(timer)
+  }, [authLoading, firebaseUser, retryToken])
 
   const finishMergeDecision = async (attach: boolean) => {
     if (!mergePrompt) return
@@ -70,6 +89,23 @@ export function DbIdentityGate({ children }: { children: ReactNode }) {
     setMergePrompt(null)
     setIsMerging(false)
     setResolvedKey(key)
+  }
+
+  const handleRetry = () => {
+    setTimedOut(false)
+    setRetryToken((t) => t + 1)
+  }
+
+  if (timedOut) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-sm text-muted-foreground">
+          This is taking longer than expected to load your data. Something&apos;s wrong (another browser tab may
+          have the database locked) — your data is safe, but this page can&apos;t load it right now.
+        </p>
+        <Button onClick={handleRetry}>Try again</Button>
+      </div>
+    )
   }
 
   if (mergePrompt) {
