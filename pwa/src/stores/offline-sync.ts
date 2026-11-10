@@ -64,7 +64,14 @@ async function pushTable(table: SyncTableName, since: Date | null, token: string
 }
 
 export const useOfflineSyncStore = create<OfflineSyncState>()((set, get) => ({
-  isOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
+  // Deliberately NOT read from navigator here: this module can run during
+  // SSR, where Node's own global `navigator` exists but has no `.onLine`
+  // (unlike a real browser's), so reading it at init time made the
+  // server-rendered isOnline silently diverge from the client's, causing
+  // a hydration mismatch (the sync indicator differed between SSR and
+  // hydration). db-context.tsx corrects this to the real value in a
+  // client-only effect right after mount instead.
+  isOnline: true,
   lastSyncedAt: null,
   syncStatus: "idle",
   lastError: null,

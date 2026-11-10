@@ -50,8 +50,12 @@ export function DBProvider({ children }: { children: ReactNode }) {
 
   // Keep isOnline current, and re-sync as soon as connectivity returns —
   // otherwise changes made while offline would only reach the cloud on
-  // the next full app load.
+  // the next full app load. The store's own initial isOnline is always
+  // true regardless of actual connectivity (see offline-sync.ts for why);
+  // this corrects it to the real value right after mount, client-only.
   useEffect(() => {
+    useOfflineSyncStore.getState().setOnline(navigator.onLine);
+
     const handleOnline = () => {
       useOfflineSyncStore.getState().setOnline(true);
       useOfflineSyncStore.getState().syncNow();
