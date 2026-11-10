@@ -294,15 +294,40 @@ export class ExpenseTrackerDB extends Dexie {
   }
 }
 
-// Lazy initialization for SSR compatibility
-let _db: ExpenseTrackerDB | null = null;
+// Local data is scoped per signed-in identity (ROADMAP F1 fix): one
+// physical Dexie database per user key, switched at runtime via
+// setActiveDbUser as Firebase Auth state changes (see db-context.tsx /
+// DbIdentityGate). `db` and `getDb()` keep the exact same external shape
+// every existing call site already uses (use-db.ts, db-initialization.ts,
+// offline-sync.ts, ...) — only which physical database they resolve to
+// changes, so nothing else needed to change to get per-user isolation.
+export const ANONYMOUS_DB_KEY = 'anonymous';
+
+export function dbNameForUserKey(userKey: string): string {
+  return `ExpenseTrackerDB_${userKey}`;
+}
+
+let activeUserKey: string = ANONYMOUS_DB_KEY;
+const instancesByUserKey = new Map<string, ExpenseTrackerDB>();
+
+export function setActiveDbUser(userKey: string) {
+  activeUserKey = userKey;
+}
+
+function getActiveDb(): ExpenseTrackerDB | undefined {
+  if (typeof window === 'undefined') return undefined; // SSR guard
+  let instance = instancesByUserKey.get(activeUserKey);
+  if (!instance) {
+    instance = new ExpenseTrackerDB(dbNameForUserKey(activeUserKey));
+    instancesByUserKey.set(activeUserKey, instance);
+  }
+  return instance;
+}
 
 export const db = new Proxy({} as ExpenseTrackerDB, {
   get(target, prop: keyof ExpenseTrackerDB) {
-    if (!_db && typeof window !== 'undefined') {
-      _db = new ExpenseTrackerDB();
-    }
-    return _db ? _db[prop] : undefined;
+    const instance = getActiveDb();
+    return instance ? instance[prop] : undefined;
   }
 });
 
@@ -311,8 +336,10 @@ export const db = new Proxy({} as ExpenseTrackerDB, {
 // Proxy above (a method call through the Proxy would bind `this` to the
 // Proxy itself). Use this for anything beyond simple table access.
 export function getDb(): ExpenseTrackerDB {
-  if (!_db) {
-    _db = new ExpenseTrackerDB();
+  const instance = getActiveDb();
+  if (!instance) {
+    // Only reachable server-side (SSR guard above); every real caller runs client-side.
+    throw new Error('getDb() called before the browser environment is available');
   }
-  return _db;
+  return instance;
 }
