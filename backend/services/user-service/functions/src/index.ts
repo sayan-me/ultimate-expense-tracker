@@ -1,30 +1,14 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import {createClient} from "@supabase/supabase-js";
 import {Request, Response} from "firebase-functions/v1";
+import {getSupabaseClient} from "./supabase-client";
+import {handleSyncPush, handleSyncPull} from "./sync";
 
 admin.initializeApp({
   serviceAccountId: process.env.FIREBASE_SERVICE_ACCOUNT_ID || 'uet-stg@appspot.gserviceaccount.com'
 });
 
 // Environment variables for configuration (using process.env directly)
-
-// Initialize Supabase client lazily
-let supabase: ReturnType<typeof createClient> | null = null;
-
-function getSupabaseClient() {
-  if (!supabase) {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
-      throw new Error("Supabase configuration not found. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.");
-    }
-    
-    supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-  }
-  return supabase;
-}
 
 function getFirebaseApiKey(): string {
   const apiKey = process.env.GOOGLE_API_KEY;
@@ -676,6 +660,15 @@ export const auth = functions.https.onRequest((req: Request, res: Response) => {
     return;
   case "login-history":
     handleLoginHistory(req, res);
+    return;
+  case "sync":
+    if (path[1] === "push") {
+      handleSyncPush(req, res);
+    } else if (path[1] === "pull") {
+      handleSyncPull(req, res);
+    } else {
+      res.status(404).json({error: "Not found"});
+    }
     return;
   default:
     res.status(404).json({error: "Not found"});

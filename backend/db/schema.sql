@@ -530,4 +530,110 @@ CREATE TABLE user_activity_logs (
 CREATE INDEX idx_dashboard_configs_user ON dashboard_configurations(user_id);
 CREATE INDEX idx_data_transfers_user ON data_transfers(user_id, status);
 CREATE INDEX idx_user_activity_logs ON user_activity_logs(user_id, created_at);
+
+-- Cloud sync tables for the PWA's local-only Dexie data (ROADMAP Phase 4).
+-- These mirror the PWA's Dexie model field-for-field (integer cents, a
+-- unified transactions ledger with transfer legs, free-text categories,
+-- savings goals as account fields, recurring transactions with next-run
+-- scheduling) rather than the expenses/budgets/savings_goals tables above,
+-- which predate that model and are untouched by this addition. See
+-- backend/db/supabase/migrations/20261110020000_pwa_sync_tables.sql for
+-- the authoritative migration (including RLS policies, mirrored here for
+-- a single-file view of the schema).
+
+CREATE TABLE user_accounts (
+    sync_id UUID PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('cash', 'bank', 'credit', 'savings')),
+    opening_balance INTEGER NOT NULL,
+    is_default BOOLEAN,
+    target_amount INTEGER,
+    target_date TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE user_categories (
+    sync_id UUID PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    icon TEXT,
+    color TEXT,
+    is_default BOOLEAN,
+    type TEXT NOT NULL CHECK (type IN ('expense', 'income', 'both')),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE user_transactions (
+    sync_id UUID PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_sync_id UUID NOT NULL REFERENCES user_accounts(sync_id) ON DELETE CASCADE,
+    amount INTEGER NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('expense', 'income', 'transfer_out', 'transfer_in')),
+    category TEXT NOT NULL,
+    description TEXT,
+    date TIMESTAMP WITH TIME ZONE NOT NULL,
+    transfer_id UUID,
+    tags TEXT[],
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE user_budgets (
+    sync_id UUID PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category TEXT,
+    amount INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE user_recurring_transactions (
+    sync_id UUID PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_sync_id UUID NOT NULL REFERENCES user_accounts(sync_id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('expense', 'income')),
+    category TEXT NOT NULL,
+    description TEXT,
+    amount INTEGER NOT NULL,
+    frequency TEXT NOT NULL CHECK (frequency IN ('daily', 'weekly', 'monthly')),
+    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    next_run_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_active BOOLEAN NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX idx_user_accounts_user_updated ON user_accounts (user_id, updated_at);
+CREATE INDEX idx_user_categories_user_updated ON user_categories (user_id, updated_at);
+CREATE INDEX idx_user_transactions_user_updated ON user_transactions (user_id, updated_at);
+CREATE INDEX idx_user_budgets_user_updated ON user_budgets (user_id, updated_at);
+CREATE INDEX idx_user_recurring_transactions_user_updated ON user_recurring_transactions (user_id, updated_at);
+
+-- RLS: service role only (same trust model and policy shape as
+-- backend/services/user-service/schema/login_history.sql) — never queried
+-- by anything holding just the anon/public key.
+ALTER TABLE user_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_budgets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_recurring_transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role can manage user_accounts" ON user_accounts
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage user_categories" ON user_categories
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage user_transactions" ON user_transactions
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage user_budgets" ON user_budgets
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage user_recurring_transactions" ON user_recurring_transactions
+    FOR ALL USING (auth.role() = 'service_role');
 CREATE INDEX idx_user_activity_entity ON user_activity_logs(entity_type, entity_id);
