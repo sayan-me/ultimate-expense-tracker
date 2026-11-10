@@ -3,6 +3,7 @@
 import { UserNav } from "@/components/layout/user-nav"
 import { ModeToggle } from "@/components/layout/mode-toggle"
 import { BackButton } from "@/components/layout/back-button"
+import { SyncStatusIndicator } from "@/components/layout/sync-status-indicator"
 import { useAuth } from "@/contexts/auth-context"
 import { format } from "date-fns"
 
@@ -35,6 +36,7 @@ export function Header() {
           </div>
         </div>
         <div className="flex items-center space-x-2">
+          <SyncStatusIndicator />
           <ModeToggle />
           <UserNav />
         </div>
