@@ -82,14 +82,32 @@ export const PERSONAL_ACTIVITIES: ActivityItem[] = [
 ]
 
 export const GROUP_ACTIVITIES: ActivityItem[] = [
-  { icon: Receipt, label: "Log Group Transactions", onClick: () => {} },
+  {
+    icon: Receipt,
+    label: "Log Group Transactions",
+    onClick: () => {
+      window.location.href = "/groups"
+    },
+  },
   { icon: BarChart3, label: "View Group Stats", onClick: () => {} },
   { icon: Settings, label: "Manage Group Settings", onClick: () => {} },
   { icon: PiggyBank, label: "Set Group Budget", onClick: () => {} },
   { icon: Bell, label: "Notifications", onClick: () => {} },
   { icon: FileText, label: "Generate Reports", onClick: () => {} },
-  { icon: SplitSquareHorizontal, label: "Settle Balances", onClick: () => {} },
-  { icon: Activity, label: "View Split History", onClick: () => {} },
+  {
+    icon: SplitSquareHorizontal,
+    label: "Settle Balances",
+    onClick: () => {
+      window.location.href = "/groups"
+    },
+  },
+  {
+    icon: Activity,
+    label: "View Split History",
+    onClick: () => {
+      window.location.href = "/groups"
+    },
+  },
   { icon: Users, label: "Manage Split Requests", onClick: () => {} },
   { icon: FileDown, label: "Export Group Data", onClick: () => {} },
   { icon: Activity, label: "View Group Activity", onClick: () => {} },
