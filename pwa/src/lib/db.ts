@@ -304,6 +304,14 @@ export class ExpenseTrackerDB extends Dexie {
 export const ANONYMOUS_DB_KEY = 'anonymous';
 
 export function dbNameForUserKey(userKey: string): string {
+  // The anonymous key keeps the exact original fixed name ('ExpenseTrackerDB',
+  // no suffix) — every existing user's data already lives in a physical
+  // IndexedDB database with that literal name, and nobody has ever used a
+  // per-uid database before this fix. Special-casing this avoids a data
+  // migration (and the appearance of data loss) for every current user;
+  // real per-uid databases below are brand new regardless, so they get
+  // the templated name.
+  if (userKey === ANONYMOUS_DB_KEY) return 'ExpenseTrackerDB';
   return `ExpenseTrackerDB_${userKey}`;
 }
 

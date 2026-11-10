@@ -93,6 +93,23 @@ describe('ExpenseTrackerDB', () => {
 // per-identity instance (switched via setActiveDbUser), so every existing
 // call site (use-db.ts, db-initialization.ts, offline-sync.ts, ...) gets
 // per-user data for free without needing to change how they read `db`.
+describe('dbNameForUserKey', () => {
+  // The anonymous key must resolve to the ORIGINAL fixed name
+  // ('ExpenseTrackerDB', no suffix) — every current user's existing data
+  // already lives in a physical IndexedDB database with that literal
+  // name. Resolving it to a templated name instead (e.g.
+  // 'ExpenseTrackerDB_anonymous') would silently orphan that data: the
+  // app would open a different, empty database and it would look to the
+  // user like everything they'd logged had vanished.
+  it('resolves the anonymous key to the original fixed database name, not a templated one', () => {
+    expect(dbNameForUserKey(ANONYMOUS_DB_KEY)).toBe('ExpenseTrackerDB')
+  })
+
+  it('resolves a real user key to a templated, per-user name', () => {
+    expect(dbNameForUserKey('uid-123')).toBe('ExpenseTrackerDB_uid-123')
+  })
+})
+
 describe('per-user db switching', () => {
   const dbNamesToCleanUp: string[] = []
 
