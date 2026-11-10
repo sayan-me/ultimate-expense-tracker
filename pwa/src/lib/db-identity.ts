@@ -29,16 +29,25 @@ export async function resolveDbIdentity(targetKey: string): Promise<DbIdentityDe
     return { action: "use", key: targetKey }
   }
 
+  const hasData = await anonymousDataExists()
+  return hasData ? { action: "prompt-merge", key: targetKey } : { action: "use", key: targetKey }
+}
+
+/**
+ * Whether the anonymous (pre-sign-in) local database currently has any
+ * real data — used both by resolveDbIdentity (the first-sign-in prompt)
+ * and the "attach device data" recovery action in Settings (for anyone
+ * who declined that first prompt, or who has since logged more data
+ * anonymously on this device).
+ */
+export async function anonymousDataExists(): Promise<boolean> {
   const anonDbExists = await Dexie.exists(dbNameForUserKey(ANONYMOUS_DB_KEY))
-  if (!anonDbExists) {
-    return { action: "use", key: targetKey }
-  }
+  if (!anonDbExists) return false
 
   const anonDb = new ExpenseTrackerDB(dbNameForUserKey(ANONYMOUS_DB_KEY))
   try {
     await anonDb.open()
-    const hasData = (await anonDb.accounts.count()) > 0 || (await anonDb.transactions.count()) > 0
-    return hasData ? { action: "prompt-merge", key: targetKey } : { action: "use", key: targetKey }
+    return (await anonDb.accounts.count()) > 0 || (await anonDb.transactions.count()) > 0
   } finally {
     anonDb.close()
   }

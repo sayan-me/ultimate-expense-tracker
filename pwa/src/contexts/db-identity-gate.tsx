@@ -80,8 +80,8 @@ export function DbIdentityGate({ children }: { children: ReactNode }) {
             <DialogTitle>We found existing data on this device</DialogTitle>
             <DialogDescription>
               There&apos;s expense data on this device that isn&apos;t attached to any account yet. Attach it to
-              your account? If not, you&apos;ll start with an empty account, and this device&apos;s existing data
-              stays as it is.
+              your account? If not, you&apos;ll start with an empty account for now — you can still attach it
+              later from Settings.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

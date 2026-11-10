@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import Dexie from 'dexie'
 import { ExpenseTrackerDB, ANONYMOUS_DB_KEY, dbNameForUserKey } from './db'
-import { resolveDbIdentity } from './db-identity'
+import { resolveDbIdentity, anonymousDataExists } from './db-identity'
 
 describe('resolveDbIdentity', () => {
   const cleanupNames: string[] = []
@@ -66,5 +66,41 @@ describe('resolveDbIdentity', () => {
 
     const decision = await resolveDbIdentity('user-new')
     expect(decision).toEqual({ action: 'prompt-merge', key: 'user-new' })
+  })
+})
+
+// Used by the "attach device data" recovery action in Settings, for
+// anyone who declined the first-sign-in merge prompt.
+describe('anonymousDataExists', () => {
+  const cleanupNames: string[] = []
+
+  afterEach(async () => {
+    for (const name of cleanupNames) {
+      await Dexie.delete(name)
+    }
+    cleanupNames.length = 0
+  })
+
+  it('is false when there is no anonymous database at all', async () => {
+    expect(await anonymousDataExists()).toBe(false)
+  })
+
+  it('is false when the anonymous database exists but is empty', async () => {
+    cleanupNames.push(dbNameForUserKey(ANONYMOUS_DB_KEY))
+    const anonDb = new ExpenseTrackerDB(dbNameForUserKey(ANONYMOUS_DB_KEY))
+    await anonDb.open()
+    await anonDb.close()
+
+    expect(await anonymousDataExists()).toBe(false)
+  })
+
+  it('is true when the anonymous database has account data', async () => {
+    cleanupNames.push(dbNameForUserKey(ANONYMOUS_DB_KEY))
+    const anonDb = new ExpenseTrackerDB(dbNameForUserKey(ANONYMOUS_DB_KEY))
+    await anonDb.open()
+    await anonDb.accounts.add({ name: 'Cash', type: 'cash', openingBalance: 0, createdAt: new Date(), updatedAt: new Date() })
+    await anonDb.close()
+
+    expect(await anonymousDataExists()).toBe(true)
   })
 })

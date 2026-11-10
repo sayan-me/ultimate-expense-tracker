@@ -94,18 +94,31 @@ describe('mergeAnonymousDataIntoUserDb', () => {
     expect(copiedRecurring.accountId).toBe(copiedAccount.id)
   })
 
-  it('does not touch or clear the source (anonymous) database', async () => {
+  // A "copy, leave the source as-is" design turned out to be a dead end:
+  // declining the first-sign-in merge prompt left no way back to attach
+  // that data later without risking duplicate rows from a second merge.
+  // This is a move, not a copy — once it's attached to an account, it's
+  // no longer sitting in anonymous limbo too, so re-running the merge
+  // (e.g. from a "attach device data" recovery action) is always safe.
+  it('clears the source (anonymous) database once its data has been copied over', async () => {
     anonDb = fresh('merge-test-anon-4')
     userDb = fresh('merge-test-user-4')
     await anonDb.open()
     await userDb.open()
 
     const now = new Date()
-    await anonDb.accounts.add({ name: 'Cash', type: 'cash', openingBalance: 0, createdAt: now, updatedAt: now, syncId: 'a1' })
+    const accountId = await anonDb.accounts.add({ name: 'Cash', type: 'cash', openingBalance: 0, createdAt: now, updatedAt: now, syncId: 'a1' })
+    await anonDb.transactions.add({
+      amount: 100, type: 'expense', category: 'Food', description: '', date: now, accountId, createdAt: now, updatedAt: now, syncId: 't1',
+    })
 
     await mergeAnonymousDataIntoUserDb(anonDb, userDb)
 
-    expect(await anonDb.accounts.count()).toBe(1)
+    expect(await anonDb.accounts.count()).toBe(0)
+    expect(await anonDb.transactions.count()).toBe(0)
+    // ...but it really did land in the target first.
+    expect(await userDb.accounts.count()).toBe(1)
+    expect(await userDb.transactions.count()).toBe(1)
   })
 
   it('does nothing and does not error when the source database is empty', async () => {

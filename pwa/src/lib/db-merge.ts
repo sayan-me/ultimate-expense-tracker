@@ -1,11 +1,14 @@
 import type { ExpenseTrackerDB } from "./db"
 
 /**
- * Copies every row from the anonymous (pre-sign-in) local database into a
- * newly signed-in user's own database — used once, the first time a user
- * signs in on a device that already has unclaimed local data, and only
- * after they've explicitly confirmed they want it attached to their
- * account (see DbIdentityGate). The source database is left untouched.
+ * Moves every row from the anonymous (pre-sign-in) local database into a
+ * signed-in user's own database — offered the first time a user signs in
+ * on a device that already has unclaimed local data (see
+ * DbIdentityGate), and again later from a recovery action for anyone who
+ * declined that first prompt. A move, not a copy: the source database is
+ * cleared once everything has landed in the target, so running this
+ * again later (e.g. from that recovery action) is always safe and never
+ * creates duplicates — there's nothing left in the source to re-copy.
  *
  * Accounts are copied first so transactions/recurringTransactions, which
  * reference an account by its local auto-increment id, can have that id
@@ -39,4 +42,10 @@ export async function mergeAnonymousDataIntoUserDb(anonDb: ExpenseTrackerDB, use
     const accountId = accountIdMap.get(recurring.accountId) ?? recurring.accountId
     await userDb.recurringTransactions.add({ ...recurring, id: undefined, accountId })
   }
+
+  await anonDb.transactions.clear()
+  await anonDb.recurringTransactions.clear()
+  await anonDb.budgets.clear()
+  await anonDb.categories.clear()
+  await anonDb.accounts.clear()
 }

@@ -6,6 +6,7 @@ import { AccountProfileForm } from "./components/account-profile-form"
 import { ChangePasswordForm } from "./components/change-password-form"
 import { LoginHistoryList } from "./components/login-history-list"
 import { DeleteAccountDialog } from "./components/delete-account-dialog"
+import { AttachDeviceDataCard } from "./components/attach-device-data-card"
 import { useAuth } from "@/contexts/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -78,6 +79,8 @@ export default function AccountSettingsPage() {
             <ChangePasswordForm />
           </CardContent>
         </Card>
+
+        <AttachDeviceDataCard />
 
         {/* Login History Section */}
         <Card>
