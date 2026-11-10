@@ -3,6 +3,7 @@
 import { createContext, useContext, ReactNode, useEffect } from "react";
 import { useTransactions, useAccounts, useCategories, useBudgets, useRecurringTransactions } from "@/hooks/use-db";
 import { initializeDefaultData } from "@/lib/db-initialization";
+import { useOfflineSyncStore } from "@/stores/offline-sync";
 
 type DBContextType = {
   transactions: ReturnType<typeof useTransactions>;
@@ -21,8 +22,9 @@ export function DBProvider({ children }: { children: ReactNode }) {
   const budgets = useBudgets();
   const recurring = useRecurringTransactions();
 
-  // Initialize default data, then catch up any recurring transactions
-  // that fell due while the app was closed (lib/recurring.ts).
+  // Initialize default data, catch up any recurring transactions that
+  // fell due while the app was closed (lib/recurring.ts), then sync with
+  // the cloud (stores/offline-sync.ts) — a no-op if no one's signed in.
   useEffect(() => {
     const initData = async () => {
       try {
@@ -35,10 +37,33 @@ export function DBProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('❌ Failed to run due recurring transactions:', error);
       }
+      try {
+        await useOfflineSyncStore.getState().syncNow();
+      } catch (error) {
+        console.error('❌ Failed to sync with the cloud:', error);
+      }
     };
 
     initData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep isOnline current, and re-sync as soon as connectivity returns —
+  // otherwise changes made while offline would only reach the cloud on
+  // the next full app load.
+  useEffect(() => {
+    const handleOnline = () => {
+      useOfflineSyncStore.getState().setOnline(true);
+      useOfflineSyncStore.getState().syncNow();
+    };
+    const handleOffline = () => useOfflineSyncStore.getState().setOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   return (
