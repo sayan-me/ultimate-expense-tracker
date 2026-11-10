@@ -39,10 +39,14 @@ export function MonthlyTrendChart({ months }: { months: MonthlyTotal[] }) {
         </span>
       </div>
 
-      <div className="flex items-end justify-between gap-2" style={{ height: BAR_MAX_HEIGHT_PX }}>
+      <div className="flex items-end justify-between gap-2">
         {months.map((m) => (
-          <div key={`${m.year}-${m.month}`} className="flex flex-1 flex-col items-center justify-end gap-1">
-            <div className="flex h-full items-end gap-0.5">
+          <div key={`${m.year}-${m.month}`} className="flex flex-1 flex-col items-center gap-1">
+            {/* Fixed height set here, not inherited via h-full, so the
+                children's percentage heights resolve against a real
+                number — a percentage height of an auto-height ancestor
+                computes to 0, not "percent of the nearest fixed ancestor". */}
+            <div className="flex items-end gap-0.5" style={{ height: BAR_MAX_HEIGHT_PX }}>
               <div
                 data-series="income"
                 className="w-2.5 rounded-t-sm bg-green-600"
