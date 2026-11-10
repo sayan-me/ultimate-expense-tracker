@@ -1,23 +1,31 @@
 import { render } from '@testing-library/react'
-import { DBProvider } from '@/contexts/db-context'
+import { AuthProvider } from '@/contexts/auth-context'
+import { ActivitiesProvider } from '@/contexts/activities-context'
 import { useAuthStore } from '@/stores/auth'
-import { useFeatureGatesStore } from '@/stores/feature-gates'
-import { usePreferencesStore } from '@/stores/preferences'
-import { useUIStore } from '@/stores/ui'
 import type { StoreApi } from 'zustand/vanilla'
 import { expect } from 'vitest'
 
 // Reset all stores between tests
 export function resetStores() {
   useAuthStore.getState().resetAuth()
-  useFeatureGatesStore.getState().resetFeatureGates()
-  usePreferencesStore.getState().resetPreferences()
-  useUIStore.getState().resetUI()
+}
+
+/**
+ * Wraps UI in the app-level React contexts that don't touch IndexedDB.
+ * Auth runs in signed-out mode (Firebase is not configured under test).
+ * Tests that need DB data should vi.mock('@/contexts/db-context').
+ */
+function AllProviders({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <ActivitiesProvider>{children}</ActivitiesProvider>
+    </AuthProvider>
+  )
 }
 
 export function renderWithProviders(ui: React.ReactElement) {
   resetStores()
-  return render(<DBProvider>{ui}</DBProvider>)
+  return render(ui, { wrapper: AllProviders })
 }
 
 // Define the matcher result type
@@ -57,3 +65,10 @@ expect.extend({
     }
   }
 }) 
+
+/** The datetime-local input rendered by AddExpenseForm. */
+export function getDateInput(): HTMLInputElement {
+  const el = document.querySelector('input[type="datetime-local"]')
+  if (!el) throw new Error('datetime-local input not found')
+  return el as HTMLInputElement
+}

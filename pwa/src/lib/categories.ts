@@ -1,4 +1,4 @@
-import { db, type Category } from './db'
+import { db, getDb, type Category } from './db'
 
 /** Default expense categories with icons and colors */
 export const DEFAULT_EXPENSE_CATEGORIES = [
@@ -120,17 +120,23 @@ export const DEFAULT_TAGS = [
  */
 export const initializeDefaultCategories = async (): Promise<void> => {
   try {
-    const categoryCount = await db.categories.count()
-    
-    if (categoryCount === 0) {
-      const allCategories = [
-        ...DEFAULT_EXPENSE_CATEGORIES,
-        ...DEFAULT_INCOME_CATEGORIES
-      ]
-      
-      await db.categories.bulkAdd(allCategories)
-      console.log(`✅ Initialized ${allCategories.length} default categories`)
-    }
+    // Wrapped in a transaction so the count-then-bulkAdd is atomic — see
+    // the matching comment in db-initialization.ts's initializeDefaultAccount
+    // for why an un-transacted check-then-insert here can duplicate data
+    // when this runs from a mount effect that fires more than once.
+    await getDb().transaction('rw', 'categories', async () => {
+      const categoryCount = await db.categories.count()
+
+      if (categoryCount === 0) {
+        const allCategories = [
+          ...DEFAULT_EXPENSE_CATEGORIES,
+          ...DEFAULT_INCOME_CATEGORIES
+        ]
+
+        await db.categories.bulkAdd(allCategories)
+        console.log(`✅ Initialized ${allCategories.length} default categories`)
+      }
+    })
   } catch (error) {
     console.error('❌ Failed to initialize default categories:', error)
     throw error

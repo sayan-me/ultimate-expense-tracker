@@ -1,15 +1,21 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, type Transaction, type Account, type Category } from "@/lib/db";
+import { db, getDb, type Transaction, type Account, type Category, type RecurringTransaction } from "@/lib/db";
+import { materializeDueRecurring } from "@/lib/recurring";
 
 export function useTransactions() {
   const transactions = useLiveQuery(() => db.transactions.orderBy('createdAt').reverse().toArray());
-  
-  const addTransaction = async (transaction: Omit<Transaction, "id" | "createdAt" | "updatedAt">) => {
+
+  // Account balances are derived from openingBalance + the account's own
+  // transactions (src/lib/account-balance.ts), not stored and mutated
+  // here — so, unlike before, these are now plain single-table writes
+  // with nothing else to keep in sync.
+  const addTransaction = async (transaction: Omit<Transaction, "id" | "createdAt" | "updatedAt" | "syncId">) => {
     const now = new Date();
     return await db.transactions.add({
       ...transaction,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      syncId: crypto.randomUUID(),
     });
   };
 
@@ -23,6 +29,46 @@ export function useTransactions() {
       updatedAt: new Date()
     });
   };
+
+  // A transfer is two ordinary transactions (transfer_out on the source
+  // account, transfer_in on the destination) sharing one transferId, written
+  // in a single Dexie transaction so they can never exist as a lone,
+  // unbalanced leg. Dexie's own transaction() must run on the real instance
+  // (getDb()), not the lazy-init Proxy exported as `db` — see lib/db.ts.
+  const createTransfer = async (transfer: {
+    fromAccountId: number
+    toAccountId: number
+    amount: number
+    date: Date
+    description: string
+  }) => {
+    const { fromAccountId, toAccountId, amount, date, description } = transfer
+    if (fromAccountId === toAccountId) {
+      throw new Error("Cannot transfer to the same account")
+    }
+    if (amount <= 0) {
+      throw new Error("Transfer amount must be positive")
+    }
+
+    const transferId = crypto.randomUUID()
+    const now = new Date()
+    const base = { category: "Transfer", description, date, transferId, createdAt: now, updatedAt: now }
+
+    return getDb().transaction("rw", "transactions", async () => {
+      await db.transactions.add({ ...base, type: "transfer_out", amount, accountId: fromAccountId, syncId: crypto.randomUUID() })
+      await db.transactions.add({ ...base, type: "transfer_in", amount, accountId: toAccountId, syncId: crypto.randomUUID() })
+    })
+  }
+
+  // Deletes both legs of a transfer together — a lone leg would leave one
+  // account's balance permanently off, and would leave the other account
+  // undeletable forever (deleteAccount blocks while it still has
+  // transactions) with no way to clear it (B1 in the real-user test report).
+  const deleteTransfer = async (transferId: string) => {
+    return getDb().transaction("rw", "transactions", async () => {
+      await db.transactions.where("transferId").equals(transferId).delete()
+    })
+  }
 
   const useTransactionsByAccount = (accountId: number) => {
     return useLiveQuery(async () => {
@@ -39,9 +85,15 @@ export function useTransactions() {
   };
 
   const useRecentTransactions = (limit: number = 10) => {
-    return useLiveQuery(() => 
-      db.transactions.orderBy('createdAt').reverse().limit(limit).toArray()
-    );
+    // Sorted by the transaction's own date, not when it was entered
+    // (U6 in the bug report — createdAt put a backfilled Nov 7 expense
+    // above same-day Nov 8 ones). createdAt breaks ties.
+    return useLiveQuery(async () => {
+      const all = await db.transactions.toArray();
+      return all
+        .sort((a, b) => b.date.getTime() - a.date.getTime() || b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limit);
+    });
   };
 
   return {
@@ -49,6 +101,8 @@ export function useTransactions() {
     addTransaction,
     deleteTransaction,
     updateTransaction,
+    createTransfer,
+    deleteTransfer,
     useTransactionsByAccount,
     useTransactionsByCategory,
     useRecentTransactions,
@@ -58,10 +112,13 @@ export function useTransactions() {
 export function useAccounts() {
   const accounts = useLiveQuery(() => db.accounts.toArray());
   
-  const addAccount = async (account: Omit<Account, "id" | "createdAt">) => {
+  const addAccount = async (account: Omit<Account, "id" | "createdAt" | "updatedAt" | "syncId">) => {
+    const now = new Date();
     return await db.accounts.add({
       ...account,
-      createdAt: new Date()
+      createdAt: now,
+      updatedAt: now,
+      syncId: crypto.randomUUID(),
     });
   };
 
@@ -82,7 +139,7 @@ export function useAccounts() {
   };
 
   const updateAccount = async (id: number, changes: Partial<Account>) => {
-    return await db.accounts.update(id, changes);
+    return await db.accounts.update(id, { ...changes, updatedAt: new Date() });
   };
 
   const useDefaultAccount = () => {
@@ -104,10 +161,13 @@ export function useAccounts() {
 export function useCategories() {
   const categories = useLiveQuery(() => db.categories.toArray());
   
-  const addCategory = async (category: Omit<Category, "id" | "createdAt">) => {
+  const addCategory = async (category: Omit<Category, "id" | "createdAt" | "updatedAt" | "syncId">) => {
+    const now = new Date();
     return await db.categories.add({
       ...category,
-      createdAt: new Date()
+      createdAt: now,
+      updatedAt: now,
+      syncId: crypto.randomUUID(),
     });
   };
 
@@ -142,7 +202,7 @@ export function useCategories() {
       throw new Error('Cannot update default categories');
     }
     
-    return await db.categories.update(id, changes);
+    return await db.categories.update(id, { ...changes, updatedAt: new Date() });
   };
 
   const useCategoriesByType = (type: 'expense' | 'income' | 'both') => {
@@ -161,4 +221,93 @@ export function useCategories() {
     updateCategory,
     useCategoriesByType,
   };
-} 
+}
+
+export function useBudgets() {
+  const budgets = useLiveQuery(() => db.budgets.toArray());
+
+  // Upsert: a category (or the overall budget, category === null) has at
+  // most one budget row. Without this, repeatedly setting the same
+  // category's budget would pile up duplicate rows instead of replacing
+  // the old amount.
+  const setBudget = async (category: string | null, amount: number) => {
+    const existing = (await db.budgets.toArray()).find((b) => b.category === category);
+    const now = new Date();
+    if (existing?.id !== undefined) {
+      await db.budgets.update(existing.id, { amount, updatedAt: now });
+      return existing.id;
+    }
+    return await db.budgets.add({ category, amount, createdAt: now, updatedAt: now, syncId: crypto.randomUUID() });
+  };
+
+  const deleteBudget = async (id: number) => {
+    return await db.budgets.delete(id);
+  };
+
+  const useOverallBudget = () => {
+    return useLiveQuery(async () => {
+      const all = await db.budgets.toArray();
+      return all.find((b) => b.category === null);
+    });
+  };
+
+  const useCategoryBudget = (category: string) => {
+    return useLiveQuery(async () => {
+      const all = await db.budgets.toArray();
+      return all.find((b) => b.category === category);
+    }, [category]);
+  };
+
+  return {
+    budgets,
+    setBudget,
+    deleteBudget,
+    useOverallBudget,
+    useCategoryBudget,
+  };
+}
+
+export function useRecurringTransactions() {
+  const recurringTransactions = useLiveQuery(() => db.recurringTransactions.toArray());
+
+  const addRecurring = async (recurring: Omit<RecurringTransaction, "id" | "createdAt" | "updatedAt" | "syncId">) => {
+    const now = new Date();
+    return await db.recurringTransactions.add({ ...recurring, createdAt: now, updatedAt: now, syncId: crypto.randomUUID() });
+  };
+
+  const updateRecurring = async (id: number, changes: Partial<RecurringTransaction>) => {
+    return await db.recurringTransactions.update(id, { ...changes, updatedAt: new Date() });
+  };
+
+  const deleteRecurring = async (id: number) => {
+    return await db.recurringTransactions.delete(id);
+  };
+
+  // Materializes every active recurring transaction's overdue occurrences
+  // (lib/recurring.ts) into real transaction rows, advancing each one's
+  // nextRunDate past what it just produced — one Dexie transaction per
+  // recurring item so a row's new transactions and its advanced
+  // nextRunDate always land together.
+  const runDueRecurringTransactions = async (asOf: Date = new Date()) => {
+    const all = await db.recurringTransactions.toArray();
+    for (const recurring of all) {
+      const { transactions, nextRunDate } = materializeDueRecurring(recurring, asOf)
+      if (transactions.length === 0) continue
+      await getDb().transaction("rw", ["transactions", "recurringTransactions"], async () => {
+        const now = new Date()
+        for (const t of transactions) {
+          await db.transactions.add({ ...t, createdAt: now, updatedAt: now })
+        }
+        await db.recurringTransactions.update(recurring.id!, { nextRunDate, updatedAt: now })
+      })
+    }
+  };
+
+  return {
+    recurringTransactions,
+    addRecurring,
+    updateRecurring,
+    deleteRecurring,
+    runDueRecurringTransactions,
+  };
+}

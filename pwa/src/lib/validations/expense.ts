@@ -57,6 +57,13 @@ export const expenseSchema = z.object({
       return date <= today;
     }, {
       message: "Date cannot be in the future"
+    })
+    .refine((date) => date.getFullYear() >= 1900, {
+      // Catches a missing-digit year typo (e.g. "0026" for "2026") — the
+      // date picker otherwise accepts it silently, and the resulting
+      // transaction then disagrees with dashboard totals that filter/sort
+      // by date (A1 in the real-user test report).
+      message: "That year doesn't look right — did you mean a more recent date?"
     }),
   
   tags: z

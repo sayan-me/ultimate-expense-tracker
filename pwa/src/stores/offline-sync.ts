@@ -1,269 +1,116 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { devtools } from 'zustand/middleware'
-import { Status, StoreState } from '@/types/store'
+import { create } from "zustand"
+import { db } from "@/lib/db"
+import { toWireRecord, fromWireRecord, type SyncTableName, type WireRecord, type SyncableRow } from "@/lib/sync-mapping"
+import { authService } from "@/services/auth.service"
+import { env } from "@/config/env"
 
-/** Represents a network operation that needs to be synced */
-export interface SyncOperation {
-  /** Unique identifier for the operation */
-  id: string
-  /** Timestamp when operation was created */
-  timestamp: number
-  /** Type of operation (e.g., 'expense', 'category') */
-  entityType: 'expense' | 'category' | 'budget' | 'goal' | 'virtualAccount'
-  /** Operation type (create, update, delete) */
-  operationType: 'create' | 'update' | 'delete'
-  /** Operation data */
-  data: unknown
-  /** Number of sync attempts */
-  attempts: number
-  /** Last error message if sync failed */
-  lastError?: string
-}
+type SyncStatus = "idle" | "syncing" | "error"
 
-/** Network connection state */
-export interface NetworkState {
-  /** Whether device is online */
+interface OfflineSyncState {
   isOnline: boolean
-  /** Last time online status was checked */
-  lastChecked: number
-  /** Network type if available */
-  connectionType?: 'wifi' | 'cellular' | 'unknown'
+  lastSyncedAt: Date | null
+  syncStatus: SyncStatus
+  lastError: string | null
+  setOnline: (isOnline: boolean) => void
+  syncNow: () => Promise<void>
 }
 
-/** Offline sync store state and methods */
-interface OfflineSyncState extends StoreState {
-  /** Current network state */
-  network: NetworkState
-  /** Queue of operations to be synced */
-  operationQueue: SyncOperation[]
-  /** Last successful sync timestamp */
-  lastSyncTimestamp: number | null
-  /** Whether sync is currently in progress */
-  isSyncing: boolean
-  
-  // Network Methods
-  /** Update network status */
-  setNetworkStatus: (status: Partial<NetworkState>) => void
-  
-  // Queue Methods
-  /** Add operation to sync queue */
-  queueOperation: (
-    entityType: SyncOperation['entityType'],
-    operationType: SyncOperation['operationType'],
-    data: unknown
-  ) => void
-  /** Remove operation from queue */
-  dequeueOperation: (operationId: string) => void
-  /** Update operation after sync attempt */
-  updateOperation: (
-    operationId: string, 
-    updates: Partial<SyncOperation>
-  ) => void
-  
-  // Sync Methods
-  /** Start sync process */
-  startSync: () => void
-  /** Mark sync as complete */
-  completeSyncCycle: () => void
-  /** Reset store to initial state */
-  resetOfflineSync: () => void
-}
+// Accounts must be pulled (and written to Dexie) before transactions and
+// recurringTransactions, since those reference an account by syncId and
+// need the account's local row to already exist to resolve it.
+const SYNCED_TABLES: SyncTableName[] = ["accounts", "categories", "budgets", "transactions", "recurringTransactions"]
 
-const initialState = {
-  network: {
-    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
-    lastChecked: 0,
-    connectionType: 'unknown' as const
-  },
-  operationQueue: [],
-  lastSyncTimestamp: null,
-  isSyncing: false,
-  status: 'idle' as Status,
-  error: null
-}
+async function pullTable(table: SyncTableName, since: Date | null, token: string, accountIdBySyncId: Map<string, number>) {
+  const url = `${env.api.userServiceUrl}/sync/pull?table=${table}&since=${(since ?? new Date(0)).toISOString()}`
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!response.ok) throw new Error(`Pull failed for ${table}`)
+  const {records} = (await response.json()) as {records: WireRecord[]}
 
-/**
- * Offline sync store with persistent storage
- * Manages operation queue and network status for offline-first functionality
- * @example
- * ```ts
- * const syncStore = useOfflineSyncStore.getState()
- * 
- * // Queue a new expense
- * syncStore.queueOperation('expense', 'create', {
- *   amount: 50,
- *   category: 'food'
- * })
- * 
- * // Start sync when online
- * if (syncStore.network.isOnline) {
- *   syncStore.startSync()
- * }
- * ```
- */
-export const useOfflineSyncStore = create<OfflineSyncState>()(
-  persist(
-    devtools(
-      (set, get) => {
-        // Initialize timestamps on client-side only
-        if (typeof window !== 'undefined') {
-          set(state => ({
-            network: {
-              ...state.network,
-              lastChecked: Date.now()
-            }
-          }))
-        }
-        
-        return {
-          ...initialState,
-          
-          setNetworkStatus: (status) => {
-            const currentState = get()
-            // Only update if there's a meaningful change
-            if (
-              status.isOnline !== currentState.network.isOnline ||
-              status.connectionType !== currentState.network.connectionType
-            ) {
-              set((state) => ({
-                network: {
-                  ...state.network,
-                  ...status,
-                  lastChecked: Date.now()
-                }
-              }))
-            }
-          },
-          
-          queueOperation: (entityType, operationType, data) => {
-            const currentState = get()
-            // Prevent duplicate operations
-            const isDuplicate = currentState.operationQueue.some(
-              op => 
-                op.entityType === entityType && 
-                op.operationType === operationType &&
-                JSON.stringify(op.data) === JSON.stringify(data)
-            )
-            
-            if (!isDuplicate) {
-              set((state) => ({
-                operationQueue: [...state.operationQueue, {
-                  id: crypto.randomUUID(),
-                  timestamp: Date.now(),
-                  entityType,
-                  operationType,
-                  data,
-                  attempts: 0
-                }]
-              }))
-            }
-          },
-          
-          dequeueOperation: (operationId) => set((state) => ({
-            operationQueue: state.operationQueue.filter(op => op.id !== operationId)
-          })),
-          
-          updateOperation: (operationId, updates) => set((state) => ({
-            operationQueue: state.operationQueue.map(op => 
-              op.id === operationId ? { ...op, ...updates } : op
-            )
-          })),
-          
-          startSync: () => {
-            const currentState = get()
-            // Only start sync if we're online and not already syncing
-            if (currentState.network.isOnline && !currentState.isSyncing) {
-              set({ isSyncing: true })
-            }
-          },
-          
-          completeSyncCycle: () => set({
-            isSyncing: false,
-            lastSyncTimestamp: Date.now()
-          }),
-          
-          resetOfflineSync: () => set(initialState)
-        }
-      },
-      { 
-        name: 'offline-sync',
-        // Add custom devtools configuration if needed
+  for (const record of records) {
+    const row = fromWireRecord(table, record, (syncId) => accountIdBySyncId.get(syncId))
+    if (!row) continue
+
+    const dexieTable = db[table] as unknown as { where: (k: string) => { equals: (v: string) => { first: () => Promise<SyncableRow | undefined> } }; update: (id: number, changes: unknown) => Promise<number>; add: (row: unknown) => Promise<number> }
+    const existing = await dexieTable.where("syncId").equals(row.syncId!).first()
+
+    if (existing) {
+      const existingUpdatedAt = (existing.updatedAt ?? existing.createdAt) as Date
+      if (row.updatedAt! > existingUpdatedAt) {
+        await dexieTable.update(existing.id!, row)
       }
-    ),
-    {
-      name: 'offline-sync-storage',
-      version: 1
+    } else {
+      const newId = await dexieTable.add(row)
+      if (table === "accounts") accountIdBySyncId.set(row.syncId!, newId)
     }
+  }
+}
+
+async function pushTable(table: SyncTableName, since: Date | null, token: string, accountSyncIdByLocalId: Map<number, string>) {
+  const rows = (await (db[table] as unknown as {toArray: () => Promise<SyncableRow[]>}).toArray()).filter(
+    (row) => !since || (row.updatedAt ?? row.createdAt)! > since
   )
-)
+  const records = rows
+    .map((row) => toWireRecord(table, row, (localId) => accountSyncIdByLocalId.get(localId)))
+    .filter((r): r is WireRecord => r !== undefined)
 
-// Selectors
-const selectNetworkStatus = (state: OfflineSyncState) => state.network
-const selectOperationQueue = (state: OfflineSyncState) => state.operationQueue
-const selectIsSyncing = (state: OfflineSyncState) => state.isSyncing
-const selectLastSyncTimestamp = (state: OfflineSyncState) => state.lastSyncTimestamp
-const selectPendingOperationsCount = (state: OfflineSyncState) => state.operationQueue.length
+  if (records.length === 0) return
 
-/**
- * Hook to access network status
- * @returns NetworkState object containing online status and connection type
- * @example
- * ```tsx
- * function NetworkIndicator() {
- *   const { isOnline, connectionType } = useNetworkStatus()
- *   return (
- *     <div>
- *       {isOnline ? '🟢 Online' : '🔴 Offline'}
- *       {connectionType && ` (${connectionType})`}
- *     </div>
- *   )
- * }
- * ```
- */
-export const useNetworkStatus = () => {
-  return useOfflineSyncStore((state) => selectNetworkStatus(state))
+  const response = await fetch(`${env.api.userServiceUrl}/sync/push`, {
+    method: "POST",
+    headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
+    body: JSON.stringify({table, records}),
+  })
+  if (!response.ok) throw new Error(`Push failed for ${table}`)
 }
 
-/**
- * Hook to access sync operation queue
- * @returns Array of pending sync operations
- * @example
- * ```tsx
- * function SyncQueue() {
- *   const operations = useOperationQueue()
- *   return (
- *     <div>
- *       Pending operations: {operations.length}
- *     </div>
- *   )
- * }
- * ```
- */
-export const useOperationQueue = () => {
-  return useOfflineSyncStore((state) => selectOperationQueue(state))
-}
+export const useOfflineSyncStore = create<OfflineSyncState>()((set, get) => ({
+  // Deliberately NOT read from navigator here: this module can run during
+  // SSR, where Node's own global `navigator` exists but has no `.onLine`
+  // (unlike a real browser's), so reading it at init time made the
+  // server-rendered isOnline silently diverge from the client's, causing
+  // a hydration mismatch (the sync indicator differed between SSR and
+  // hydration). db-context.tsx corrects this to the real value in a
+  // client-only effect right after mount instead.
+  isOnline: true,
+  lastSyncedAt: null,
+  syncStatus: "idle",
+  lastError: null,
 
-/**
- * Hook to check sync status
- * @returns Object containing sync status information
- * @example
- * ```tsx
- * function SyncStatus() {
- *   const { isSyncing, lastSync, pendingCount } = useSyncStatus()
- *   return (
- *     <div>
- *       {isSyncing ? 'Syncing...' : `Last sync: ${lastSync}`}
- *       {pendingCount > 0 && ` (${pendingCount} pending)`}
- *     </div>
- *   )
- * }
- * ```
- */
-export const useSyncStatus = () => {
-  return useOfflineSyncStore((state) => ({
-    isSyncing: selectIsSyncing(state),
-    lastSync: selectLastSyncTimestamp(state),
-    pendingCount: selectPendingOperationsCount(state)
-  }))
-} 
+  setOnline: (isOnline) => set({isOnline}),
+
+  syncNow: async () => {
+    const token = await authService.getIdToken()
+    if (!token) return
+
+    set({syncStatus: "syncing", lastError: null})
+    try {
+      const {lastSyncedAt} = get()
+      const accountIdBySyncId = new Map<string, number>()
+      for (const account of await db.accounts.toArray()) {
+        if (account.syncId) accountIdBySyncId.set(account.syncId, account.id!)
+      }
+
+      for (const table of SYNCED_TABLES) {
+        await pullTable(table, lastSyncedAt, token, accountIdBySyncId)
+      }
+
+      const accountSyncIdByLocalId = new Map<number, string>()
+      for (const account of await db.accounts.toArray()) {
+        if (account.syncId) accountSyncIdByLocalId.set(account.id!, account.syncId)
+      }
+
+      for (const table of SYNCED_TABLES) {
+        await pushTable(table, lastSyncedAt, token, accountSyncIdByLocalId)
+      }
+
+      set({syncStatus: "idle", lastSyncedAt: new Date(), lastError: null})
+    } catch (error: unknown) {
+      set({syncStatus: "error", lastError: error instanceof Error ? error.message : "Unknown sync error"})
+    }
+  },
+}))
+
+// Kept side-effect-free at module scope (no addEventListener here) so this
+// module stays safely importable from tests/SSR; db-context.tsx wires the
+// browser's online/offline events and the initial app-load sync.
+export type {OfflineSyncState}

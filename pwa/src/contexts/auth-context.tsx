@@ -3,6 +3,7 @@
 import { type ReactNode, createContext, useContext, useState, useEffect } from "react"
 import { User as FirebaseUser } from 'firebase/auth'
 import { authService } from '@/services/auth.service'
+import { isFirebaseConfigured } from '@/lib/firebase'
 import type { AppUser, AuthContextType } from '@/types/auth'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -10,7 +11,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null)
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(isFirebaseConfigured)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -116,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         firebaseUser,
         loading,
         error,
+        isAuthConfigured: isFirebaseConfigured,
         login,
         register,
         logout,

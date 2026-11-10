@@ -1,64 +1,48 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
-import { env, validateEnvConfig, logEnvStatus } from '@/config/env';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
+import { env, validateEnvConfig } from '@/config/env';
 
-// Validate environment configuration on import
-const envValidation = validateEnvConfig();
-if (!envValidation.isValid) {
-  console.error('🔥 Firebase configuration error:', envValidation.errors);
-  console.warn('⚠️ Some Firebase features may be unavailable, but core expense tracking will work');
-  
-  // Only throw if critical Firebase config is missing
-  const criticalMissing = envValidation.errors.some(error => 
-    error.includes('FIREBASE_API_KEY') || 
-    error.includes('FIREBASE_PROJECT_ID') || 
-    error.includes('FIREBASE_AUTH_DOMAIN')
-  );
-  
-  if (criticalMissing) {
-    throw new Error(`Critical Firebase configuration missing: ${envValidation.errors.join(', ')}`);
-  }
+/**
+ * Firebase is optional. The app works fully offline/local without it; Firebase
+ * is only needed for sign-in. Nothing here throws at import time and nothing
+ * is initialised until getFirebaseApp()/getFirebaseAuth() is called.
+ */
+
+/** True when the NEXT_PUBLIC_FIREBASE_* variables required for auth are set. */
+export const isFirebaseConfigured: boolean = validateEnvConfig().isValid;
+
+let authInstance: Auth | null = null;
+
+/** Returns the Firebase app, or null if Firebase is not configured. */
+export function getFirebaseApp(): FirebaseApp | null {
+  if (!isFirebaseConfigured) return null;
+  if (getApps().length > 0) return getApp();
+  return initializeApp({
+    apiKey: env.firebase.apiKey,
+    authDomain: env.firebase.authDomain,
+    projectId: env.firebase.projectId,
+    storageBucket: env.firebase.storageBucket,
+    messagingSenderId: env.firebase.messagingSenderId,
+    appId: env.firebase.appId,
+  });
 }
 
-// Log environment status in development
-logEnvStatus();
+/** Returns Firebase Auth (lazily initialised), or null if Firebase is not configured. */
+export function getFirebaseAuth(): Auth | null {
+  if (authInstance) return authInstance;
+  const app = getFirebaseApp();
+  if (!app) return null;
 
-// Firebase configuration using validated environment variables
-const firebaseConfig = {
-  apiKey: env.firebase.apiKey,
-  authDomain: env.firebase.authDomain,
-  projectId: env.firebase.projectId,
-  storageBucket: env.firebase.storageBucket,
-  messagingSenderId: env.firebase.messagingSenderId,
-  appId: env.firebase.appId,
-};
+  authInstance = getAuth(app);
 
-// Initialize Firebase
-export const app = initializeApp(firebaseConfig);
-
-// Initialize Firebase Authentication and get a reference to the service
-export const auth = getAuth(app);
-
-// Initialize Firebase Functions and get a reference to the service
-export const functions = getFunctions(app);
-
-// Connect to emulators in development
-if (env.app.isDevelopment && typeof window !== 'undefined') {
-  // Only connect to emulators on client-side in development
-  const isEmulatorConnected = (window as { __FIREBASE_EMULATOR_CONNECTED__?: boolean }).__FIREBASE_EMULATOR_CONNECTED__ ?? false;
-  
-  if (!isEmulatorConnected) {
-    // Connect to Firebase Auth emulator if running locally
-    if (env.development.useFirebaseEmulator) {
-      connectAuthEmulator(auth, 'http://localhost:9099');
-      connectFunctionsEmulator(functions, 'localhost', 5001);
-      console.log('🔥 Connected to Firebase emulators');
+  if (env.app.isDevelopment && env.development.useFirebaseEmulator && typeof window !== 'undefined') {
+    const w = window as { __FIREBASE_EMULATOR_CONNECTED__?: boolean };
+    if (!w.__FIREBASE_EMULATOR_CONNECTED__) {
+      connectAuthEmulator(authInstance, 'http://localhost:9099');
+      w.__FIREBASE_EMULATOR_CONNECTED__ = true;
     }
-    (window as { __FIREBASE_EMULATOR_CONNECTED__?: boolean }).__FIREBASE_EMULATOR_CONNECTED__ = true;
   }
+  return authInstance;
 }
 
-// Export types for better TypeScript support
 export type { User } from 'firebase/auth';
-export type { Functions } from 'firebase/functions';

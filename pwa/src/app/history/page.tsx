@@ -2,48 +2,62 @@
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { AddExpenseModal } from "@/components/expense/add-expense-modal"
+import { formatCents } from "@/lib/money"
 import { format } from "date-fns"
-import { Search, Filter, ChevronDown } from "lucide-react"
-import { useState, useEffect } from "react"
+import { Search, Filter, ChevronDown, X } from "lucide-react"
+import { useState } from "react"
 import { cn } from "@/lib/utils"
-import { getTransactionHistory } from "@/lib/data"
+import { useDB } from "@/contexts/db-context"
+import { isExpenseOrIncomeTransaction, type Transaction } from "@/lib/db"
+import { isOutflow } from "@/lib/account-balance"
 
-interface Transaction {
-  id: string
-  date: Date
-  description: string
-  amount: number
-  category: string
-  type: 'expense' | 'income'
-}
+type TypeFilter = "all" | "expense" | "income"
 
 export default function HistoryPage() {
+  const { transactions } = useDB()
   const [searchQuery, setSearchQuery] = useState("")
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
   const [expandedDate, setExpandedDate] = useState<string | null>(null)
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+  const [editingTransaction, setEditingTransaction] = useState<(Transaction & { type: "expense" | "income" }) | null>(null)
+  const [pendingDeleteTransferId, setPendingDeleteTransferId] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function loadTransactions() {
-      try {
-        const data = await getTransactionHistory()
-        setTransactions(data.transactions)
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to load transactions'))
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    loadTransactions()
-  }, [])
+  const allTransactions = transactions.transactions
+  const isLoading = allTransactions === undefined
 
-  if (error) throw error // This will be caught by the error boundary
   if (isLoading) return null // This will show the loading.tsx component
 
+  const query = searchQuery.trim().toLowerCase()
+  const filtered = allTransactions
+    .filter((t) => typeFilter === "all" || t.type === typeFilter)
+    .filter(
+      (t) =>
+        query === "" ||
+        t.description.toLowerCase().includes(query) ||
+        t.category.toLowerCase().includes(query)
+    )
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+
   // Group transactions by date
-  const groupedTransactions = transactions.reduce((groups, transaction) => {
-    const date = format(new Date(transaction.date), 'yyyy-MM-dd')
+  const groupedTransactions = filtered.reduce((groups, transaction) => {
+    const date = format(transaction.date, 'yyyy-MM-dd')
     if (!groups[date]) {
       groups[date] = []
     }
@@ -51,73 +65,173 @@ export default function HistoryPage() {
     return groups
   }, {} as Record<string, Transaction[]>)
 
+  const groupDates = Object.keys(groupedTransactions).sort((a, b) => (a < b ? 1 : -1))
+
   return (
-    <div className="container py-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="py-6">
+      {/* flex-col below sm: the title, search input and filter button
+          competing for one row left the search placeholder clipped to
+          "Search tra…" and forced the title onto two lines (M4 in the
+          bug report). The title gets its own row; search gets the
+          full remaining width on the row below it. */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3 sm:gap-2">
         <h1 className="text-2xl font-bold">Transaction History</h1>
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search transactions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 w-full"
             />
           </div>
-          <button className="flex items-center gap-1 rounded-md border px-3 py-2">
-            <Filter className="h-4 w-4" />
-            <span>Filter</span>
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1 rounded-md border px-3 py-2 shrink-0">
+                <Filter className="h-4 w-4" />
+                <span className="hidden sm:inline">Filter</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Transaction type</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={typeFilter}
+                onValueChange={(value) => setTypeFilter(value as TypeFilter)}
+              >
+                <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="expense">Expense</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="income">Income</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      <div className="space-y-4">
-        {Object.entries(groupedTransactions).map(([date, transactions]) => (
-          <Card key={date}>
-            <button
-              className="w-full text-left"
-              onClick={() => setExpandedDate(expandedDate === date ? null : date)}
+      {groupDates.length === 0 ? (
+        <div className="rounded-lg border bg-card p-12 text-center text-muted-foreground">
+          {allTransactions.length === 0
+            ? "No transactions yet."
+            : "No transactions match your search."}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {groupDates.map((date) => (
+            <Card key={date}>
+              <button
+                className="w-full text-left"
+                onClick={() => setExpandedDate(expandedDate === date ? null : date)}
+              >
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg">
+                    {format(new Date(`${date}T00:00:00`), 'MMMM d, yyyy')}
+                  </CardTitle>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 transition-transform",
+                      expandedDate === date ? "rotate-180" : ""
+                    )}
+                  />
+                </CardHeader>
+              </button>
+              {expandedDate === date && (
+                <CardContent>
+                  <div className="space-y-4">
+                    {groupedTransactions[date].map((transaction) => {
+                      const outflow = isOutflow(transaction.type)
+                      const content = (
+                        <>
+                          <div>
+                            <p className="font-medium">
+                              {transaction.description || transaction.category}
+                            </p>
+                            <p className="text-sm text-muted-foreground">{transaction.category}</p>
+                          </div>
+                          <p className={cn("font-medium", outflow ? "text-red-600" : "text-green-600")}>
+                            {outflow ? '-' : '+'}
+                            {formatCents(transaction.amount)}
+                          </p>
+                        </>
+                      )
+
+                      // A transfer leg isn't edited through the ordinary
+                      // expense form (see AddExpenseForm) — it's a linked
+                      // pair, not a standalone row. It can still be deleted
+                      // (both legs together, see deleteTransfer).
+                      if (!isExpenseOrIncomeTransaction(transaction)) {
+                        return (
+                          <div
+                            key={transaction.id}
+                            className="flex w-full items-center justify-between py-2 border-b last:border-0 px-1 -mx-1"
+                          >
+                            {content}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0"
+                              aria-label="Delete transfer"
+                              onClick={() => setPendingDeleteTransferId(transaction.transferId!)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <button
+                          key={transaction.id}
+                          type="button"
+                          onClick={() => setEditingTransaction(transaction)}
+                          className="flex w-full items-center justify-between py-2 border-b last:border-0 text-left hover:bg-muted/50 transition-colors rounded-sm px-1 -mx-1"
+                        >
+                          {content}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {editingTransaction && (
+        <AddExpenseModal
+          transaction={editingTransaction}
+          open={!!editingTransaction}
+          onOpenChange={(open) => !open && setEditingTransaction(null)}
+        />
+      )}
+      <Dialog
+        open={pendingDeleteTransferId !== null}
+        onOpenChange={(open) => !open && setPendingDeleteTransferId(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete transfer?</DialogTitle>
+            <DialogDescription>
+              This removes both sides of the transfer. This can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDeleteTransferId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (pendingDeleteTransferId) await transactions.deleteTransfer(pendingDeleteTransferId)
+                setPendingDeleteTransferId(null)
+              }}
             >
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg">
-                  {format(new Date(date), 'MMMM d, yyyy')}
-                </CardTitle>
-                <ChevronDown 
-                  className={cn(
-                    "h-5 w-5 transition-transform",
-                    expandedDate === date ? "rotate-180" : ""
-                  )}
-                />
-              </CardHeader>
-            </button>
-            {expandedDate === date && (
-              <CardContent>
-                <div className="space-y-4">
-                  {transactions.map((transaction) => (
-                    <div 
-                      key={transaction.id}
-                      className="flex items-center justify-between py-2 border-b last:border-0"
-                    >
-                      <div>
-                        <p className="font-medium">{transaction.description}</p>
-                        <p className="text-sm text-muted-foreground">{transaction.category}</p>
-                      </div>
-                      <p className={cn(
-                        "font-medium",
-                        transaction.type === 'income' ? "text-green-600" : "text-red-600"
-                      )}>
-                        {transaction.type === 'income' ? '+' : '-'}
-                        ${Math.abs(transaction.amount).toFixed(2)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        ))}
-      </div>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
-} 
+}

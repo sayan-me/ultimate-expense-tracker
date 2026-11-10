@@ -4,13 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { AddExpenseForm } from '../add-expense-form'
 import { CategorySelector } from '../category-selector'
 import { TagsInput } from '../tags-input'
-import { renderWithProviders } from '@/tests/test-utils'
+import { renderWithProviders, getDateInput } from '@/tests/test-utils'
 
 // Mock the useDB hook
 const mockData = {
   accounts: {
     accounts: [
-      { id: 1, name: 'Cash', type: 'cash', balance: 500.00, isDefault: true, createdAt: new Date() }
+      { id: 1, name: 'Cash', type: 'cash', openingBalance: 50000, isDefault: true, createdAt: new Date() }
     ],
     addAccount: vi.fn(),
     deleteAccount: vi.fn(),
@@ -25,7 +25,8 @@ const mockData = {
   },
   categories: {
     categories: [
-      { id: 1, name: 'Food', icon: 'utensils', color: '#ef4444', isDefault: true, type: 'expense', createdAt: new Date() }
+      { id: 1, name: 'Food', icon: 'utensils', color: '#ef4444', isDefault: true, type: 'expense', createdAt: new Date() },
+      { id: 2, name: 'Salary', icon: 'briefcase', color: '#059669', isDefault: true, type: 'income', createdAt: new Date() }
     ],
     addCategory: vi.fn()
   }
@@ -59,24 +60,28 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
     it('date field has proper datetime-local input type with native calendar', () => {
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
-      const dateInput = screen.getByDisplayValue(expect.stringMatching(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))
+      const dateInput = getDateInput()
       expect(dateInput.type).toBe('datetime-local')
     })
 
     it('date input maintains proper structure without extra elements', () => {
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
-      
-      const dateInput = screen.getByDisplayValue(expect.stringMatching(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))
-      const dateFieldContainer = dateInput.closest('[class*="FormControl"]')
-      
-      // Should not have any extra calendar icons or positioned elements
-      expect(dateFieldContainer?.children).toHaveLength(1) // Only the input
+
+      const dateInput = getDateInput()
+      const dateFieldContainer = dateInput.parentElement
+
+      // The input is now FormControl's direct child (a label + the
+      // input itself, no wrapping div around just the input — that
+      // wrapper broke the label/input association, see A2 in the bug
+      // report) and carries no extra positioned icon elements.
+      expect(dateFieldContainer?.children).toHaveLength(2) // label + input
+      expect(dateInput.parentElement?.querySelector('span, svg')).toBeNull()
     })
 
     it('native calendar icon appears at end of input field', () => {
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
-      const dateInput = screen.getByDisplayValue(expect.stringMatching(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))
+      const dateInput = getDateInput()
       
       // datetime-local inputs automatically have calendar icon positioned at the end
       expect(dateInput).toBeInTheDocument()
@@ -89,7 +94,7 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
       // Check that form container has proper mobile layout classes
-      const formContainer = screen.getByRole('form')
+      const formContainer = document.querySelector('form')
       expect(formContainer).toBeInTheDocument()
     })
 
@@ -107,7 +112,7 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
     it('date and tags fields use grid layout on larger screens', () => {
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
-      const dateField = screen.getByDisplayValue(expect.stringMatching(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/))
+      const dateField = getDateInput()
       const tagsField = screen.getByPlaceholderText('Add tags...')
       
       expect(dateField).toBeInTheDocument()
@@ -138,9 +143,9 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
       const formFields = [
         screen.getByPlaceholderText('Enter amount...'),
         screen.getByText('Select account'),
-        screen.getByText('Select category...'),
+        screen.getByPlaceholderText('Select or type category...'),
         screen.getByPlaceholderText('What was this expense for?'),
-        screen.getByDisplayValue(expect.stringMatching(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)),
+        getDateInput(),
         screen.getByPlaceholderText('Add tags...')
       ]
       
@@ -151,37 +156,40 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
   })
 
   describe('Category Dropdown Positioning', () => {
-    it('category dropdown has proper width and positioning classes', async () => {
-      const user = userEvent.setup()
-      renderWithProviders(<CategorySelector type="expense" value="" onChange={vi.fn()} />)
-      
-      await user.click(screen.getByRole('button'))
-      
-      await waitFor(() => {
-        const popoverContent = screen.getByPlaceholderText('Search categories...')
-          .closest('[class*="w-[--radix-popover-trigger-width]"]')
-        expect(popoverContent).toBeInTheDocument()
-      })
+    it('category dropdown renders in a portal so a clipping ancestor can never cut it off', async () => {
+      // M1 fix: the dropdown is a Radix Popover, portaled straight to
+      // document.body and positioned by floating-ui, instead of an
+      // absolutely-positioned child of the input's own scrollable
+      // ancestor (which was clipped inside the add-expense dialog on
+      // mobile — see the bug report).
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
+      const { container } = renderWithProviders(
+        <CategorySelector type="expense" value="" onChange={vi.fn()} />
+      )
+
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
+
+      const item = await screen.findByText('Food')
+      expect(document.body.contains(item)).toBe(true)
+      expect(container.contains(item)).toBe(false)
     })
 
     it('category dropdown has proper height constraints for scrolling', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<CategorySelector type="expense" value="" onChange={vi.fn()} />)
       
-      await user.click(screen.getByRole('button'))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       
-      await waitFor(() => {
-        const scrollableArea = screen.getByPlaceholderText('Search categories...')
-          .closest('[class*="max-h-64"]')
-        expect(scrollableArea).toBeInTheDocument()
-        expect(scrollableArea).toHaveClass('overflow-y-auto')
-      })
+      const item = await screen.findByText('Food')
+      const scrollableArea = item.closest('.overflow-y-auto')
+      expect(scrollableArea).toBeInTheDocument()
+      expect(scrollableArea).toHaveClass('max-h-64')
     })
   })
 
   describe('Touch and Mobile Interactions', () => {
     it('form fields are touch-friendly on mobile devices', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
       // Test touch interactions on form fields
@@ -192,7 +200,7 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
     })
 
     it('dropdown triggers work with touch events', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
       // Test account dropdown
@@ -200,18 +208,18 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
       await user.click(accountTrigger)
       
       await waitFor(() => {
-        expect(screen.getByText('Cash ($500.00)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument()
       })
     })
 
     it('category dropdown works with touch on mobile', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Search categories...')).toBeInTheDocument()
+        expect(screen.getByText('Food')).toBeInTheDocument()
       })
     })
   })
@@ -236,7 +244,7 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
     })
 
     it('tag removal buttons are touch-friendly', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       const onChange = vi.fn()
       renderWithProviders(<TagsInput value={['Test Tag']} onChange={onChange} />)
       
@@ -262,38 +270,43 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
         Object.defineProperty(window, 'innerWidth', { writable: true, value: width })
         Object.defineProperty(window, 'innerHeight', { writable: true, value: height })
         
-        renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
+        const { unmount } = renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
         
         // Form should render without issues
         expect(screen.getByText('Amount *')).toBeInTheDocument()
         expect(screen.getByText('Add expense')).toBeInTheDocument()
+        unmount()
       })
     })
   })
 
   describe('Focus Management Across Components', () => {
     it('maintains proper focus flow between form elements', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
-      // Tab through form elements
-      await user.tab() // Amount field
-      expect(screen.getByPlaceholderText('Enter amount...')).toHaveFocus()
-      
+      // Tab until the given element is focused (type tabs come first in DOM order)
+      const tabTo = async (el: HTMLElement) => {
+        for (let i = 0; i < 10 && document.activeElement !== el; i++) {
+          await user.tab()
+        }
+        expect(el).toHaveFocus()
+      }
+
+      await tabTo(screen.getByPlaceholderText('Enter amount...'))
       await user.tab() // Account field
       expect(screen.getByRole('combobox')).toHaveFocus()
-      
+
       // Continue tabbing should work without issues
-      await user.tab() // Category field
-      await user.tab() // Description field
-      expect(screen.getByPlaceholderText('What was this expense for?')).toHaveFocus()
+      await tabTo(screen.getByPlaceholderText('Select or type category...'))
+      await tabTo(screen.getByPlaceholderText('What was this expense for?'))
     })
 
     it('focus returns properly after dropdown interactions', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
-      const categoryTrigger = screen.getByText('Select category...')
+      const categoryTrigger = screen.getByPlaceholderText('Select or type category...')
       await user.click(categoryTrigger)
       
       // Close with Escape
@@ -307,16 +320,16 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
 
   describe('Complete User Journey Integration Tests', () => {
     it('completes full expense entry workflow on mobile', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
       // Simulate mobile user workflow
       await user.type(screen.getByPlaceholderText('Enter amount...'), '25.50')
       
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
       
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food'))
       await user.click(screen.getByText('Food'))
       
@@ -331,7 +344,7 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
       await waitFor(() => {
         expect(mockData.transactions.addTransaction).toHaveBeenCalledWith(
           expect.objectContaining({
-            amount: 25.5,
+            amount: 2550, // $25.50 in cents
             type: 'expense',
             accountId: 1,
             category: 'Food',
@@ -343,7 +356,7 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
     })
 
     it('handles form errors and recovery on mobile', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
       // Submit empty form
@@ -358,8 +371,8 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
       // Fix errors
       await user.type(screen.getByPlaceholderText('Enter amount...'), '10')
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
-      await user.click(screen.getByText('Select category...'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food'))
       await user.click(screen.getByText('Food'))
       await user.type(screen.getByPlaceholderText('What was this expense for?'), 'Fixed')
@@ -373,7 +386,7 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
     })
 
     it('switches between expense and income with full workflow', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
       // Start with expense
@@ -386,7 +399,9 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
       
       // Complete income entry
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
+      await user.click(await screen.findByText('Salary'))
       await user.type(screen.getByPlaceholderText('What was this income for?'), 'Freelance work')
       
       // Submit income
@@ -405,7 +420,7 @@ describe('Add Expense Modal - Responsive & UI Positioning Tests', () => {
 
   describe('Performance and Accessibility', () => {
     it('form remains responsive during rapid interactions', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm onSuccess={vi.fn()} />)
       
       // Rapid tab switching

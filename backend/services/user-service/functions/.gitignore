@@ -10,3 +10,9 @@ node_modules/
 
 # Firebase
 .runtimeconfig.json
+
+# Real secrets for deployed env vars (SUPABASE_SERVICE_ROLE_KEY etc.) —
+# see .env.example. Never commit the filled-in version of these.
+.env
+.env.*
+!.env.example

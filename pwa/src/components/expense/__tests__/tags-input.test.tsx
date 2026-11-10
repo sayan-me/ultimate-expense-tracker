@@ -86,7 +86,7 @@ describe('TagsInput Component', () => {
 
   describe('Custom Tag Input', () => {
     it('allows typing custom tags', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       render(<TagsInput {...defaultProps} />)
       
       const input = screen.getByPlaceholderText('Type and press Enter to add tags...')
@@ -96,7 +96,7 @@ describe('TagsInput Component', () => {
     })
 
     it('adds custom tag on Enter keypress', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       render(<TagsInput {...defaultProps} />)
       
       const input = screen.getByPlaceholderText('Type and press Enter to add tags...')
@@ -106,7 +106,7 @@ describe('TagsInput Component', () => {
     })
 
     it('clears input field after adding tag', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       render(<TagsInput {...defaultProps} />)
       
       const input = screen.getByPlaceholderText('Type and press Enter to add tags...')
@@ -116,7 +116,7 @@ describe('TagsInput Component', () => {
     })
 
     it('trims whitespace from custom tags', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       render(<TagsInput {...defaultProps} />)
       
       const input = screen.getByPlaceholderText('Type and press Enter to add tags...')
@@ -126,7 +126,7 @@ describe('TagsInput Component', () => {
     })
 
     it('ignores empty or whitespace-only tags', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       render(<TagsInput {...defaultProps} />)
       
       const input = screen.getByPlaceholderText('Type and press Enter to add tags...')
@@ -136,7 +136,7 @@ describe('TagsInput Component', () => {
     })
 
     it('prevents duplicate tags', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       render(<TagsInput {...defaultProps} value={['Existing']} />)
       
       const input = screen.getByPlaceholderText('Type and press Enter to add tags...')
@@ -171,7 +171,7 @@ describe('TagsInput Component', () => {
     })
 
     it('backspace on empty input removes last tag', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       render(<TagsInput {...defaultProps} value={['Tag1', 'Tag2']} />)
       
       const input = screen.getByPlaceholderText('Type and press Enter to add tags...')
@@ -182,7 +182,7 @@ describe('TagsInput Component', () => {
     })
 
     it('backspace with text does not remove tags', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       render(<TagsInput {...defaultProps} value={['Tag1', 'Tag2']} />)
       
       const input = screen.getByPlaceholderText('Type and press Enter to add tags...')
@@ -195,7 +195,7 @@ describe('TagsInput Component', () => {
 
   describe('Max Tags Limit', () => {
     it('enforces max tags limit', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       const maxTags = ['Tag1', 'Tag2', 'Tag3', 'Tag4', 'Tag5']
       render(<TagsInput {...defaultProps} value={maxTags} />)
       
@@ -233,7 +233,7 @@ describe('TagsInput Component', () => {
 
   describe('Edge Cases', () => {
     it('handles very long tag names', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       const longTag = 'ThisIsAVeryLongTagNameThatMightCauseLayoutIssues'
       render(<TagsInput {...defaultProps} />)
       
@@ -251,7 +251,7 @@ describe('TagsInput Component', () => {
     })
 
     it('handles special characters in tag names', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       const specialTag = 'Tag@#$%^&*()'
       render(<TagsInput {...defaultProps} />)
       
@@ -262,7 +262,7 @@ describe('TagsInput Component', () => {
     })
 
     it('handles rapid tag additions', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       render(<TagsInput {...defaultProps} />)
       
       const input = screen.getByPlaceholderText('Type and press Enter to add tags...')
@@ -306,7 +306,7 @@ describe('TagsInput Component', () => {
 
   describe('Custom Props', () => {
     it('respects custom maxTags prop', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       render(<TagsInput {...defaultProps} maxTags={2} value={['Tag1', 'Tag2']} />)
       
       const input = screen.getByPlaceholderText('Max 2 tags')

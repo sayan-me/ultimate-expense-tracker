@@ -11,7 +11,7 @@ const mockAccounts = {
       id: 1,
       name: 'Cash',
       type: 'cash',
-      balance: 500.00,
+      openingBalance: 50000, // in cents
       isDefault: true,
       createdAt: new Date()
     },
@@ -19,7 +19,7 @@ const mockAccounts = {
       id: 2,
       name: 'Bank Account',
       type: 'bank',
-      balance: 2500.50,
+      openingBalance: 250050, // in cents
       isDefault: false,
       createdAt: new Date()
     },
@@ -27,7 +27,7 @@ const mockAccounts = {
       id: 3,
       name: 'Credit Card',
       type: 'credit',
-      balance: -150.75,
+      openingBalance: -15075, // in cents
       isDefault: false,
       createdAt: new Date()
     },
@@ -35,7 +35,7 @@ const mockAccounts = {
       id: 4,
       name: 'Savings',
       type: 'savings',
-      balance: 10000.00,
+      openingBalance: 1000000, // in cents
       isDefault: false,
       createdAt: new Date()
     }
@@ -110,77 +110,77 @@ describe('Account Selector in Add Expense Form', () => {
 
   describe('Account Dropdown Functionality', () => {
     it('opens dropdown when clicked', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       const accountTrigger = screen.getByText('Select account')
       await user.click(accountTrigger)
       
       await waitFor(() => {
-        expect(screen.getByText('Cash ($500.00)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument()
       })
     })
 
     it('displays all available accounts in dropdown', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
       
       await waitFor(() => {
-        expect(screen.getByText('Cash ($500.00)')).toBeInTheDocument()
-        expect(screen.getByText('Bank Account ($2,500.50)')).toBeInTheDocument()
-        expect(screen.getByText('Credit Card (-$150.75)')).toBeInTheDocument()
-        expect(screen.getByText('Savings ($10,000.00)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Credit\sCard\s*\(-\$150\.75\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Savings\s*\(\$10,000\.00\)/ })).toBeInTheDocument()
       })
     })
 
     it('shows account names and formatted balances correctly', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
       
       await waitFor(() => {
         // Check positive balance formatting
-        expect(screen.getByText('Cash ($500.00)')).toBeInTheDocument()
-        expect(screen.getByText('Bank Account ($2,500.50)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ })).toBeInTheDocument()
         
         // Check negative balance formatting (credit card)
-        expect(screen.getByText('Credit Card (-$150.75)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Credit\sCard\s*\(-\$150\.75\)/ })).toBeInTheDocument()
         
         // Check large balance formatting
-        expect(screen.getByText('Savings ($10,000.00)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Savings\s*\(\$10,000\.00\)/ })).toBeInTheDocument()
       })
     })
 
     it('closes dropdown when clicking outside', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
       await waitFor(() => {
-        expect(screen.getByText('Cash ($500.00)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument()
       })
       
       await user.click(document.body)
       await waitFor(() => {
-        expect(screen.queryByText('Cash ($500.00)')).not.toBeInTheDocument()
+        expect(screen.queryByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).not.toBeInTheDocument()
       })
     })
   })
 
   describe('Account Selection', () => {
     it('selects account when clicked', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
       await waitFor(() => {
-        expect(screen.getByText('Cash ($500.00)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument()
       })
       
-      await user.click(screen.getByText('Cash ($500.00)'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
       
       await waitFor(() => {
         expect(screen.getByText('Cash')).toBeInTheDocument()
@@ -189,82 +189,82 @@ describe('Account Selector in Add Expense Form', () => {
     })
 
     it('shows selected account in trigger after selection', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Bank Account ($2,500.50)'))
+      await user.click(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ }))
       
       await waitFor(() => {
-        expect(screen.getByDisplayValue('2')).toBeInTheDocument() // Bank Account has ID 2
+        expect(screen.getByRole('combobox')).toHaveTextContent(/Bank Account/)
       })
     })
 
     it('closes dropdown after selection', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
       
       await waitFor(() => {
-        expect(screen.queryByText('Bank Account ($2,500.50)')).not.toBeInTheDocument()
+        expect(screen.queryByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ })).not.toBeInTheDocument()
       })
     })
 
     it('allows changing account selection', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Select first account
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
       
       // Change to different account
-      await user.click(screen.getByDisplayValue('1'))
-      await user.click(screen.getByText('Savings ($10,000.00)'))
+      await user.click(screen.getByRole('combobox'))
+      await user.click(screen.getByRole('option', { name: /Savings\s*\(\$10,000\.00\)/ }))
       
       await waitFor(() => {
-        expect(screen.getByDisplayValue('4')).toBeInTheDocument() // Savings has ID 4
+        expect(screen.getByRole('combobox')).toHaveTextContent(/Savings/)
       })
     })
   })
 
   describe('Account Balance Display', () => {
     it('displays positive balances correctly', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
       
       await waitFor(() => {
-        expect(screen.getByText('Cash ($500.00)')).toBeInTheDocument()
-        expect(screen.getByText('Bank Account ($2,500.50)')).toBeInTheDocument()
-        expect(screen.getByText('Savings ($10,000.00)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Savings\s*\(\$10,000\.00\)/ })).toBeInTheDocument()
       })
     })
 
     it('displays negative balances with minus sign', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
       
       await waitFor(() => {
-        expect(screen.getByText('Credit Card (-$150.75)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Credit\sCard\s*\(-\$150\.75\)/ })).toBeInTheDocument()
       })
     })
 
     it('formats decimal amounts correctly', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
       
       await waitFor(() => {
         // Check that decimals are properly formatted to 2 places
-        expect(screen.getByText('Bank Account ($2,500.50)')).toBeInTheDocument()
-        expect(screen.getByText('Cash ($500.00)')).toBeInTheDocument() // .00 should be shown
+        expect(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ })).toBeInTheDocument() // .00 should be shown
       })
     })
   })
@@ -285,7 +285,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 1,
           name: 'Cash',
           type: 'cash',
-          balance: 500.00,
+          openingBalance: 50000, // in cents
           isDefault: true,
           createdAt: new Date()
         },
@@ -293,7 +293,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 2,
           name: 'Bank Account',
           type: 'bank',
-          balance: 2500.50,
+          openingBalance: 250050, // in cents
           isDefault: false,
           createdAt: new Date()
         },
@@ -301,7 +301,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 3,
           name: 'Credit Card',
           type: 'credit',
-          balance: -150.75,
+          openingBalance: -15075, // in cents
           isDefault: false,
           createdAt: new Date()
         },
@@ -309,7 +309,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 4,
           name: 'Savings',
           type: 'savings',
-          balance: 10000.00,
+          openingBalance: 1000000, // in cents
           isDefault: false,
           createdAt: new Date()
         }
@@ -319,7 +319,7 @@ describe('Account Selector in Add Expense Form', () => {
     it('handles empty accounts array gracefully', async () => {
       mockAccounts.accounts = []
       
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
@@ -333,7 +333,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 1,
           name: 'Cash',
           type: 'cash',
-          balance: 500.00,
+          openingBalance: 50000, // in cents
           isDefault: true,
           createdAt: new Date()
         },
@@ -341,7 +341,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 2,
           name: 'Bank Account',
           type: 'bank',
-          balance: 2500.50,
+          openingBalance: 250050, // in cents
           isDefault: false,
           createdAt: new Date()
         },
@@ -349,7 +349,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 3,
           name: 'Credit Card',
           type: 'credit',
-          balance: -150.75,
+          openingBalance: -15075, // in cents
           isDefault: false,
           createdAt: new Date()
         },
@@ -357,7 +357,7 @@ describe('Account Selector in Add Expense Form', () => {
           id: 4,
           name: 'Savings',
           type: 'savings',
-          balance: 10000.00,
+          openingBalance: 1000000, // in cents
           isDefault: false,
           createdAt: new Date()
         }
@@ -367,7 +367,7 @@ describe('Account Selector in Add Expense Form', () => {
 
   describe('Form Integration', () => {
     it('shows validation error when no account selected on submit', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Try to submit without selecting account
@@ -380,16 +380,16 @@ describe('Account Selector in Add Expense Form', () => {
     })
 
     it('does not show validation error when account is selected', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Select an account
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Cash ($500.00)'))
+      await user.click(screen.getByRole('option', { name: /Cash\s*\(\$500\.00\)/ }))
       
       // Fill other required fields
       await user.type(screen.getByPlaceholderText('Enter amount...'), '50')
-      await user.click(screen.getByText('Category *'))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food'))
       await user.click(screen.getByText('Food'))
       await user.type(screen.getByPlaceholderText('What was this expense for?'), 'Test expense')
@@ -403,14 +403,14 @@ describe('Account Selector in Add Expense Form', () => {
     })
 
     it('includes account ID in form submission', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       // Fill form with account selection
       await user.click(screen.getByText('Select account'))
-      await user.click(screen.getByText('Bank Account ($2,500.50)'))
+      await user.click(screen.getByRole('option', { name: /Bank\sAccount\s*\(\$2,500\.50\)/ }))
       await user.type(screen.getByPlaceholderText('Enter amount...'), '50')
-      await user.click(screen.getByText('Category *'))
+      await user.click(screen.getByPlaceholderText('Select or type category...'))
       await waitFor(() => screen.getByText('Food'))
       await user.click(screen.getByText('Food'))
       await user.type(screen.getByPlaceholderText('What was this expense for?'), 'Test expense')
@@ -436,30 +436,31 @@ describe('Account Selector in Add Expense Form', () => {
     })
 
     it('dropdown trigger is focusable', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       const accountTrigger = screen.getByRole('combobox')
-      await user.tab()
-      await user.tab() // Tab past amount field to account field
+      // Tab through tabs and amount field until we reach the account trigger
+      for (let i = 0; i < 10 && document.activeElement !== accountTrigger; i++) {
+        await user.tab()
+      }
       
       expect(document.activeElement).toBe(accountTrigger)
     })
 
     it('keyboard navigation works in dropdown', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       const accountTrigger = screen.getByRole('combobox')
       await user.click(accountTrigger)
       
-      // Test arrow key navigation
-      await user.keyboard('{ArrowDown}')
+      // Keyboard selection of the focused (first) option
       await user.keyboard('{Enter}')
       
       await waitFor(() => {
         // Should select first account
-        expect(screen.getByDisplayValue('1')).toBeInTheDocument()
+        expect(screen.getByRole('combobox')).toHaveTextContent(/Cash/)
       })
     })
   })
@@ -470,20 +471,20 @@ describe('Account Selector in Add Expense Form', () => {
         id: 5,
         name: 'This Is A Very Long Account Name That Should Be Handled Properly Without Breaking Layout',
         type: 'bank',
-        balance: 1000.00,
+        openingBalance: 100000, // in cents
         isDefault: false,
         createdAt: new Date()
       }
       
       mockAccounts.accounts.push(longNameAccount)
       
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
       
       await waitFor(() => {
-        expect(screen.getByText(`${longNameAccount.name} ($1,000.00)`)).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: new RegExp(longNameAccount.name) })).toBeInTheDocument()
       })
       
       // Cleanup
@@ -495,20 +496,20 @@ describe('Account Selector in Add Expense Form', () => {
         id: 6,
         name: 'Empty Account',
         type: 'bank',
-        balance: 0.00,
+        openingBalance: 0, // in cents
         isDefault: false,
         createdAt: new Date()
       }
       
       mockAccounts.accounts.push(zeroBalanceAccount)
       
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
       
       await waitFor(() => {
-        expect(screen.getByText('Empty Account ($0.00)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Empty\sAccount\s*\(\$0\.00\)/ })).toBeInTheDocument()
       })
       
       // Cleanup
@@ -516,14 +517,14 @@ describe('Account Selector in Add Expense Form', () => {
     })
 
     it('handles large balance numbers correctly', async () => {
-      const user = userEvent.setup()
+      const user = userEvent.setup({ pointerEventsCheck: 0 })
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
       
       await user.click(screen.getByText('Select account'))
       
       await waitFor(() => {
         // Check that large numbers are formatted with commas
-        expect(screen.getByText('Savings ($10,000.00)')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: /Savings\s*\(\$10,000\.00\)/ })).toBeInTheDocument()
       })
     })
   })

@@ -1,230 +1,76 @@
-# Ultimate Expense Tracker (PWA + Backend)
+# Ultimate Expense Tracker (UET)
 
-A full-stack Progressive Web Application for tracking personal and group expenses, featuring a complete Next.js PWA frontend with deployed Firebase Functions backend.
+A local-first Progressive Web App for tracking personal expenses. It works fully offline with no account; sign-in (Firebase) is optional and only needed for the cloud features that are still being built.
 
-## 🚀 Current Status
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the current status review and the phased plan. That file is the source of truth for what is done and what comes next.
 
-### ✅ **Working Components**
-- **PWA Frontend**: Complete Next.js 15 PWA with offline capabilities
-- **User Service Backend**: Deployed Firebase Functions with Supabase integration
-- **Authentication System**: Firebase Auth with user level management
-- **Offline Storage**: IndexedDB with Dexie.js for offline-first experience
+## What works today
 
-### ⚠️ **Placeholder Components** 
-- **Microservices**: Go services (analytics, budget, expense, group, notification) - *structure only*
-- **ML Services**: Python services (prediction, receipt-scanner) - *structure only*
-- **Infrastructure**: Kubernetes + Terraform setup - *for future scaling*
+- Log expenses and income into IndexedDB (Dexie) with categories, tags and a default Cash account
+- Balance card and recent transactions
+- Installable PWA with offline fallback page (service worker via Serwist)
+- Optional sign-in: Firebase Auth + the user service (register, login, profile, change password, delete account, login history)
 
-## 🏗️ Project Architecture
+Not built yet (UI placeholders or mock data): budgets, groups and splitting, savings goals, receipts, imports. History, Monthly Spend and Notifications still render hardcoded mock data (`pwa/src/lib/data.ts`) until Phase 1.
 
-### **PWA Frontend** (Primary Focus)
-- **Framework**: Next.js 15 (App Router) + TypeScript
-- **Styling**: TailwindCSS + Shadcn/ui components
-- **State Management**: Zustand with persistence middleware
-- **Database**: IndexedDB (Dexie.js) for offline-first storage
-- **PWA Features**: Offline support, installable, service worker
+## Repository layout
 
-### **User Service Backend** (Active)
-- **Runtime**: Firebase Functions (Node.js 20)
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Firebase Auth integration
-- **Endpoints**: `/login`, `/register`, `/user` (CRUD operations)
-- **Deployment**: `https://us-central1-uet-stg.cloudfunctions.net/auth`
+```
+pwa/                          Next.js 15 App Router PWA (the app)
+backend/services/user-service Firebase Functions (auth/user API) backed by Supabase
+backend/db/schema.sql         Postgres schema (domain reference, 26 tables)
+backend/db/supabase/          Supabase CLI config, migration and seed data
+docs/                         Product spec, roadmap, deployment notes
+```
 
-### **Future Backend Services** (Planned)
-- **Microservices**: Go-based services for core business logic
-- **ML Services**: Python FastAPI for AI features
-- **Infrastructure**: Kubernetes deployment with Terraform
+## Getting started
 
-## 💻 Tech Stack
+Prerequisites: Node.js 20+ and [pnpm](https://pnpm.io).
 
-### **Active Development**
-- **PWA**: Next.js 15 + TypeScript + TailwindCSS + Shadcn/ui
-- **State**: Zustand with persistence + IndexedDB (Dexie.js)
-- **Backend**: Firebase Functions (Node.js 20) + Supabase
-- **Auth**: Firebase Auth with custom user levels (`basic`, `registered`, `premium`)
-- **Testing**: Vitest + comprehensive store testing
-
-### **Future Implementation**
-- **Microservices**: Go services for business logic
-- **ML/AI**: Python FastAPI for receipt scanning & predictions
-- **Infrastructure**: Kubernetes + Terraform for scalability
-
-## 🚀 Getting Started
-
-### **PWA Development** (Primary)
-
-#### Prerequisites
-- Node.js 18+ (for PWA)
-- Node.js 20 (for Firebase Functions)
-- pnpm (required package manager)
-
-#### Quick Start
 ```bash
-# Navigate to PWA directory
-cd pwa/
-
-# Install dependencies
+cd pwa
 pnpm install
-
-# Start development server
-pnpm dev
+pnpm dev          # http://localhost:3000
 ```
 
-#### Available Commands
+No environment variables are required. Without Firebase configuration the app runs in local-only mode and the sign-in page shows "Sign-in not configured".
+
+### Enabling sign-in (optional)
+
+Copy `pwa/.env.local.example` to `pwa/.env.local` and fill in the `NEXT_PUBLIC_FIREBASE_*` values and `NEXT_PUBLIC_USER_SERVICE_URL`.
+
+### PWA commands
+
 ```bash
-cd pwa/               # Navigate to PWA directory first
-pnpm dev              # Development server (localhost:3000)
-pnpm build            # Production build
-pnpm start            # Production server
-pnpm test             # Run all tests
-pnpm test:stores      # Test Zustand stores (critical)
-pnpm test:coverage    # Coverage report
+cd pwa
+pnpm dev              # development server
+pnpm build            # production build (also generates public/sw.js)
+pnpm start            # serve the production build
+pnpm lint             # ESLint
+pnpm exec tsc --noEmit  # typecheck
+pnpm test             # Vitest (watch mode); use `pnpm exec vitest run` for a single run
 ```
 
-### **User Service Backend** (Secondary)
+The service worker is only generated for production builds; it is disabled in `pnpm dev`.
 
-#### Prerequisites
+### User service (Firebase Functions)
+
 ```bash
-# Switch to Node.js 20 (required for Firebase CLI)
 nvm use 20
-
-# Set deployment timeout (required for complex functions)
-export FUNCTIONS_DISCOVERY_TIMEOUT=60
+cd backend/services/user-service/functions
+npm ci
+npm run build
+npm run serve         # local emulator
 ```
 
-#### Development
-```bash
-cd backend/services/user-service/functions/
+Deployment notes live in `docs/FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md` (Node 20, `FUNCTIONS_DISCOVERY_TIMEOUT=60`, lazy initialisation of external clients).
 
-# Local development
-npm run serve         # Firebase emulator (localhost:5001)
+## Architecture notes
 
-# Deployment
-npm run build         # Build TypeScript
-npm run deploy        # Deploy to Firebase
-```
+- State: React contexts (`auth-context`, `db-context`, `activities-context`) plus Dexie live queries. A small Zustand store (`pwa/src/stores/auth.ts`) mirrors auth state via `useAuthSync`.
+- Data: IndexedDB through Dexie (`pwa/src/lib/db.ts`), offline-first.
+- UI: Tailwind CSS and shadcn/ui; forms use react-hook-form and zod.
 
-#### Current Deployment
-- **Live Service**: `https://us-central1-uet-stg.cloudfunctions.net/auth`
-- **Endpoints**: `/login`, `/register`, `/user`
-- **Integration**: Ready for PWA authentication
+## Contributing
 
-### **Other Services** (Future)
-```bash
-# Go Microservices (placeholder)
-cd backend/services/[service-name]/
-make build && make run
-
-# Python ML Services (placeholder)  
-cd backend/services/[service-name]/
-pip install -r requirements.txt && python src/api/routes.py
-```
-
-## ✨ Features
-
-### **PWA Features** (Active)
-- 📱 **Mobile-first responsive design** with touch-optimized UI
-- 🔌 **Offline-first architecture** with IndexedDB storage
-- 📲 **Installable PWA** with service worker
-- 🎨 **Feature gating system** (`basic`, `registered`, `premium`)
-- 🔄 **Real-time state management** with Zustand persistence
-- 🧪 **Comprehensive testing** with Vitest + store tests
-
-### **Backend Features** (Active)
-- 🔐 **Firebase Authentication** with custom user levels
-- 👤 **User management** (register, login, profile, delete)
-- 🗄️ **Supabase integration** for persistent data
-- 🌐 **CORS-enabled API** ready for PWA integration
-- 🚀 **Production deployment** on Firebase Functions
-
-### **Planned Features**
-- 📊 Expense analytics and reporting
-- 👥 Group expense tracking
-- 📸 Receipt scanning with ML
-- 💰 Budget management
-- 📈 Spending predictions
-
-## 📁 Project Structure
-
-### **Active Development**
-```
-pwa/                          # PWA application
-├── src/                      # PWA source code
-│   ├── app/                  # Next.js app router pages
-│   ├── components/           # React components (80+ components)
-│   │   ├── ui/               # Shadcn/ui components
-│   │   ├── auth/             # Authentication components
-│   │   └── layout/           # Layout & navigation
-│   ├── stores/               # Zustand state management
-│   │   └── __tests__/        # Store testing (critical)
-│   ├── lib/                  # Utilities & database
-│   └── config/               # Feature gates & configuration
-├── package.json              # PWA dependencies
-└── next.config.ts            # Next.js configuration
-
-backend/services/user-service/ # Firebase Functions
-├── functions/src/index.ts    # User service endpoints
-├── firebase.json             # Firebase configuration
-└── package.json              # Node.js 20 dependencies
-
-docs/                         # Documentation
-├── FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md
-├── UET_product_details.md
-└── next-steps.md
-```
-
-### **Future Development**
-```
-backend/services/             # Placeholder microservices
-├── analytics-service/        # Go service (structure only)
-├── budget-service/           # Go service (structure only) 
-├── expense-service/          # Go service (structure only)
-├── prediction-service/       # Python ML (structure only)
-└── receipt-scanner-service/  # Python ML (structure only)
-
-infrastructure/               # Kubernetes & Terraform (future)
-```
-
-## 🔧 Development Notes
-
-### **Firebase Functions Deployment** 
-If you encounter deployment issues, see `docs/FIREBASE_FUNCTIONS_DEPLOYMENT_INVESTIGATION.md` for:
-- Node.js 20 compatibility requirements
-- Discovery timeout configuration
-- Lazy initialization patterns
-- Fresh project setup
-
-### **Key Learnings**
-- **Use Node.js 20** for Firebase CLI v14+ compatibility
-- **Set discovery timeout** (`FUNCTIONS_DISCOVERY_TIMEOUT=60`) for complex functions
-- **Focus on PWA first** - backend services can be implemented incrementally
-- **Test Zustand stores** - state management is critical for PWA functionality
-
-## 🤝 Contributing
-
-1. **PWA Development** (primary focus)
-   ```bash
-   git checkout -b feature/pwa-enhancement
-   cd pwa/  # Work in PWA directory
-   pnpm test:stores  # Always test stores
-   ```
-
-2. **Backend Development** (secondary focus)
-   ```bash
-   git checkout -b feature/user-service-enhancement  
-   # Work in backend/services/user-service/
-   nvm use 20  # Required for Firebase Functions
-   ```
-
-3. **Commit & Push**
-   ```bash
-   git commit -m 'feat: add amazing PWA feature'
-   git push origin feature/pwa-enhancement
-   ```
-
----
-
-**Current Focus**: PWA frontend development and User Service integration  
-**Live Backend**: `https://us-central1-uet-stg.cloudfunctions.net/auth`  
-**Development Status**: Ready for feature development and user testing
+Work on a branch and open a PR. CI (`.github/workflows/ci.yml`) runs lint, typecheck, tests and build for the PWA, and builds the user service.

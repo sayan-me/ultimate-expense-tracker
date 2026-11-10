@@ -5,9 +5,15 @@ import { ChevronRight, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
+import { DataManagement } from "@/components/settings/data-management"
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  // The dashboard's "Export/Import Data" quick action links here with
+  // ?section=data so it lands directly on the right section, instead of
+  // just the settings page requiring another click to find it.
+  const [activeSection, setActiveSection] = useState<string | null>(() => searchParams.get("section"))
 
   const sections = [
     { id: 'notifications', title: 'Notification Preferences', expandable: true },
@@ -26,7 +32,13 @@ export default function SettingsPage() {
           if (section.href) {
             // Render as navigation link
             return (
-              <Link key={section.id} href={section.href}>
+              // block: next/link's <a> defaults to display: inline, which
+              // makes the parent's space-y-4 margin-top (a sibling
+              // selector that only affects block-level elements) a
+              // no-op — this card sat flush against the one above it
+              // while every plain <Card> sibling got the normal 16px
+              // gap (U10 in the bug report).
+              <Link key={section.id} href={section.href} className="block">
                 <Card className="transition-all duration-200 hover:bg-muted cursor-pointer">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -67,7 +79,11 @@ export default function SettingsPage() {
               </button>
               {activeSection === section.id && (
                 <CardContent>
-                  <p className="text-muted-foreground">Coming soon...</p>
+                  {section.id === "data" ? (
+                    <DataManagement />
+                  ) : (
+                    <p className="text-muted-foreground">Coming soon...</p>
+                  )}
                 </CardContent>
               )}
             </Card>

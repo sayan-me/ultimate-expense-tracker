@@ -46,7 +46,19 @@ function ActivitiesBarContent() {
             <Overlay isVisible={isActivitiesBarOpen} onClose={handleClose} />
             <div
                 className={cn(
-                    "fixed bottom-14 left-0 right-0 bg-background transition-transform duration-300 ease-in-out",
+                    // bottom-16 matches BottomNav's own h-16 exactly — a
+                    // bottom-14 (56px) offset against a 64px bar left an
+                    // 8px gap where this sheet ran under the mode bar
+                    // (M3 in the bug report).
+                    //
+                    // flex flex-col: this panel also contains the toggle
+                    // button above the scrollable grid. Without flex-col,
+                    // the grid's h-full resolved to 100% of THIS div's
+                    // own h-[50vh] — on top of the button's own height,
+                    // not instead of it — so total content ran past the
+                    // panel's bottom edge even when "fully scrolled"
+                    // (still true after the bottom-16 fix above).
+                    "fixed bottom-16 left-0 right-0 bg-background transition-transform duration-300 ease-in-out flex flex-col",
                     "border-t rounded-t-2xl shadow-lg",
                     isActivitiesBarOpen
                         ? "h-[50vh] transform translate-y-0 z-30"
@@ -87,7 +99,7 @@ function ActivitiesBarContent() {
                     <>
                         <button
                             onClick={() => toggleActivitiesBar()}
-                            className="flex w-full items-center justify-center p-2 gap-2"
+                            className="flex w-full shrink-0 items-center justify-center p-2 gap-2"
                             aria-label={
                                 isActivitiesBarOpen
                                     ? "Collapse activities"
@@ -117,7 +129,7 @@ function ActivitiesBarContent() {
                                     </div>
                                 }
                             >
-                                <div className="container h-full overflow-y-auto p-4">
+                                <div className="container flex-1 min-h-0 overflow-y-auto p-4">
                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
                                         {actions.map((activity) => (
                                             <ActivityButton
@@ -130,7 +142,7 @@ function ActivitiesBarContent() {
                             </FeatureGate>
                         ) : (
                             isActivitiesBarOpen && (
-                                <div className="container h-full overflow-y-auto p-4">
+                                <div className="container flex-1 min-h-0 overflow-y-auto p-4">
                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
                                         {actions.map((activity) => (
                                             <ActivityButton

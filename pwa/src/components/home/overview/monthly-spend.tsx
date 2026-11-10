@@ -1,43 +1,25 @@
 "use client"
 
+import Link from "next/link"
 import { Progress } from "@/components/ui/progress"
-import { formatCurrency, cn } from "@/lib/utils"
+import { cn } from "@/lib/utils"
+import { formatCents } from "@/lib/money"
+import { computeSpend, budgetStatus } from "@/lib/budget"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getMonthlySpendData } from "@/lib/data"
-import { useEffect, useState } from "react"
-import { Alert } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+import { useDB } from "@/contexts/db-context"
+
+const LEVEL_COLOR = {
+  ok: "bg-primary",
+  warning: "bg-warning",
+  over: "bg-destructive",
+} as const
 
 export function MonthlySpend() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [data, setData] = useState<{
-    monthlySpend: number
-    monthlyBudget: number
-  } | null>(null)
+  const { transactions, budgets } = useDB()
+  const allTransactions = transactions.transactions
+  const overallBudget = budgets.useOverallBudget()
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const result = await getMonthlySpendData()
-        setData(result)
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to load data'))
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
-
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <span>Failed to load monthly spend data: {error.message}</span>
-      </Alert>
-    )
-  }
+  const isLoading = allTransactions === undefined
 
   if (isLoading) {
     return (
@@ -63,42 +45,52 @@ export function MonthlySpend() {
     )
   }
 
-  const spent = data?.monthlySpend ?? 0
-  const budget = data?.monthlyBudget ?? 0
-  const percentage = (spent / budget) * 100
-
-  const getProgressColor = (percent: number) => {
-    if (percent >= 90) return "bg-destructive"
-    if (percent >= 75) return "bg-warning"
-    return "bg-primary"
-  }
+  const now = new Date()
+  const spent = computeSpend(allTransactions ?? [], { month: now.getMonth(), year: now.getFullYear() })
 
   return (
     <div className="rounded-lg border bg-card p-6 shadow-sm" role="region" aria-label="Monthly spending overview">
       <h3 className="text-sm font-medium text-muted-foreground">Monthly Spend vs Budget</h3>
-      <div className="mt-4 space-y-4">
-        <div className="flex items-center justify-between gap-8">
-          <div>
-            <p className="text-xl font-bold">{formatCurrency(spent)}</p>
-            <p className="text-sm text-muted-foreground">spent this month</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xl font-bold">{formatCurrency(budget)}</p>
-            <p className="text-sm text-muted-foreground">monthly budget</p>
-          </div>
+      {!overallBudget ? (
+        <div className="mt-4 space-y-2">
+          <p className="text-xl font-bold">{formatCents(spent)}</p>
+          <p className="text-sm text-muted-foreground">spent this month</p>
+          <Link href="/budgets" className="text-sm text-primary hover:underline">
+            Set a budget to track your spending
+          </Link>
         </div>
-        <div className="space-y-2">
-          <Progress 
-            value={percentage} 
-            className="h-2"
-            indicatorClassName={cn(getProgressColor(percentage))}
-            aria-label={`${percentage.toFixed(0)}% of monthly budget spent`}
-          />
-          <p className="text-xs text-muted-foreground text-right">
-            {percentage.toFixed(0)}% used
-          </p>
-        </div>
-      </div>
+      ) : (
+        (() => {
+          const { percentage, level } = budgetStatus(spent, overallBudget.amount)
+          const displayPercentage = Number.isFinite(percentage) ? percentage : 999
+          return (
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center justify-between gap-8">
+                <div>
+                  <p className="text-xl font-bold">{formatCents(spent)}</p>
+                  <p className="text-sm text-muted-foreground">spent this month</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xl font-bold">{formatCents(overallBudget.amount)}</p>
+                  <p className="text-sm text-muted-foreground">monthly budget</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Progress
+                  value={Math.min(displayPercentage, 100)}
+                  className="h-2"
+                  indicatorClassName={cn(LEVEL_COLOR[level])}
+                  data-level={level}
+                  aria-label={`${displayPercentage.toFixed(0)}% of monthly budget spent`}
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {displayPercentage.toFixed(0)}% used
+                </p>
+              </div>
+            </div>
+          )
+        })()
+      )}
     </div>
   )
-} 
+}

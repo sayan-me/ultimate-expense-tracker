@@ -37,9 +37,12 @@ export interface ModalSize {
   height: string
 }
 
+// Below `sm` (640px) every size becomes a full-height bottom sheet instead
+// of a centered dialog — see base-modal.tsx. These widths/heights are the
+// `sm:` and up behavior only.
 export const MODAL_SIZES: Record<NonNullable<BaseModalProps["size"]>, ModalSize> = {
-  sm: { width: "w-[80vw] max-w-md", height: "h-auto max-h-[60vh]" },
-  md: { width: "w-[90vw] max-w-2xl", height: "h-[70vh]" },
-  lg: { width: "w-[95vw] max-w-4xl", height: "h-[80vh]" },
-  xl: { width: "w-[98vw] max-w-6xl", height: "h-[90vh]" }
+  sm: { width: "sm:w-[80vw] sm:max-w-md", height: "sm:h-auto sm:max-h-[60vh]" },
+  md: { width: "sm:w-[90vw] sm:max-w-2xl", height: "sm:h-[70vh] sm:max-h-[85vh]" },
+  lg: { width: "sm:w-[95vw] sm:max-w-4xl", height: "sm:h-[80vh] sm:max-h-[85vh]" },
+  xl: { width: "sm:w-[98vw] sm:max-w-6xl", height: "sm:h-[90vh] sm:max-h-[90vh]" }
 }

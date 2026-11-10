@@ -4,18 +4,27 @@ import {
   onAuthStateChanged,
   User as FirebaseUser
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 import { env } from '@/config/env';
 import type { AppUser, LoginRequest, RegisterRequest, UserServiceResponse } from '@/types/auth';
 
 /**
  * Authentication service that integrates Firebase Auth with User Service
  */
+const NOT_CONFIGURED = 'Sign-in is not configured';
+
+function requireAuth() {
+  const auth = getFirebaseAuth();
+  if (!auth) throw new Error(NOT_CONFIGURED);
+  return auth;
+}
+
 export class AuthService {
   /**
    * Login with email and password
    */
   async login(email: string, password: string): Promise<AppUser> {
+    if (!getFirebaseAuth()) throw new Error(NOT_CONFIGURED);
     try {
       console.log('🔐 Attempting login with:', email);
       
@@ -23,7 +32,7 @@ export class AuthService {
       const userProfile = await this.loginWithUserService({ email, password });
       
       // User service returns regular Firebase ID token, just use email/password to sign in
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(requireAuth(), email, password);
       
       return userProfile;
     } catch (error: unknown) {
@@ -37,6 +46,7 @@ export class AuthService {
    * Register new user
    */
   async register(email: string, password: string, name: string): Promise<AppUser> {
+    if (!getFirebaseAuth()) throw new Error(NOT_CONFIGURED);
     try {
       console.log('📝 Registering user on server:', email);
       
@@ -56,7 +66,7 @@ export class AuthService {
    */
   async logout(): Promise<void> {
     try {
-      await signOut(auth);
+      await signOut(requireAuth());
     } catch (error: unknown) {
       console.error('Logout error:', error);
       throw new Error('Failed to logout');
@@ -67,13 +77,19 @@ export class AuthService {
    * Get current Firebase user
    */
   getCurrentFirebaseUser(): FirebaseUser | null {
-    return auth.currentUser;
+    return getFirebaseAuth()?.currentUser ?? null;
   }
 
   /**
    * Listen to authentication state changes
    */
   onAuthStateChange(callback: (user: FirebaseUser | null) => void): () => void {
+    const auth = getFirebaseAuth();
+    if (!auth) {
+      // Firebase not configured: behave as permanently signed out.
+      callback(null);
+      return () => {};
+    }
     return onAuthStateChanged(auth, callback);
   }
 
@@ -176,7 +192,7 @@ export class AuthService {
   private async signInWithCustomToken(customToken: string): Promise<void> {
     try {
       const { signInWithCustomToken } = await import('firebase/auth');
-      await signInWithCustomToken(auth, customToken);
+      await signInWithCustomToken(requireAuth(), customToken);
       console.log('✅ Signed in with custom token');
     } catch (error) {
       console.error('❌ Failed to sign in with custom token:', error);

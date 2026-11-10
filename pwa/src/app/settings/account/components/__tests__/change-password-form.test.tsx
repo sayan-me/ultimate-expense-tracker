@@ -1,26 +1,27 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ChangePasswordForm } from '../change-password-form'
 import { authService } from '@/services/auth.service'
 
 // Mock the auth service
-jest.mock('@/services/auth.service', () => ({
+vi.mock('@/services/auth.service', () => ({
   authService: {
-    changePassword: jest.fn(),
+    changePassword: vi.fn(),
   },
 }))
 
-const mockChangePassword = authService.changePassword as jest.MockedFunction<typeof authService.changePassword>
+const mockChangePassword = authService.changePassword as vi.MockedFunction<typeof authService.changePassword>
 
 describe('ChangePasswordForm', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   it('renders password form fields', () => {
     render(<ChangePasswordForm />)
     
     expect(screen.getByLabelText(/current password/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/new password/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^new password$/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/confirm new password/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /change password/i })).toBeDisabled()
   })
@@ -31,7 +32,7 @@ describe('ChangePasswordForm', () => {
     fireEvent.change(screen.getByLabelText(/current password/i), { 
       target: { value: 'currentpass' } 
     })
-    fireEvent.change(screen.getByLabelText(/new password/i), { 
+    fireEvent.change(screen.getByLabelText(/^new password$/i), { 
       target: { value: 'newpass123' } 
     })
     fireEvent.change(screen.getByLabelText(/confirm new password/i), { 
@@ -47,14 +48,14 @@ describe('ChangePasswordForm', () => {
     fireEvent.change(screen.getByLabelText(/current password/i), { 
       target: { value: 'currentpass' } 
     })
-    fireEvent.change(screen.getByLabelText(/new password/i), { 
+    fireEvent.change(screen.getByLabelText(/^new password$/i), { 
       target: { value: 'newpass123' } 
     })
     fireEvent.change(screen.getByLabelText(/confirm new password/i), { 
       target: { value: 'differentpass' } 
     })
     
-    const form = screen.getByRole('form')
+    const form = document.querySelector('form') as HTMLFormElement
     fireEvent.submit(form)
     
     await waitFor(() => {
@@ -68,14 +69,14 @@ describe('ChangePasswordForm', () => {
     fireEvent.change(screen.getByLabelText(/current password/i), { 
       target: { value: 'currentpass' } 
     })
-    fireEvent.change(screen.getByLabelText(/new password/i), { 
+    fireEvent.change(screen.getByLabelText(/^new password$/i), { 
       target: { value: '123' } 
     })
     fireEvent.change(screen.getByLabelText(/confirm new password/i), { 
       target: { value: '123' } 
     })
     
-    const form = screen.getByRole('form')
+    const form = document.querySelector('form') as HTMLFormElement
     fireEvent.submit(form)
     
     await waitFor(() => {
@@ -91,14 +92,14 @@ describe('ChangePasswordForm', () => {
     fireEvent.change(screen.getByLabelText(/current password/i), { 
       target: { value: 'currentpass' } 
     })
-    fireEvent.change(screen.getByLabelText(/new password/i), { 
+    fireEvent.change(screen.getByLabelText(/^new password$/i), { 
       target: { value: 'newpass123' } 
     })
     fireEvent.change(screen.getByLabelText(/confirm new password/i), { 
       target: { value: 'newpass123' } 
     })
     
-    const form = screen.getByRole('form')
+    const form = document.querySelector('form') as HTMLFormElement
     fireEvent.submit(form)
     
     await waitFor(() => {
@@ -108,7 +109,7 @@ describe('ChangePasswordForm', () => {
     
     // Check that form is cleared after success
     expect(screen.getByLabelText(/current password/i)).toHaveValue('')
-    expect(screen.getByLabelText(/new password/i)).toHaveValue('')
+    expect(screen.getByLabelText(/^new password$/i)).toHaveValue('')
     expect(screen.getByLabelText(/confirm new password/i)).toHaveValue('')
   })
 
@@ -120,14 +121,14 @@ describe('ChangePasswordForm', () => {
     fireEvent.change(screen.getByLabelText(/current password/i), { 
       target: { value: 'wrongpass' } 
     })
-    fireEvent.change(screen.getByLabelText(/new password/i), { 
+    fireEvent.change(screen.getByLabelText(/^new password$/i), { 
       target: { value: 'newpass123' } 
     })
     fireEvent.change(screen.getByLabelText(/confirm new password/i), { 
       target: { value: 'newpass123' } 
     })
     
-    const form = screen.getByRole('form')
+    const form = document.querySelector('form') as HTMLFormElement
     fireEvent.submit(form)
     
     await waitFor(() => {

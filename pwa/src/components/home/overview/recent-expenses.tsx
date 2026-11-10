@@ -1,17 +1,41 @@
 "use client"
 
-import { formatAmount } from "@/lib/validations/expense"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { formatCents } from "@/lib/money"
 import { format } from "date-fns"
-import { ArrowRight, Plus } from "lucide-react"
+import { ArrowRight, Plus, X } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { useDB } from "@/contexts/db-context"
 import { AddExpenseModal } from "@/components/expense/add-expense-modal"
+import { isExpenseOrIncomeTransaction, type Transaction } from "@/lib/db"
+import { isOutflow } from "@/lib/account-balance"
 
 export function RecentExpenses() {
-  const { transactions } = useDB()
-  
+  const { transactions, categories } = useDB()
+  const router = useRouter()
+  const [editingTransaction, setEditingTransaction] = useState<(Transaction & { type: "expense" | "income" }) | null>(null)
+  const [pendingDeleteTransferId, setPendingDeleteTransferId] = useState<string | null>(null)
+
   // Get recent transactions (limit to 5)
   const recentTransactions = transactions.useRecentTransactions(5)
+
+  const goToHistory = () => router.push("/history")
+
+  // U5 (bug report): the category dot was colored by transaction type
+  // (always red for an expense), not by the category's own stored
+  // color. Look it up by name.
+  const categoryColor = (categoryName: string, fallback: string) =>
+    categories.categories?.find((c) => c.name === categoryName)?.color ?? fallback
 
   if (!recentTransactions) {
     return (
@@ -45,7 +69,7 @@ export function RecentExpenses() {
         <div className="flex items-center justify-between p-6 pb-4">
           <h3 className="text-sm font-medium text-muted-foreground">Recent Transactions</h3>
           <button
-            onClick={() => {/* To be implemented in routing phase */}}
+            onClick={goToHistory}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
             aria-label="View all transactions"
           >
@@ -79,7 +103,7 @@ export function RecentExpenses() {
       <div className="flex items-center justify-between p-6 pb-4">
         <h3 className="text-sm font-medium text-muted-foreground">Recent Transactions</h3>
         <button
-          onClick={() => {/* To be implemented in routing phase */}}
+          onClick={goToHistory}
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           aria-label="View all transactions"
         >
@@ -88,42 +112,114 @@ export function RecentExpenses() {
         </button>
       </div>
       <div className="divide-y">
-        {recentTransactions.map((transaction) => (
-          <div key={transaction.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
-            <div className="space-y-1">
-              <p className="font-medium">{transaction.description}</p>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <div 
-                    className="w-2 h-2 rounded-full" 
-                    style={{ 
-                      backgroundColor: transaction.type === 'expense' ? '#ef4444' : '#10b981' 
-                    }}
-                  />
-                  {transaction.category}
-                </span>
-                <span>•</span>
-                <time dateTime={transaction.date.toISOString()}>
-                  {format(transaction.date, "MMM d, h:mm a")}
-                </time>
+        {recentTransactions.map((transaction) => {
+          const editable = isExpenseOrIncomeTransaction(transaction)
+          const outflow = isOutflow(transaction.type)
+          const content = (
+            <>
+              <div className="space-y-1 min-w-0">
+                <p className="font-medium truncate">{transaction.description || transaction.category}</p>
+                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1 whitespace-nowrap">
+                    <div
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: categoryColor(transaction.category, outflow ? '#ef4444' : '#10b981')
+                      }}
+                    />
+                    {transaction.category}
+                  </span>
+                  <span className="whitespace-nowrap">•</span>
+                  <time dateTime={transaction.date.toISOString()} className="whitespace-nowrap">
+                    {format(transaction.date, "MMM d, h:mm a")}
+                  </time>
+                </div>
               </div>
-            </div>
-            <div className="text-right">
-              <p className={`font-medium ${
-                transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
-              }`}>
-                {transaction.type === 'expense' ? '-' : '+'}
-                {formatAmount(transaction.amount)}
-              </p>
-              {transaction.tags && transaction.tags.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {transaction.tags.join(', ')}
+              <div className="text-right shrink-0">
+                <p className={`font-medium whitespace-nowrap ${outflow ? 'text-red-600' : 'text-green-600'}`}>
+                  {outflow ? '-' : '+'}
+                  {formatCents(transaction.amount)}
                 </p>
-              )}
-            </div>
-          </div>
-        ))}
+                {transaction.tags && transaction.tags.length > 0 && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    {transaction.tags.join(', ')}
+                  </p>
+                )}
+              </div>
+            </>
+          )
+
+          // A transfer leg isn't edited through the ordinary expense form
+          // (see AddExpenseForm) — it's a linked pair, not a standalone row.
+          // It can still be deleted (both legs together, see deleteTransfer).
+          if (!editable) {
+            return (
+              <div
+                key={transaction.id}
+                className="flex w-full items-center gap-3 justify-between p-4"
+              >
+                {content}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0"
+                  aria-label="Delete transfer"
+                  onClick={() => setPendingDeleteTransferId(transaction.transferId!)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )
+          }
+
+          return (
+            <button
+              key={transaction.id}
+              type="button"
+              onClick={() => setEditingTransaction(transaction)}
+              className="flex w-full items-center gap-3 justify-between p-4 text-left hover:bg-muted/50 transition-colors"
+              aria-label={`Edit ${transaction.description || transaction.category}`}
+            >
+              {content}
+            </button>
+          )
+        })}
       </div>
+      {editingTransaction && (
+        <AddExpenseModal
+          transaction={editingTransaction}
+          open={!!editingTransaction}
+          onOpenChange={(open) => !open && setEditingTransaction(null)}
+        />
+      )}
+      <Dialog
+        open={pendingDeleteTransferId !== null}
+        onOpenChange={(open) => !open && setPendingDeleteTransferId(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete transfer?</DialogTitle>
+            <DialogDescription>
+              This removes both sides of the transfer. This can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDeleteTransferId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (pendingDeleteTransferId) await transactions.deleteTransfer(pendingDeleteTransferId)
+                setPendingDeleteTransferId(null)
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
-} 
+}

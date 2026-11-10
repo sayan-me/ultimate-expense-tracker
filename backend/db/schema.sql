@@ -530,4 +530,181 @@ CREATE TABLE user_activity_logs (
 CREATE INDEX idx_dashboard_configs_user ON dashboard_configurations(user_id);
 CREATE INDEX idx_data_transfers_user ON data_transfers(user_id, status);
 CREATE INDEX idx_user_activity_logs ON user_activity_logs(user_id, created_at);
+
+-- Cloud sync tables for the PWA's local-only Dexie data (ROADMAP Phase 4).
+-- These mirror the PWA's Dexie model field-for-field (integer cents, a
+-- unified transactions ledger with transfer legs, free-text categories,
+-- savings goals as account fields, recurring transactions with next-run
+-- scheduling) rather than the expenses/budgets/savings_goals tables above,
+-- which predate that model and are untouched by this addition. See
+-- backend/db/supabase/migrations/20261110020000_pwa_sync_tables.sql for
+-- the authoritative migration (including RLS policies, mirrored here for
+-- a single-file view of the schema).
+
+CREATE TABLE user_accounts (
+    sync_id UUID PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('cash', 'bank', 'credit', 'savings')),
+    opening_balance INTEGER NOT NULL,
+    is_default BOOLEAN,
+    target_amount INTEGER,
+    target_date TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE user_categories (
+    sync_id UUID PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    icon TEXT,
+    color TEXT,
+    is_default BOOLEAN,
+    type TEXT NOT NULL CHECK (type IN ('expense', 'income', 'both')),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE user_transactions (
+    sync_id UUID PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_sync_id UUID NOT NULL REFERENCES user_accounts(sync_id) ON DELETE CASCADE,
+    amount INTEGER NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('expense', 'income', 'transfer_out', 'transfer_in')),
+    category TEXT NOT NULL,
+    description TEXT,
+    date TIMESTAMP WITH TIME ZONE NOT NULL,
+    transfer_id UUID,
+    tags TEXT[],
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE user_budgets (
+    sync_id UUID PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category TEXT,
+    amount INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE user_recurring_transactions (
+    sync_id UUID PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_sync_id UUID NOT NULL REFERENCES user_accounts(sync_id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('expense', 'income')),
+    category TEXT NOT NULL,
+    description TEXT,
+    amount INTEGER NOT NULL,
+    frequency TEXT NOT NULL CHECK (frequency IN ('daily', 'weekly', 'monthly')),
+    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    next_run_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_active BOOLEAN NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX idx_user_accounts_user_updated ON user_accounts (user_id, updated_at);
+CREATE INDEX idx_user_categories_user_updated ON user_categories (user_id, updated_at);
+CREATE INDEX idx_user_transactions_user_updated ON user_transactions (user_id, updated_at);
+CREATE INDEX idx_user_budgets_user_updated ON user_budgets (user_id, updated_at);
+CREATE INDEX idx_user_recurring_transactions_user_updated ON user_recurring_transactions (user_id, updated_at);
+
+-- RLS: service role only (same trust model and policy shape as
+-- backend/services/user-service/schema/login_history.sql) — never queried
+-- by anything holding just the anon/public key.
+ALTER TABLE user_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_budgets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_recurring_transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role can manage user_accounts" ON user_accounts
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage user_categories" ON user_categories
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage user_transactions" ON user_transactions
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage user_budgets" ON user_budgets
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage user_recurring_transactions" ON user_recurring_transactions
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Group expense splitting tables (Phase 5: Groups & Splitting).
+--
+-- Named splitting_groups / splitting_group_members, not groups /
+-- group_members, because those names are already taken above (line ~154)
+-- by an older, never-wired-up design with a different column set. See
+-- supabase/migrations/20261110040000_group_splitting_tables.sql for the
+-- full rationale. group_expenses and group_expense_shares don't collide
+-- with anything existing and keep the names used in the feature spec.
+-- Same trust model as the user_* tables above: only the service-role
+-- Cloud Function ever touches these rows.
+CREATE TABLE splitting_groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE splitting_group_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id UUID NOT NULL REFERENCES splitting_groups(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('owner','member')) DEFAULT 'member',
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    removed_at TIMESTAMPTZ,
+    UNIQUE (group_id, user_id)
+);
+
+CREATE TABLE group_expenses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id UUID NOT NULL REFERENCES splitting_groups(id) ON DELETE CASCADE,
+    paid_by INTEGER NOT NULL REFERENCES users(id),
+    amount INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    category TEXT,
+    date TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE group_expense_shares (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_expense_id UUID NOT NULL REFERENCES group_expenses(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    share_amount INTEGER NOT NULL,
+    is_settled BOOLEAN NOT NULL DEFAULT false,
+    settled_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_splitting_group_members_user ON splitting_group_members (user_id);
+CREATE INDEX idx_splitting_group_members_group ON splitting_group_members (group_id);
+CREATE INDEX idx_group_expenses_group ON group_expenses (group_id);
+CREATE INDEX idx_group_expense_shares_expense ON group_expense_shares (group_expense_id);
+CREATE INDEX idx_group_expense_shares_user ON group_expense_shares (user_id);
+
+ALTER TABLE splitting_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE splitting_group_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_expense_shares ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role can manage splitting_groups" ON splitting_groups
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage splitting_group_members" ON splitting_group_members
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage group_expenses" ON group_expenses
+    FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role can manage group_expense_shares" ON group_expense_shares
+    FOR ALL USING (auth.role() = 'service_role');
 CREATE INDEX idx_user_activity_entity ON user_activity_logs(entity_type, entity_id);

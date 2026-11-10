@@ -10,7 +10,10 @@ export function ModalFooter({
 }: ModalFooterProps) {
   return (
     <div className={cn(
-      "px-6 pt-4 pb-6 shrink-0 bg-background",
+      // On the mobile bottom sheet this sits flush against the screen
+      // edge (and the iOS home-indicator gesture area), so pad by the
+      // larger of a fixed amount or the device's safe-area inset.
+      "px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] shrink-0 bg-background",
       showBorder && "border-t",
       className
     )}>
