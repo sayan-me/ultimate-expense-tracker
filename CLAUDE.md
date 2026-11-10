@@ -38,17 +38,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### User Service Backend (Secondary Focus)
 **Location**: `backend/services/user-service/functions/`
-**Runtime**: Node.js 20 (required for Firebase CLI v14+ compatibility)
-**Note**: Must use Node.js 20 specifically for Firebase Functions, different from PWA requirements
+**Runtime**: Node.js 22 (Google decommissioned the Node.js 20 Cloud Functions runtime on 2026-10-30; this repo deployed on 20 until that date)
+**Note**: Must match the `engines.node` version in `functions/package.json` (currently 22) for Firebase Functions, different from PWA requirements
 
 **Development Commands**:
 - `cd backend/services/user-service/functions/`
 - `npm run serve` - Start local Firebase Functions emulator
 - `npm run build` - Build TypeScript functions
-- `npm run deploy` - Deploy to Firebase (requires proper Node.js 20 setup)
+- `npm run deploy` - Deploy to Firebase (requires proper Node.js 22 setup)
 
 **Deployment Requirements**:
-- Node.js 20 (use `nvm use 20`)
+- Node.js 22 (use `nvm use 22`)
 - Firebase CLI v14+
 - Environment variables: `export FUNCTIONS_DISCOVERY_TIMEOUT=60`
 - Current deployment: `https://us-central1-uet-stg.cloudfunctions.net/auth`
@@ -183,7 +183,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Handle sync conflicts gracefully
 
 ### User Service Backend Development
-**Environment Setup**: Always use Node.js 20 (`nvm use 20`) before working with Firebase Functions
+**Environment Setup**: Always use Node.js 22 (`nvm use 22`) before working with Firebase Functions
 
 **Configuration**: Set `export FUNCTIONS_DISCOVERY_TIMEOUT=60` before deployment
 
@@ -212,7 +212,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ❌ **Other Services**: Not yet implemented
 
 ### Firebase Functions Lessons Learned
-- **Node.js Version Compatibility**: Use Node.js 20 for Firebase CLI v14+
+- **Node.js Version Compatibility**: Use whatever Node.js runtime Google Cloud Functions currently supports (check `engines.node` in `functions/package.json` for what this repo is pinned to today — it has already had to move once, from 20 to 22, when Google decommissioned the Node.js 20 runtime on 2026-10-30) and Firebase CLI v14+
 - **Discovery Timeout**: Set `FUNCTIONS_DISCOVERY_TIMEOUT=60` for complex functions
 - **Lazy Initialization**: Initialize external services (Supabase) inside functions, not at module level
 - **Fresh Projects**: Use new Firebase projects to avoid legacy configuration issues
