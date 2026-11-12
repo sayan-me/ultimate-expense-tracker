@@ -20,6 +20,11 @@ function makeSupabaseMock() {
   const maybeSingleResult = { data: null as unknown, error: null as unknown };
   const upsertResult = { data: null as unknown, error: null as unknown };
   const selectManyResult = { data: [] as unknown[], error: null as unknown };
+  // FIFO for tests that need successive "many rows" resolutions to differ
+  // (e.g. pull's paginated .range() calls) — falls back to selectManyResult
+  // once (or if) the queue is empty, so existing single-page tests that
+  // only ever set selectManyResult.data once don't need to change.
+  const selectManyQueue: Array<{ data: unknown; error: unknown }> = [];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const builder: any = {};
@@ -32,13 +37,24 @@ function makeSupabaseMock() {
   builder.in = jest.fn(() => builder);
   builder.gt = jest.fn(() => builder);
   builder.order = jest.fn(() => builder);
+  builder.range = jest.fn(() => builder);
   builder.maybeSingle = jest.fn(() => Promise.resolve(maybeSingleResult));
   builder.upsert = jest.fn(() => Promise.resolve(upsertResult));
   // select(...) resolves the "many rows" query when awaited directly — used
   // both by the pull path and by push's bulk existing-rows lookup.
-  builder.then = (resolve: (v: unknown) => unknown) => Promise.resolve(selectManyResult).then(resolve);
+  builder.then = (resolve: (v: unknown) => unknown) => {
+    const next = selectManyQueue.length > 0 ? selectManyQueue.shift()! : selectManyResult;
+    return Promise.resolve(next).then(resolve);
+  };
 
-  return { builder, state, maybeSingleResult, upsertResult, selectManyResult };
+  return {
+    builder,
+    state,
+    maybeSingleResult,
+    upsertResult,
+    selectManyResult,
+    queueSelectMany: (result: { data: unknown; error: unknown }) => selectManyQueue.push(result),
+  };
 }
 
 function mockReq(overrides: Partial<Request> = {}): Request {
@@ -296,6 +312,66 @@ describe("sync endpoints", () => {
           },
         ],
       });
+    });
+
+    // Found live: the Supabase project's PostgREST max_rows is 1000
+    // (backend/db/supabase/config.toml), and this query had no .range()
+    // at all — a user with more than 1000 changed rows silently got only
+    // the oldest 1000 back, with no error and no indication anything was
+    // missing. Worse, the client then advances its own sync checkpoint
+    // past those returned rows, so the remaining rows — being older than
+    // the new checkpoint — are never fetched on any future incremental
+    // pull either. This pins down the fix: page through with .range()
+    // until a page comes back short, accumulating every row.
+    it("pages through .range() until a short page signals the end, accumulating every row", async () => {
+      supa.builder.maybeSingle = jest.fn(() => Promise.resolve({ data: { id: 7 }, error: null }));
+      const fullPage = Array.from({ length: 500 }, (_, i) => ({
+        sync_id: `b${i}`,
+        category: "Food",
+        amount: 100,
+        created_at: "2026-11-01T00:00:00.000Z",
+        updated_at: "2026-11-01T00:00:00.000Z",
+        deleted_at: null,
+      }));
+      const shortPage = [
+        {
+          sync_id: "b-last",
+          category: "Rent",
+          amount: 200,
+          created_at: "2026-11-02T00:00:00.000Z",
+          updated_at: "2026-11-02T00:00:00.000Z",
+          deleted_at: null,
+        },
+      ];
+      supa.queueSelectMany({ data: fullPage, error: null });
+      supa.queueSelectMany({ data: shortPage, error: null });
+
+      const req = mockReq({ method: "GET", query: { table: "budgets", since: "2026-01-01T00:00:00.000Z" } });
+      const res = mockRes();
+
+      await handleSyncPull(req, res);
+
+      // A full-size first page means there might be more — a second
+      // .range() call must happen. The short second page means it stops
+      // there (not a third, unbounded call).
+      expect((supa.builder.range as jest.Mock).mock.calls.length).toBe(2);
+      const body = res.jsonBody as { records: Array<{ syncId: string }> };
+      expect(body.records).toHaveLength(501);
+      expect(body.records.map((r) => r.syncId)).toContain("b-last");
+    });
+
+    it("does a single page when the first page already comes back short", async () => {
+      supa.builder.maybeSingle = jest.fn(() => Promise.resolve({ data: { id: 7 }, error: null }));
+      supa.selectManyResult.data = [
+        { sync_id: "b1", category: "Food", amount: 100, created_at: "2026-11-01T00:00:00.000Z", updated_at: "2026-11-01T00:00:00.000Z", deleted_at: null },
+      ];
+      const req = mockReq({ method: "GET", query: { table: "budgets", since: "2026-01-01T00:00:00.000Z" } });
+      const res = mockRes();
+
+      await handleSyncPull(req, res);
+
+      expect((supa.builder.range as jest.Mock).mock.calls.length).toBe(1);
+      expect((res.jsonBody as { records: unknown[] }).records).toHaveLength(1);
     });
   });
 });

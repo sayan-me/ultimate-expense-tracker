@@ -216,6 +216,18 @@ export async function handleSyncPush(req: Request, res: Response) {
   }
 }
 
+/**
+ * Page size for the pull query below. The Supabase project's PostgREST
+ * max_rows is 1000 (backend/db/supabase/config.toml) — querying without
+ * an explicit .range() silently truncated to that cap with no error and
+ * no indication anything was missing, and since the client advances its
+ * sync checkpoint past whatever it received, the rows beyond the cap
+ * became permanently unreachable (older than every future `since`).
+ * Keeping this page size well under max_rows and looping until a short
+ * page signals the end means a pull is correct for any row count.
+ */
+const PULL_PAGE_SIZE = 500;
+
 /** Pulls every change (including soft-deleted rows, as tombstones) since the given timestamp. */
 export async function handleSyncPull(req: Request, res: Response) {
   if (req.method !== "GET") {
@@ -238,16 +250,24 @@ export async function handleSyncPull(req: Request, res: Response) {
       return;
     }
 
-    const {data: rows, error} = await getSupabaseClient()
-      .from(tableConfig.pgTable)
-      .select("*")
-      .eq("user_id", userId)
-      .gt("updated_at", since)
-      .order("updated_at", {ascending: true});
+    const allRows: Record<string, unknown>[] = [];
+    for (let offset = 0; ; offset += PULL_PAGE_SIZE) {
+      const {data, error} = await getSupabaseClient()
+        .from(tableConfig.pgTable)
+        .select("*")
+        .eq("user_id", userId)
+        .gt("updated_at", since)
+        .order("updated_at", {ascending: true})
+        .range(offset, offset + PULL_PAGE_SIZE - 1);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const records = ((rows as Record<string, unknown>[]) ?? []).map((row) => fromRow(row, tableConfig.fields));
+      const page = (data as Record<string, unknown>[]) ?? [];
+      allRows.push(...page);
+      if (page.length < PULL_PAGE_SIZE) break;
+    }
+
+    const records = allRows.map((row) => fromRow(row, tableConfig.fields));
     res.json({records});
   } catch (error: unknown) {
     res.status(500).json({
