@@ -11,6 +11,10 @@ vi.mock('@/components/settings/data-management', () => ({
   DataManagement: () => <div data-testid="data-management-stub">Data Management Stub</div>,
 }))
 
+vi.mock('./components/currency-settings-card', () => ({
+  CurrencySettingsCard: () => <div data-testid="currency-settings-stub">Currency Settings Stub</div>,
+}))
+
 let mockSearchParams = new URLSearchParams()
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
@@ -51,6 +55,16 @@ describe('SettingsPage', () => {
     await user.click(screen.getByText('Notification Preferences'))
 
     expect(screen.getByText(/coming soon/i)).toBeInTheDocument()
+  })
+
+  it('renders the real Currency Settings card for the Display Settings section instead of "Coming soon..."', async () => {
+    const user = userEvent.setup()
+    render(<SettingsPage />)
+
+    await user.click(screen.getByText('Display Settings'))
+
+    expect(screen.getByTestId('currency-settings-stub')).toBeInTheDocument()
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument()
   })
 
   it('collapses the Data Management section on a second click', async () => {

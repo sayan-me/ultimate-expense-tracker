@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog"
 import { X } from "lucide-react"
 import { formatCents, dollarsToCents } from "@/lib/money"
+import { useCurrencySymbol } from "@/stores/preferences"
 import { computeAccountBalance } from "@/lib/account-balance"
 import { AccountSelector } from "@/components/expense/account-selector"
 import { useDB } from "@/contexts/db-context"
@@ -30,6 +31,7 @@ import type { Account } from "@/lib/db"
 const ACCOUNT_TYPES: Account["type"][] = ["cash", "bank", "credit", "savings"]
 
 function AddAccountForm({ onAdd }: { onAdd: (data: { name: string; type: Account["type"]; openingBalance: number }) => void }) {
+    const currencySymbol = useCurrencySymbol()
     const [name, setName] = useState("")
     const [type, setType] = useState<Account["type"]>("cash")
     const [openingBalance, setOpeningBalance] = useState("")
@@ -66,7 +68,7 @@ function AddAccountForm({ onAdd }: { onAdd: (data: { name: string; type: Account
             <div className="space-y-1">
                 <Label htmlFor="opening-balance">Opening balance</Label>
                 <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{currencySymbol}</span>
                     <Input
                         id="opening-balance"
                         type="number"
@@ -94,6 +96,7 @@ function TransferForm({
     transactions: ReturnType<typeof useDB>["transactions"]["transactions"]
     onTransfer: (data: { fromAccountId: number; toAccountId: number; amount: number; description: string }) => void
 }) {
+    const currencySymbol = useCurrencySymbol()
     const [fromAccountId, setFromAccountId] = useState<number | undefined>(undefined)
     const [toAccountId, setToAccountId] = useState<number | undefined>(undefined)
     const [amount, setAmount] = useState("")
@@ -160,7 +163,7 @@ function TransferForm({
             <div className="space-y-1">
                 <Label htmlFor="transfer-amount">Transfer amount</Label>
                 <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{currencySymbol}</span>
                     <Input
                         id="transfer-amount"
                         type="number"

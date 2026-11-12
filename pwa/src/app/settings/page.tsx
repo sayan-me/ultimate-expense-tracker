@@ -7,6 +7,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { DataManagement } from "@/components/settings/data-management"
+import { CurrencySettingsCard } from "./components/currency-settings-card"
 
 export default function SettingsPage() {
   const searchParams = useSearchParams()
@@ -81,6 +82,8 @@ export default function SettingsPage() {
                 <CardContent>
                   {section.id === "data" ? (
                     <DataManagement />
+                  ) : section.id === "display" ? (
+                    <CurrencySettingsCard />
                   ) : (
                     <p className="text-muted-foreground">Coming soon...</p>
                   )}

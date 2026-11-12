@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatCents, dollarsToCents } from "@/lib/money"
+import { useCurrencySymbol } from "@/stores/preferences"
 import { computeSpend, budgetStatus } from "@/lib/budget"
 import { useDB } from "@/contexts/db-context"
 
@@ -55,6 +56,7 @@ function BudgetEditor({
   onSave: (dollars: number) => void
   onClear: () => void
 }) {
+  const currencySymbol = useCurrencySymbol()
   const [value, setValue] = useState(currentAmount !== undefined ? String(currentAmount / 100) : "")
 
   const handleSave = () => {
@@ -68,7 +70,7 @@ function BudgetEditor({
       <div className="flex-1 space-y-1">
         <Label htmlFor={`budget-${label}`}>{inputLabel}</Label>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{currencySymbol}</span>
           <Input
             id={`budget-${label}`}
             type="number"
