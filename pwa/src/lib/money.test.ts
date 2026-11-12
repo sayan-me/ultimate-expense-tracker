@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { dollarsToCents, centsToDollars, formatCents } from './money'
+import { usePreferencesStore } from '@/stores/preferences'
 
 // All monetary values are stored as integer cents (Dexie/Transaction.amount,
 // Account.openingBalance) to avoid floating-point drift from repeated
@@ -62,6 +63,14 @@ describe('centsToDollars', () => {
 })
 
 describe('formatCents', () => {
+  beforeEach(() => {
+    // formatCents() reads the active currency from the preferences store
+    // directly (not via the hook) since it's a plain utility used outside
+    // React too. Reset to the default between tests so currency changes
+    // made by one test don't leak into the next.
+    usePreferencesStore.setState({ currency: 'USD' })
+  })
+
   it('formats a positive amount as currency', () => {
     expect(formatCents(4250)).toBe('$42.50')
   })
@@ -84,5 +93,20 @@ describe('formatCents', () => {
 
   it('never shows more than 2 decimal places even for an odd cent value', () => {
     expect(formatCents(1)).toBe('$0.01')
+  })
+
+  it('formats using the active currency from the preferences store', () => {
+    usePreferencesStore.getState().setCurrency('INR')
+    expect(formatCents(4250)).toBe('₹42.50')
+  })
+
+  it('re-renders the same stored cents value with the new symbol after switching currency back and forth', () => {
+    expect(formatCents(10000)).toBe('$100.00')
+
+    usePreferencesStore.getState().setCurrency('EUR')
+    expect(formatCents(10000)).toBe('€100.00')
+
+    usePreferencesStore.getState().setCurrency('USD')
+    expect(formatCents(10000)).toBe('$100.00')
   })
 })

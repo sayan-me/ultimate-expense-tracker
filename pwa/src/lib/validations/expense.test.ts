@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { expenseSchema } from './expense'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { expenseSchema, formatAmount } from './expense'
+import { usePreferencesStore } from '@/stores/preferences'
 
 function validRecord(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -48,5 +49,25 @@ describe('expenseSchema date field', () => {
     today.setHours(23, 59, 59, 999)
     const result = expenseSchema.safeParse(validRecord({ date: today }))
     expect(result.success).toBe(true)
+  })
+})
+
+describe('formatAmount', () => {
+  beforeEach(() => {
+    // Like formatCents() in lib/money.ts, formatAmount() reads the active
+    // currency from the preferences store directly rather than via the
+    // hook, since it's a plain utility used in a non-component (Zod
+    // validation) context. Reset between tests so one test's currency
+    // change doesn't leak into the next.
+    usePreferencesStore.setState({ currency: 'USD' })
+  })
+
+  it('formats a dollar amount as USD currency by default', () => {
+    expect(formatAmount(1000000)).toBe('$1,000,000.00')
+  })
+
+  it('formats using the active currency from the preferences store', () => {
+    usePreferencesStore.getState().setCurrency('INR')
+    expect(formatAmount(1000000)).toBe('₹1,000,000.00')
   })
 })

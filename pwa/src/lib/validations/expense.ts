@@ -1,4 +1,6 @@
 import { z } from "zod"
+import { usePreferencesStore } from "@/stores/preferences"
+import { getCurrencyFormatter } from "@/lib/money"
 
 /**
  * Validation schema for expense/income transactions
@@ -116,13 +118,13 @@ export const parseAmountString = (amountStr: string): number => {
 }
 
 /**
- * Format amount for display
+ * Format amount for display, using the active currency from the
+ * preferences store (read directly via `.getState()`, not the hook, since
+ * this is a plain utility called from Zod validation, not a component).
+ * See formatCents() in lib/money.ts, which shares this currency-formatting
+ * approach and its Intl.NumberFormat cache.
  */
 export const formatAmount = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(amount)
+  const { currency } = usePreferencesStore.getState()
+  return getCurrencyFormatter(currency).format(amount)
 }
