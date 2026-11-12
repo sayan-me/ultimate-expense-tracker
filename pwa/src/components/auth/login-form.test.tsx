@@ -41,6 +41,45 @@ describe('LoginForm', () => {
     expect(password).toHaveAttribute('type', 'password')
   })
 
+  it('masks the confirm-password field by default and reveals it via its own independent toggle', async () => {
+    const user = userEvent.setup()
+    render(<LoginForm />)
+    await user.click(screen.getByRole('button', { name: /don't have an account/i }))
+
+    const confirmPassword = screen.getByLabelText(/confirm password/i)
+    expect(confirmPassword).toHaveAttribute('type', 'password')
+
+    await user.click(screen.getByRole('button', { name: /show confirmation password/i }))
+    expect(confirmPassword).toHaveAttribute('type', 'text')
+
+    await user.click(screen.getByRole('button', { name: /hide confirmation password/i }))
+    expect(confirmPassword).toHaveAttribute('type', 'password')
+  })
+
+  it('toggles password and confirm-password visibility independently of each other', async () => {
+    const user = userEvent.setup()
+    render(<LoginForm />)
+    await user.click(screen.getByRole('button', { name: /don't have an account/i }))
+
+    const password = screen.getByLabelText(/^password$/i)
+    const confirmPassword = screen.getByLabelText(/confirm password/i)
+
+    // Revealing the password field must not affect confirm-password's masking
+    await user.click(screen.getByRole('button', { name: /show password/i }))
+    expect(password).toHaveAttribute('type', 'text')
+    expect(confirmPassword).toHaveAttribute('type', 'password')
+
+    // Revealing confirm-password must not affect password's (already revealed) state
+    await user.click(screen.getByRole('button', { name: /show confirmation password/i }))
+    expect(password).toHaveAttribute('type', 'text')
+    expect(confirmPassword).toHaveAttribute('type', 'text')
+
+    // Hiding password again must not affect confirm-password's (still revealed) state
+    await user.click(screen.getByRole('button', { name: /hide password/i }))
+    expect(password).toHaveAttribute('type', 'password')
+    expect(confirmPassword).toHaveAttribute('type', 'text')
+  })
+
   it('does not show a confirm-password field in sign-in mode', () => {
     render(<LoginForm />)
     expect(screen.queryByLabelText(/confirm password/i)).not.toBeInTheDocument()
