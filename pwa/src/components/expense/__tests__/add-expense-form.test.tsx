@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AddExpenseForm } from '../add-expense-form'
 import { renderWithProviders, getDateInput } from '@/tests/test-utils'
+import { usePreferencesStore } from '@/stores/preferences'
 
 // Mock the useDB hook with comprehensive test data
 const mockAccounts = {
@@ -71,6 +72,10 @@ describe('AddExpenseForm - Original UX Issues', () => {
     vi.clearAllMocks()
   })
 
+  afterEach(() => {
+    usePreferencesStore.setState({ currency: 'USD' })
+  })
+
   describe('Amount Field Issues (Original Bug)', () => {
     it('starts with empty amount field, not pre-filled with 0', () => {
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
@@ -82,8 +87,22 @@ describe('AddExpenseForm - Original UX Issues', () => {
 
     it('has proper placeholder text in amount field', () => {
       renderWithProviders(<AddExpenseForm {...defaultProps} />)
-      
+
       expect(screen.getByPlaceholderText('Enter amount...')).toBeInTheDocument()
+    })
+
+    it('shows the active currency symbol as the amount field decorator (defaults to $)', () => {
+      renderWithProviders(<AddExpenseForm {...defaultProps} />)
+
+      expect(screen.getByText('$')).toBeInTheDocument()
+    })
+
+    it('shows the newly selected currency symbol instead of $ when the preference changes', () => {
+      usePreferencesStore.getState().setCurrency('INR')
+      renderWithProviders(<AddExpenseForm {...defaultProps} />)
+
+      expect(screen.getByText('₹')).toBeInTheDocument()
+      expect(screen.queryByText('$')).not.toBeInTheDocument()
     })
 
     it('cursor positioning works correctly in amount field', async () => {

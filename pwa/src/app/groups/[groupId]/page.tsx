@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { X } from "lucide-react"
 import { formatCents, dollarsToCents } from "@/lib/money"
+import { useCurrencySymbol } from "@/stores/preferences"
 import { useAuth } from "@/contexts/auth-context"
 import { useGroup, useGroupExpenses, useGroupBalances } from "@/hooks/use-groups"
 import type { GroupMember } from "@/lib/groups-api"
@@ -53,6 +54,7 @@ function AddExpenseForm({
 }: {
     onAdd: (data: { description: string; amount: number; category?: string; date: string }) => void
 }) {
+    const currencySymbol = useCurrencySymbol()
     const [description, setDescription] = useState("")
     const [amount, setAmount] = useState("")
     const [category, setCategory] = useState("")
@@ -87,7 +89,7 @@ function AddExpenseForm({
             <div className="space-y-1">
                 <Label htmlFor="expense-amount">Amount</Label>
                 <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{currencySymbol}</span>
                     <Input
                         id="expense-amount"
                         type="number"

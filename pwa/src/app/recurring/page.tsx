@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import { Pause, Play, X } from "lucide-react"
 import { formatCents, dollarsToCents } from "@/lib/money"
+import { useCurrencySymbol } from "@/stores/preferences"
 import { useDB } from "@/contexts/db-context"
 import type { RecurringTransaction } from "@/lib/db"
 
@@ -27,6 +28,7 @@ function AddRecurringForm({
     defaultAccountId: number | undefined
     onAdd: (data: Omit<RecurringTransaction, "id" | "createdAt" | "updatedAt">) => void
 }) {
+    const currencySymbol = useCurrencySymbol()
     const [type, setType] = useState<"expense" | "income">("expense")
     const [category, setCategory] = useState("")
     const [description, setDescription] = useState("")
@@ -105,7 +107,7 @@ function AddRecurringForm({
             <div className="space-y-1">
                 <Label htmlFor="recurring-amount">Amount</Label>
                 <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{currencySymbol}</span>
                     <Input
                         id="recurring-amount"
                         type="number"

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { formatCents, dollarsToCents } from "@/lib/money"
+import { useCurrencySymbol } from "@/stores/preferences"
 import { computeAccountBalance } from "@/lib/account-balance"
 import { useDB } from "@/contexts/db-context"
 import type { Account } from "@/lib/db"
@@ -17,6 +18,7 @@ function isGoalAccount(account: Account): account is Account & { targetAmount: n
 }
 
 function AddGoalForm({ onAdd }: { onAdd: (data: { name: string; targetAmount: number }) => void }) {
+    const currencySymbol = useCurrencySymbol()
     const [name, setName] = useState("")
     const [targetAmount, setTargetAmount] = useState("")
 
@@ -37,7 +39,7 @@ function AddGoalForm({ onAdd }: { onAdd: (data: { name: string; targetAmount: nu
             <div className="space-y-1">
                 <Label htmlFor="goal-target">Target amount</Label>
                 <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{currencySymbol}</span>
                     <Input
                         id="goal-target"
                         type="number"

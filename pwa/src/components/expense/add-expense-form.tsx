@@ -28,6 +28,7 @@ import {
 import { useDB } from "@/contexts/db-context"
 import { expenseSchema, type ExpenseFormData } from "@/lib/validations/expense"
 import { dollarsToCents, centsToDollars } from "@/lib/money"
+import { useCurrencySymbol } from "@/stores/preferences"
 import type { Transaction } from "@/lib/db"
 import { CategorySelector } from "./category-selector"
 import { AccountSelector } from "./account-selector"
@@ -63,6 +64,7 @@ export function AddExpenseForm({
     transaction,
 }: AddExpenseFormProps) {
     const { transactions, accounts } = useDB()
+    const currencySymbol = useCurrencySymbol()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
@@ -192,7 +194,7 @@ export function AddExpenseForm({
                                         <FormControl>
                                             <div className="relative">
                                                 <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
-                                                    $
+                                                    {currencySymbol}
                                                 </span>
                                                 <Input
                                                     type="number"
