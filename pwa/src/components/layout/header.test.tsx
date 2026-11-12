@@ -41,4 +41,16 @@ describe('Header Component', () => {
     expect(screen.getByRole('button', { name: /toggle theme/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /open user menu/i })).toBeInTheDocument()
   })
+
+  it('does not rely on a fixed height for the content row, so wrapped greeting text is not clipped', () => {
+    const { container } = renderWithProviders(<Header />)
+    const header = container.querySelector('header')
+    const contentRow = header?.firstElementChild
+    expect(contentRow).toBeTruthy()
+    const classList = contentRow?.className.split(/\s+/) ?? []
+    // A fixed h-14 height would clip a greeting that wraps to two lines on
+    // narrow viewports. Growing with min-h-14 instead lets the row expand.
+    expect(classList).not.toContain('h-14')
+    expect(classList).toContain('min-h-14')
+  })
 }) 
