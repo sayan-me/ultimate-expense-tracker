@@ -45,6 +45,7 @@ describe('ActivitiesBar', () => {
     expandBar()
     expect(screen.getByText('Log Transactions')).toBeInTheDocument()
     expect(screen.getByText('View Stats')).toBeInTheDocument()
+    expect(screen.getByText('View Transactions')).toBeInTheDocument()
     expect(screen.queryByText('Log Group Transactions')).not.toBeInTheDocument()
   })
 
