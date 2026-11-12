@@ -173,6 +173,40 @@ describe('useOfflineSyncStore', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  // Reported in live multi-device use: pushing ~3,500 real transactions in
+  // one request hung indefinitely server-side and eventually errored out.
+  // The backend fix (see sync.ts) now handles an arbitrarily large payload
+  // efficiently either way, but splitting the push into multiple
+  // reasonably-sized requests client-side adds a second layer of safety
+  // (bounded payload size, a failure only loses one batch) rather than
+  // depending entirely on the backend to cope with one unbounded request.
+  it('splits a large push into multiple requests instead of one unbounded request', async () => {
+    const rows = Array.from({ length: 251 }, (_, i) => ({
+      syncId: `bud-${i}`,
+      category: `Category ${i}`,
+      amount: 1000,
+      createdAt: new Date('2026-11-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-11-01T00:00:00.000Z'),
+    }))
+    await db.budgets.bulkAdd(rows)
+
+    const { useOfflineSyncStore } = await import('./offline-sync')
+    await useOfflineSyncStore.getState().syncNow()
+
+    const pushCalls = fetchMock.mock.calls.filter(([url]: [string]) => url.includes('/sync/push'))
+    const budgetPushCalls = pushCalls.filter(([, options]: [string, RequestInit]) => {
+      const body = JSON.parse(options.body as string) as { table: string }
+      return body.table === 'budgets'
+    })
+
+    expect(budgetPushCalls.length).toBeGreaterThanOrEqual(2)
+    const totalRecordsSent = budgetPushCalls.reduce((sum: number, [, options]: [string, RequestInit]) => {
+      const body = JSON.parse(options.body as string) as { records: unknown[] }
+      return sum + body.records.length
+    }, 0)
+    expect(totalRecordsSent).toBe(251)
+  })
+
   it('sends the id token as a bearer header', async () => {
     const { useOfflineSyncStore } = await import('./offline-sync')
     await useOfflineSyncStore.getState().syncNow()

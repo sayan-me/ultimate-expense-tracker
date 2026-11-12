@@ -20,6 +20,20 @@ interface OfflineSyncState {
 // need the account's local row to already exist to resolve it.
 const SYNCED_TABLES: SyncTableName[] = ["accounts", "categories", "budgets", "transactions", "recurringTransactions"]
 
+// A push is split into requests of at most this many records — a bulk
+// import can produce thousands of changed rows in one sync pass, and one
+// unbounded request risks an oversized payload and loses everything on a
+// single failure. The backend (sync.ts) also chunks its own DB calls
+// internally regardless of how many records arrive in one request; this
+// is a second, independent layer of safety on the client side.
+const PUSH_BATCH_SIZE = 250
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size))
+  return chunks
+}
+
 async function pullTable(table: SyncTableName, since: Date | null, token: string, accountIdBySyncId: Map<string, number>) {
   const url = `${env.api.userServiceUrl}/sync/pull?table=${table}&since=${(since ?? new Date(0)).toISOString()}`
   const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
@@ -55,12 +69,14 @@ async function pushTable(table: SyncTableName, since: Date | null, token: string
 
   if (records.length === 0) return
 
-  const response = await fetch(`${env.api.userServiceUrl}/sync/push`, {
-    method: "POST",
-    headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
-    body: JSON.stringify({table, records}),
-  })
-  if (!response.ok) throw new Error(`Push failed for ${table}`)
+  for (const batch of chunk(records, PUSH_BATCH_SIZE)) {
+    const response = await fetch(`${env.api.userServiceUrl}/sync/push`, {
+      method: "POST",
+      headers: {Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
+      body: JSON.stringify({table, records: batch}),
+    })
+    if (!response.ok) throw new Error(`Push failed for ${table}`)
+  }
 }
 
 export const useOfflineSyncStore = create<OfflineSyncState>()((set, get) => ({
