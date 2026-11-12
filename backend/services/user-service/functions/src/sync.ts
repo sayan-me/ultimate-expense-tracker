@@ -116,12 +116,36 @@ export async function getAuthenticatedUserId(req: Request): Promise<number | nul
 }
 
 /**
+ * Supabase/PostgREST chunk size for both the bulk existence check and the
+ * bulk upsert below — keeps each request's `IN (...)` clause and payload
+ * bounded regardless of how many records a client pushes in one call.
+ */
+const PUSH_CHUNK_SIZE = 500;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
+/**
  * Pushes local changes up. Last-write-wins: a record is only applied if no
  * row exists yet for its syncId, or the incoming updatedAt is strictly
- * newer than what's stored. This is a read-then-write (not a single atomic
- * SQL statement), so there's a narrow race window between two concurrent
- * syncs for the same user/record — acceptable for a single-user app where
- * the loser of that race is retried, lossless, on the next sync pass.
+ * newer than what's stored.
+ *
+ * Bulk, not per-record: the original implementation did one SELECT + one
+ * conditional UPSERT per record, sequentially — fine for a handful of
+ * rows, but ~7,000 sequential round trips for a ~3,500-row push (a real
+ * bulk-import scenario), which hung well past any request timeout and
+ * never completed. This instead does one bulk `SELECT ... WHERE sync_id
+ * IN (...)` to learn what already exists, then one bulk `UPSERT` of
+ * whatever needs writing — each chunked at PUSH_CHUNK_SIZE so an
+ * arbitrarily large push still only takes a small, bounded number of
+ * round trips (chunks, not records). This is still a read-then-write
+ * (not a single atomic SQL statement), so there's a narrow race window
+ * between two concurrent syncs for the same user/record — acceptable for
+ * a single-user app where the loser of that race is retried, lossless,
+ * on the next sync pass.
  */
 export async function handleSyncPush(req: Request, res: Response) {
   if (req.method !== "POST") {
@@ -143,31 +167,44 @@ export async function handleSyncPush(req: Request, res: Response) {
       return;
     }
 
-    let pushed = 0;
-    let skipped = 0;
+    const allRecords = records ?? [];
+    if (allRecords.length === 0) {
+      res.json({pushed: 0, skipped: 0});
+      return;
+    }
 
-    for (const record of records ?? []) {
-      const {data: existing, error: existingError} = await getSupabaseClient()
+    const existingUpdatedAtBySyncId = new Map<string, string>();
+    for (const idsChunk of chunk(allRecords.map((r) => r.syncId), PUSH_CHUNK_SIZE)) {
+      const {data, error} = await getSupabaseClient()
         .from(tableConfig.pgTable)
-        .select("updated_at")
-        .eq("sync_id", record.syncId)
-        .maybeSingle();
+        .select("sync_id, updated_at")
+        .in("sync_id", idsChunk);
 
-      if (existingError) throw existingError;
+      if (error) throw error;
+      for (const row of (data as Array<{sync_id: string; updated_at: string}>) ?? []) {
+        existingUpdatedAtBySyncId.set(row.sync_id, row.updated_at);
+      }
+    }
 
-      const existingUpdatedAt = (existing as {updated_at?: string} | null)?.updated_at;
+    let skipped = 0;
+    const rowsToUpsert: Record<string, unknown>[] = [];
+    for (const record of allRecords) {
+      const existingUpdatedAt = existingUpdatedAtBySyncId.get(record.syncId);
       if (existingUpdatedAt && new Date(existingUpdatedAt) >= new Date(record.updatedAt)) {
         skipped += 1;
         continue;
       }
+      rowsToUpsert.push(toRow(record, userId, tableConfig.fields));
+    }
 
-      const row = toRow(record, userId, tableConfig.fields);
-      const {error: upsertError} = await getSupabaseClient()
+    let pushed = 0;
+    for (const rowsChunk of chunk(rowsToUpsert, PUSH_CHUNK_SIZE)) {
+      const {error} = await getSupabaseClient()
         .from(tableConfig.pgTable)
-        .upsert(row, {onConflict: "sync_id"});
+        .upsert(rowsChunk, {onConflict: "sync_id"});
 
-      if (upsertError) throw upsertError;
-      pushed += 1;
+      if (error) throw error;
+      pushed += rowsChunk.length;
     }
 
     res.json({pushed, skipped});

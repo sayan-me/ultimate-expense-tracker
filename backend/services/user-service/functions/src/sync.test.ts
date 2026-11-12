@@ -29,11 +29,13 @@ function makeSupabaseMock() {
   });
   builder.select = jest.fn(() => builder);
   builder.eq = jest.fn(() => builder);
+  builder.in = jest.fn(() => builder);
   builder.gt = jest.fn(() => builder);
   builder.order = jest.fn(() => builder);
   builder.maybeSingle = jest.fn(() => Promise.resolve(maybeSingleResult));
   builder.upsert = jest.fn(() => Promise.resolve(upsertResult));
-  // select(...) resolves the "many rows" query when awaited directly (pull path)
+  // select(...) resolves the "many rows" query when awaited directly — used
+  // both by the pull path and by push's bulk existing-rows lookup.
   builder.then = (resolve: (v: unknown) => unknown) => Promise.resolve(selectManyResult).then(resolve);
 
   return { builder, state, maybeSingleResult, upsertResult, selectManyResult };
@@ -113,12 +115,8 @@ describe("sync endpoints", () => {
     });
 
     it("applies a record when no existing row exists yet", async () => {
-      let call = 0;
-      supa.builder.maybeSingle = jest.fn(() => {
-        call += 1;
-        // First maybeSingle() is the users lookup, second is the existing-row lookup.
-        return Promise.resolve(call === 1 ? { data: { id: 7 }, error: null } : { data: null, error: null });
-      });
+      supa.maybeSingleResult.data = { id: 7 }; // users lookup
+      supa.selectManyResult.data = []; // bulk existing-rows lookup: nothing found
       const req = mockReq({
         body: {
           table: "budgets",
@@ -134,15 +132,8 @@ describe("sync endpoints", () => {
     });
 
     it("applies a record whose updatedAt is newer than the stored row", async () => {
-      let call = 0;
-      supa.builder.maybeSingle = jest.fn(() => {
-        call += 1;
-        return Promise.resolve(
-          call === 1
-            ? { data: { id: 7 }, error: null }
-            : { data: { updated_at: "2026-11-01T00:00:00.000Z" }, error: null }
-        );
-      });
+      supa.maybeSingleResult.data = { id: 7 };
+      supa.selectManyResult.data = [{ sync_id: "b1", updated_at: "2026-11-01T00:00:00.000Z" }];
       const req = mockReq({
         body: {
           table: "budgets",
@@ -158,15 +149,8 @@ describe("sync endpoints", () => {
     });
 
     it("skips (does not upsert) a record whose updatedAt is not newer than the stored row", async () => {
-      let call = 0;
-      supa.builder.maybeSingle = jest.fn(() => {
-        call += 1;
-        return Promise.resolve(
-          call === 1
-            ? { data: { id: 7 }, error: null }
-            : { data: { updated_at: "2026-11-05T00:00:00.000Z" }, error: null }
-        );
-      });
+      supa.maybeSingleResult.data = { id: 7 };
+      supa.selectManyResult.data = [{ sync_id: "b1", updated_at: "2026-11-05T00:00:00.000Z" }];
       const req = mockReq({
         body: {
           table: "budgets",
@@ -179,6 +163,73 @@ describe("sync endpoints", () => {
 
       expect(supa.builder.upsert).not.toHaveBeenCalled();
       expect(res.jsonBody).toMatchObject({ pushed: 0, skipped: 1 });
+    });
+
+    it("does nothing (no bulk lookup, no upsert) when records is empty", async () => {
+      supa.maybeSingleResult.data = { id: 7 };
+      const req = mockReq({ body: { table: "budgets", records: [] } });
+      const res = mockRes();
+
+      await handleSyncPush(req, res);
+
+      expect(supa.builder.in).not.toHaveBeenCalled();
+      expect(supa.builder.upsert).not.toHaveBeenCalled();
+      expect(res.jsonBody).toMatchObject({ pushed: 0, skipped: 0 });
+    });
+
+    // Reported in live multi-device use: pushing ~3,500 real transactions
+    // hung indefinitely and eventually errored out, because the original
+    // implementation did one SELECT + one conditional UPSERT per record,
+    // sequentially, inside a single request — ~7,000 round trips for that
+    // push. These two tests pin down the fix: existence checks and writes
+    // happen as bulk calls, not one call per record.
+    it("checks existing rows and writes new ones as single bulk calls, not one call per record", async () => {
+      supa.maybeSingleResult.data = { id: 7 };
+      supa.selectManyResult.data = []; // none of these three exist yet
+      const req = mockReq({
+        body: {
+          table: "budgets",
+          records: [
+            { syncId: "b1", category: "Food", amount: 1000, updatedAt: "2026-11-01T00:00:00.000Z" },
+            { syncId: "b2", category: "Transport", amount: 2000, updatedAt: "2026-11-01T00:00:00.000Z" },
+            { syncId: "b3", category: "Rent", amount: 3000, updatedAt: "2026-11-01T00:00:00.000Z" },
+          ],
+        },
+      });
+      const res = mockRes();
+
+      await handleSyncPush(req, res);
+
+      // One bulk existence check covering all three syncIds...
+      expect(supa.builder.in).toHaveBeenCalledTimes(1);
+      expect(supa.builder.in).toHaveBeenCalledWith("sync_id", ["b1", "b2", "b3"]);
+      // ...and one bulk upsert of all three rows, not three separate calls.
+      expect(supa.builder.upsert).toHaveBeenCalledTimes(1);
+      const upsertedRows = (supa.builder.upsert as jest.Mock).mock.calls[0][0] as unknown[];
+      expect(upsertedRows).toHaveLength(3);
+      expect(res.jsonBody).toMatchObject({ pushed: 3, skipped: 0 });
+    });
+
+    it("splits a very large batch into multiple chunked bulk calls instead of one unbounded call", async () => {
+      supa.maybeSingleResult.data = { id: 7 };
+      supa.selectManyResult.data = [];
+      const records = Array.from({ length: 501 }, (_, i) => ({
+        syncId: `b${i}`,
+        category: "Food",
+        amount: 100,
+        updatedAt: "2026-11-01T00:00:00.000Z",
+      }));
+      const req = mockReq({ body: { table: "budgets", records } });
+      const res = mockRes();
+
+      await handleSyncPush(req, res);
+
+      // 501 records in chunks of (at most) 500 must take at least 2 calls
+      // of each kind — proves chunking actually happens, not just that a
+      // single giant array is handed to Supabase in one call regardless.
+      expect((supa.builder.in as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect((supa.builder.upsert as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(res.jsonBody).toMatchObject({ pushed: 501, skipped: 0 });
     });
   });
 
