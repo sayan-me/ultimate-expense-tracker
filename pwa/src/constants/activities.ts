@@ -1,8 +1,8 @@
-import { 
+import {
   Receipt, BarChart3, Bell, Wallet, FileText,
   PiggyBank, Award, Target, Clock, Tags, FileUp, FileDown,
   Users, Settings, SplitSquareHorizontal, Activity,
-  History
+  History, ListOrdered
 } from "lucide-react"
 import { LucideIcon } from "lucide-react"
 
@@ -55,6 +55,13 @@ export const PERSONAL_ACTIVITIES: ActivityItem[] = [
     label: "Manage Goals",
     onClick: () => {
       window.location.href = "/goals"
+    },
+  },
+  {
+    icon: ListOrdered,
+    label: "View Transactions",
+    onClick: () => {
+      window.location.href = "/history"
     },
   },
   {
